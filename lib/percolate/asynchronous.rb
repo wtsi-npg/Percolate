@@ -1,0 +1,176 @@
+#--
+#
+# Copyright (C) 2010 Genome Research Ltd. All rights reserved.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+module Percolate
+  module Asynchronous
+    LSF_QUEUES = [:yesterday, :normal, :long, :basement]
+
+    def lsf name, uid, command, log, config = {:queue     => :normal,
+                                               :memory    => 1900,
+                                               :depend    => nil,
+                                               :resources => nil,
+                                               :size      => 1}
+      queue, mem, dep, res, size = config[:queue], config[:memory], '', '',
+              config[:size]
+
+      unless LSF_QUEUES.member? queue
+        raise ArgumentError, "config[:queue] must be one of #{LSF_QUEUES}"
+      end
+      unless mem.is_a? Fixnum and mem > 0
+        raise ArgumentError, "config[:memory] must be a positive Fixnum"
+      end
+      unless size.is_a? Fixnum and size > 0
+        raise ArgumentError, "size must be a positive Fixnum"
+      end
+
+      if config[:resources]
+        res = " && #{config[:resources]}"
+      end
+      if config[:depend]
+        dep = " -w #{config[:depend]}"
+      end
+
+      jobname = "#{name}.#{uid}"
+      if size > 1
+        jobname << "[1-#{size}]"
+      end
+
+      "bsub -J'#{jobname}' -q #{queue} -R 'select[mem>#{mem}#{res}] " +
+              "rusage[mem=#{mem}]'#{dep} -M #{mem * 1000} " +
+              "-oo #{log} #{command}"
+    end
+
+    # Run or update a memoized batch command having pre- and
+    # post-conditions.
+    def lsf_task fname, args, command, env, procs = {}
+      having, confirm, yielding = ensure_procs procs
+      memos = Percolate::System.get_async_memos fname
+      started, result = memos[args]
+
+      $log.debug "Entering task #{fname}, started? #{started or 'false'}, " +
+              "result? #{result.nil? ? 'nil' : result}"
+
+      if started # LSF job was started
+        $log.debug "#{fname} LSF job '#{command}' is already started"
+        if ! result.nil?
+          $log.debug "Returning memoized #{fname} result: #{result}"
+          result
+        elsif confirm.call(*args.take(confirm.arity.abs))
+          result = yielding.call(*args.take(yielding.arity.abs))
+          memos[args] = [true, result]
+          $log.debug "Postconditions for #{fname} satsified; returning #{result}"
+          result
+        else
+          $log.debug "Postconditions for #{fname} not satsified; returning nil"
+          nil
+        end
+      else # Can we start the LSF job?
+        if ! having.call(*args.take(having.arity.abs))
+          $log.debug "Preconditions for #{fname} not satisfied, returning nil"
+          nil
+        else
+          $log.debug "Preconditions for #{fname} are satisfied; " +
+                  "running '#{command}' with env #{env}"
+
+          # Jump through hoops because bsub insists on polluting our stdout
+          sysval = nil
+          str = ''
+          rd, wr = IO.pipe
+
+          begin
+            stdout_orig = STDOUT.dup
+            STDOUT.reopen wr
+            sysval = system(env, command)
+          ensure
+            STDOUT.flush
+            STDOUT.reopen stdout_orig
+            wr.close
+            rd.readlines.each {|s| str << s}
+            rd.close
+          end
+
+          $log.info "bsub reported #{str} for #{fname}"
+
+          case sysval
+            when NilClass
+              raise PercolateTaskError, "Unexpected error executing #{fname} '#{command}'"
+            when FalseClass
+              raise PercolateTaskError, "Non-zero exit #{$?} from #{fname} '#{command}'"
+            else
+              memos[args] = [true, nil]
+              $log.debug "#{fname} LSF job '#{command}' is running, meanwhile returning nil"
+              nil
+          end
+        end
+      end
+    end
+
+    def lsf_run_success? log_file
+      read_lsf_log(log_file).first
+    end
+
+    def read_lsf_log file
+      def select_state line, current_state
+        case line
+          when NilClass
+            current_state
+          when /^Your job looked like:/
+            :in_lsf_section
+          when /^The output (if any) is above this job summary."/
+            :after_lsf_section
+          else
+            current_state
+        end
+      end
+
+      state = :before_lsf_section
+      run_success = nil
+      exit_code = nil
+
+      if File.exists? file
+        $log.debug "Reading LSF log #{file}"
+
+        open(file).each do |line|
+          state = select_state line, state
+          case state
+            when :before_lsf_section, :after_lsf_section
+              nil
+            when :in_lsf_section
+              case line
+                when /^Successfully completed./
+                  $log.debug "Job successfully completed in LSF log #{file}"
+                  run_success = true
+                  exit_code = 0
+                when /^Exited with exit code (\d+)\./
+                  $log.debug "Job exited with code #{$1.to_i} in LSF log #{file}"
+                  run_success = false
+                  exit_code = $1.to_i
+                when /^Exited with signal termination/
+                  $log.debug "Job terminated with signal in LSF log #{file}"
+                  run_success = false
+              end
+          end
+        end
+      else
+        $log.debug "LSF log #{file} not created yet"
+      end
+
+      [run_success, exit_code]
+    end
+  end
+end

@@ -1,0 +1,57 @@
+cl-hts.sh base-quality-plot --sample-name 1944_1_1 \
+	--input-file 1944_1_1.fastq --plot-file 1944_1_1.quality.png
+cl-hts.sh base-quality-plot --sample-name 1944_1_2 \
+	--input-file 1944_1_1.fastq --plot-file 1944_1_2.quality.png
+cl-hts.sh pattern-report --sample-name 1944_1_1 \
+	--input-file 1944_1_1.fastq --report-file 1944_1_1.pattern_qc.txt \
+	--pattern-char N --min-freq 500
+cl-hts.sh pattern-report --sample-name 1944_1_2 \
+	--input-file 1944_1_1.fastq --report-file 1944_1_2.pattern_qc.txt \
+	--pattern-char N --min-freq 500
+most_prevalent_reads.sh 1944_1_1.fastq > 1944_1_1.read_frequency.txt
+most_prevalent_reads.sh 1944_1_1.fastq > 1944_1_2.read_frequency.txt
+cl-hts.sh poly-filter \
+	--fwd-file 1944_1_1.fastq \
+	--fwd-pass 1944_1_1.pf.fastq \
+	--fwd-fail 1944_1_1.pf.fail.fastq \
+	--fwd-orphan 1944_1_1.pf.orphan.fastq \
+	--rev-file 1944_1_2.fastq \
+	--rev-pass 1944_1_2.pf.fastq \
+	--rev-fail 1944_1_2.pf.fail.fastq \
+	--rev-orphan 1944_1_2.pf.orphan.fastq \
+	--residues N,A --run-length 10,25 \
+	--verbose
+Analysed: 10903368 Rejected: 2787 Reason: Contains 10 consecutive N
+Analysed: 10900581 Rejected: 6999 Reason: Contains 25 consecutive A
+cl-hts.sh align-filter \
+	--fwd-file 1944_1_1.fastq \
+	--fwd-pass 1944_1_1.af.fastq \
+	--fwd-fail 1944_1_1.af.fail.fastq \
+	--fwd-orphan 1944_1_1.af.orphan.fastq \
+	--rev-file 1944_1_2.fastq \
+	--rev-pass 1944_1_2.af.fastq \
+	--rev-fail 1944_1_2.af.fail.fastq \
+	--rev-orphan 1944_1_2.af.orphan.fastq \
+	--query-file align_filter.fasta \
+	--score 100 --parallel 1 \
+	--verbose
+Analysed: 10903368 Rejected: 288 Reason: Aligns to #<DNA-SEQUENCE "gatcggaagagctcgtatgccgtcttctgcttg"> with score >= 100.0
+Analysed: 10903080 Rejected: 62 Reason: Aligns to #<DNA-SEQUENCE "aatgatacggcgaccaccgagatctacactctttccctacacgacgctcttccgatct"> with score >= 100.0
+Analysed: 10903018 Rejected: 52 Reason: Aligns to #<DNA-SEQUENCE "caagcagaagacggcatacgagctcttccgatct"> with score >= 100.0
+Analysed: 10902966 Rejected: 1 Reason: Aligns to #<DNA-SEQUENCE "acactctttccctacacgacgctcttccgatct"> with score >= 100.0
+cl-hts.sh split-fastq --input-file 1944_1_1.af.fastq \
+	--output-name 1944_1_1.part --max-size 1000000
+cl-hts.sh split-fastq --input-file 1944_1_2.af.fastq \
+	--output-name 1944_1_2.part --max-size 1000000
+if [[ ! -d assembly ]] ; \
+	then mkdir assembly ; \
+	fi
+/bin/mv 1944_1_1.part.*.fastq assembly
+/bin/mv 1944_1_2.part.*.fastq assembly
+md5sum 1944_1_1.fastq > 1944_1_1.fastq.md5
+md5sum 1944_1_2.fastq > 1944_1_2.fastq.md5
+md5sum 1944_1_1.pf.fastq > 1944_1_1.pf.fastq.md5
+md5sum 1944_1_2.pf.fastq > 1944_1_2.pf.fastq.md5
+md5sum 1944_1_1.af.fastq > 1944_1_1.af.fastq.md5
+md5sum 1944_1_2.af.fastq > 1944_1_2.af.fastq.md5
+

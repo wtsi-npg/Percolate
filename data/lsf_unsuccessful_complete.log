@@ -1,0 +1,65 @@
+cl-hts.sh base-quality-plot --sample-name 2384_1 \
+	--input-file 2384_1.fastq --plot-file 2384_1.quality.png
+cl-hts.sh pattern-report --sample-name 2384_1 \
+	--input-file 2384_1.fastq --report-file 2384_1.pattern_qc.txt \
+	--pattern-char N --min-freq 500
+most_prevalent_reads.sh 2384_1.fastq > 2384_1.read_frequency.txt
+cl-hts.sh poly-filter \
+	--fwd-file 2384_1.fastq \
+	--fwd-pass 2384_1.pf.fastq \
+	--fwd-fail 2384_1.pf.fail.fastq \
+	--fwd-orphan 2384_1.pf.orphan.fastq \
+	--residues N,A --run-length 10,25 \
+	--verbose
+Invalid (FWD-INPUT FWD-ORPHAN) arguments (2384_1.fastq 2384_1.pf.orphan.fastq): No orphan reads are possible when filtering single end reads.
+cl-hts.sh align-filter \
+	--fwd-file 2384_1.fastq \
+	--fwd-pass 2384_1.af.fastq \
+	--fwd-fail 2384_1.af.fail.fastq \
+	--fwd-orphan 2384_1.af.orphan.fastq \
+	--query-file align_filter.fasta \
+	--score 100 --parallel 1 \
+	--verbose
+Invalid (FWD-INPUT FWD-ORPHAN) arguments (2384_1.fastq 2384_1.af.orphan.fastq): No orphan reads are possible when filtering single end reads.
+cl-hts.sh split-fastq --input-file 2384_1.af.fastq \
+	--output-name 2384_1.part --max-size 1000000
+error opening #P"/lustre/scratch1/sanger/rma/mChIP_Replicate_1a/2384_1/2384_1.af.fastq":
+  No such file or directory
+if [[ ! -d assembly ]] ; \
+	then mkdir assembly ; \
+	fi
+/bin/mv 2384_1.part.*.fastq assembly
+/bin/mv: cannot stat `2384_1.part.*.fastq': No such file or directory
+make: *** [stage] Error 1
+
+------------------------------------------------------------
+Sender: LSF System <lsfadmin@bc-9-5-13>
+Subject: Job 443627: <make -f Makefile.preprocess_single PROJECT=2384_1> Exited
+
+Job <make -f Makefile.preprocess_single PROJECT=2384_1> was submitted from host <bc-9-1-01> by user <rma>.
+Job was executed on host(s) <bc-9-5-13>, in queue <normal>, as user <rma>.
+</nfs/users/nfs_r/rma> was used as the home directory.
+</lustre/scratch1/sanger/rma/mChIP_Replicate_1a/2384_1> was used as the working directory.
+Started at Tue Mar 31 13:56:39 2009
+Results reported at Tue Mar 31 14:00:17 2009
+
+Your job looked like:
+
+------------------------------------------------------------
+# LSBATCH: User input
+make -f Makefile.preprocess_single PROJECT=2384_1
+------------------------------------------------------------
+
+Exited with exit code 2.
+
+Resource usage summary:
+
+    CPU time   :    217.07 sec.
+    Max Memory :        61 MB
+    Max Swap   :      1946 MB
+
+    Max Processes  :        10
+    Max Threads    :        10
+
+The output (if any) is above this job summary.
+

@@ -1,0 +1,4 @@
+
+group: Percolate
+workflow: EmptyWorkflow
+arguments: /tmp

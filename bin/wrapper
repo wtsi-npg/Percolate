@@ -1,0 +1,15 @@
+#!/bin/sh
+#
+# Pass-through wrapper that ensures the job environment is set up correctly
+# from .bashrc
+#
+# Instead of: "bsub <bsub args> a_program <a_program args>"
+#        use: "bsub <bsub args> wrapper a_program <a_program args>"
+#
+
+$@
+
+# A program will be added here that reports exit codes to a message queue,
+# so that we don't need to parse lots of LSF job logfiles.
+
+exit $?
