@@ -100,6 +100,10 @@ module PercolateTest
 
         assert(! wf.run(nil)) # Should require the work_dir arg
         assert(wf.run)
+        x = wf.run
+        assert(x.is_a? Percolate::Result)
+        assert_equal(:true_task, x.task)
+        assert_equal(true, x.value)
         assert(Percolate::System.get_memos(:true_task).has_key? ['.'])
       ensure
         File.delete wf.definition_file

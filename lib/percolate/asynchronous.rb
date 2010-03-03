@@ -71,8 +71,9 @@ module Percolate
           $log.debug "Returning memoized #{fname} result: #{result}"
           result
         elsif confirm.call(*args.take(confirm.arity.abs))
-          result = yielding.call(*args.take(yielding.arity.abs))
-          memos[args] = [true, result]
+          yielded = yielding.call(*args.take(yielding.arity.abs))
+          result = Result.new(fname, yielded, [])
+          memos[args] = [true, result_obj]
           $log.debug "Postconditions for #{fname} satsified; returning #{result}"
           result
         else
@@ -88,29 +89,18 @@ module Percolate
                   "running '#{command}' with env #{env}"
 
           # Jump through hoops because bsub insists on polluting our stdout
-          sysval = nil
-          str = ''
-          rd, wr = IO.pipe
-
-          begin
-            stdout_orig = STDOUT.dup
-            STDOUT.reopen wr
-            sysval = system(env, command)
-          ensure
-            STDOUT.flush
-            STDOUT.reopen stdout_orig
-            wr.close
-            rd.readlines.each {|s| str << s}
-            rd.close
+          out = []
+          IO.popen command do |io|
+            out = io.readlines
           end
+          success = $?.exited? && $?.exitstatus.zero?
+          $log.info "bsub reported #{out} for #{fname}"
 
-          $log.info "bsub reported #{str} for #{fname}"
-
-          case sysval
-            when NilClass
-              raise PercolateTaskError, "Unexpected error executing #{fname} '#{command}'"
-            when FalseClass
-              raise PercolateTaskError, "Non-zero exit #{$?} from #{fname} '#{command}'"
+          case # TODO: pass environment variables from env
+            when $?.signaled?
+              raise PercolateTaskError, "Uncaught signal #{$?.termsig} from '#{command}' "
+            when ! success
+              raise PercolateTaskError, "Non-zero exit #{$?.exitstatus} from '#{command}'"
             else
               memos[args] = [true, nil]
               $log.debug "#{fname} LSF job '#{command}' is running, meanwhile returning nil"

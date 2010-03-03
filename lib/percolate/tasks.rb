@@ -71,8 +71,8 @@ module Percolate
 
     lsf_task :rsync_file, [source_path, dest_file, work_dir],
              lsf(:rsync_file, $$, cd(work_dir, command), log), env,
-             :having   =>  lambda { source_host and source_path and
-                                    dest_file and work_dir },
+             :having   =>  lambda { source_host && source_path &&
+                                    dest_file && work_dir },
              :confirm  => lambda { lsf_run_success?(log) and FileTest.exists?(dest) },
              :yielding => lambda { dest }
   end

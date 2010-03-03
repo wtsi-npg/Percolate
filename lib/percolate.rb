@@ -41,6 +41,20 @@ module Percolate
     "cd #{path} \; #{command}"
   end
 
+  class Result
+    attr_reader 'task', 'value', 'stdout'
+
+    def initialize task, value, stdout
+      @task   = task
+      @value  = value
+      @stdout = stdout
+    end
+
+    def to_s
+      "#<#{self.class} task: #{self.task} value: #{self.value} stdout: #{self.stdout}>"
+    end
+  end
+
   ## Run a memoized system command having pre- and post-conditions.
   def task fname, args, command, env, procs = {}
     having, confirm, yielding = ensure_procs procs
@@ -58,13 +72,20 @@ module Percolate
     else
       $log.debug "Preconditions are satisfied; running '#{command}' with #{env}"
 
-      case system(command) # TODO: pass environment variables from env
-        when NilClass
-          raise PercolateTaskError, "Unexpected error executing '#{command}'"
-        when FalseClass
-          raise PercolateTaskError, "Non-zero exit #{$?} from '#{command}'"
-        when confirm.call(*args.take(confirm.arity.abs))
-          result = yielding.call(*args.take(yielding.arity.abs))
+      out = []
+      IO.popen command do |io|
+        out = io.readlines
+      end
+      success = $?.exited? && $?.exitstatus.zero?
+
+      case # TODO: pass environment variables from env
+        when $?.signaled?
+          raise PercolateTaskError, "Uncaught signal #{$?.termsig} from '#{command}' "
+        when ! success
+          raise PercolateTaskError, "Non-zero exit #{$?.exitstatus} from '#{command}'"
+        when success && confirm.call(*args.take(confirm.arity.abs))
+          yielded = yielding.call(*args.take(yielding.arity.abs))
+          result = Result.new fname, yielded, out
           $log.debug "Postconditions satsified; returning #{result}"
           memos[args] = result
         else

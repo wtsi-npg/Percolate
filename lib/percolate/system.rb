@@ -61,10 +61,6 @@ module Percolate
       end
     end
 
-    # TODO:
-    # Store association between workflow and memoized results so that
-    # the async calls for only one workflow can be purged
-
     private
     def System.ensure_memos hash, key # :nodoc
       if hash.has_key? key

@@ -25,7 +25,7 @@ module Percolate
     attr_reader 'definition_file', 'run_file', 'pass_dir', 'fail_dir',
                 'passed', 'failed'
 
-    def initialize(definition_file, run_file, pass_dir, fail_dir)
+    def initialize definition_file, run_file, pass_dir, fail_dir
       @definition_file = definition_file
       @run_file = run_file
       @pass_dir = pass_dir
@@ -92,6 +92,7 @@ module Percolate
       self.archive self.pass_dir
     end
 
+    ## Returns true if the workflow has passed (finished successfully).
     def passed?
       @passed
     end
@@ -108,8 +109,16 @@ module Percolate
       self.archive self.fail_dir
     end
 
+    ## Returns true if the workflow has failed (an error has been raised at
+    ## some point).
     def failed?
       @failed
+    end
+
+    ## Returns true if the workflow has been run (has completed and either
+    ## passed or failed
+    def run?
+      self.passed? or self.failed?
     end
 
     ## Returns the archived location of the definition file.
@@ -130,6 +139,10 @@ module Percolate
     ## Returns the archived location of the run file.
     def failed_run_file
       File.join self.fail_dir, File.basename(self.run_file)
+    end
+
+    def to_s
+      "#<#{self.class} #{self.definition_file} run?: #{self.run?} passed?: #{self.passed?}>"
     end
   end
 

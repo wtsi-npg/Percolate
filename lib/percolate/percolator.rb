@@ -62,7 +62,7 @@ module Percolate
 
     # The config hash will normally be supplied via a YAML file on the command
     # line or a YAML .percolate file in the user's home directory
-    def initialize(config = {})
+    def initialize config = {}
       symbol_config = {}
       config.each do |key, value|
         if value
@@ -100,7 +100,7 @@ module Percolate
       begin
         [@tmp_dir, @lock_dir, @root_dir, @log_dir,
          @run_dir, @pass_dir, @fail_dir].map do |dir|
-          if ! (File.exists? dir and File.directory? dir)  # Dir.exists? dir
+          if ! (File.exists?(dir) && File.directory?(dir))  # Dir.exists? dir
             Dir.mkdir dir
           end
         end
