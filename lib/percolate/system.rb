@@ -21,38 +21,38 @@ module Percolate
     $MEMOS = {}
     $ASYNC_MEMOS = {}
 
-    # Clears the memoization data.
+    ## Clears the memoization data.
     def System.clear_memos
       $MEMOS.clear
       $ASYNC_MEMOS.clear
     end
 
-    # Stores the memoization data to file filename.
+    ## Stores the memoization data to file filename.
     def System.store_memos filename
       File.open(filename, 'w') do |file|
         Marshal.dump([$MEMOS, $ASYNC_MEMOS], file)
       end
     end
 
-    # Restores the memoization data to file filename.
+    ## Restores the memoization data to file filename.
     def System.restore_memos filename
       File.open(filename, 'r') do |file|
         $MEMOS, $ASYNC_MEMOS = Marshal.load(file)
       end
     end
 
-    # Returns the memoization data for function fname.
+    ## Returns the memoization data for function fname.
     def System.get_memos fname
       ensure_memos $MEMOS, fname
     end
 
-    # Returns the memoization data for function fname.
+    ## Returns the memoization data for function fname.
     def System.get_async_memos fname
       ensure_memos $ASYNC_MEMOS, fname
     end
 
-    # Purges the memoization data for function fname where asynchronous tasks have
-    # been started, but are not complete.
+    ## Purges the memoization data for function fname where asynchronous tasks have
+    ## been started, but are not complete.
     def System.purge_async_failed fname # :nodoc
       memos = get_async_memos fname
       memos.delete_if do |fn_args, run_state|

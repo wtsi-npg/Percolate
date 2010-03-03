@@ -11,14 +11,14 @@ spec = Gem::Specification.new do |s|
   s.version = '0.0.1'
   s.has_rdoc = true
   s.extra_rdoc_files = ['README', 'LICENSE']
-  s.summary = 'Your summary here'
+  s.summary = 'The Percolate workflow utility.'
   s.description = s.summary
   s.author = 'Keith James'
   s.email = 'kdj@sanger.ac.uk'
-  # s.executables = ['your_executable_here']
-  s.files = %w(LICENSE README Rakefile) + Dir.glob("{bin,lib,spec}/**/*")
-  s.require_path = "lib"
-  s.bindir = "bin"
+  s.executables = ['percolate', 'wrapper']
+  s.files = %w(LICENSE README Rakefile) + Dir.glob('{bin,lib,spec}/**/*')
+  s.require_path = 'lib'
+  s.bindir = 'bin'
 end
 
 Rake::GemPackageTask.new(spec) do |p|
@@ -42,7 +42,7 @@ end
 
 namespace :rcov do
   Rcov::RcovTask.new(:all) do |rcov|
-    rcov.pattern    = FileList["test/**/*.rb"]
+    rcov.pattern    = FileList['test/**/*.rb']
     rcov.output_dir = 'coverage'
     rcov.verbose    = true
     rcov.rcov_opts << "--sort coverage -x 'rcov,ruby'"
