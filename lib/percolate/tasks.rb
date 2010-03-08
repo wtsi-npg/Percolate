@@ -19,7 +19,7 @@
 module Percolate
   include Percolate::Asynchronous
 
-  ## A task which succeeds.
+  # A task which succeeds.
   def true_task work_dir = '.', env = {}
     task :true_task, [work_dir], cd(work_dir, 'true'), env,
          :having   => lambda { work_dir },
@@ -27,7 +27,7 @@ module Percolate
          :yielding => lambda { true }
   end
 
-  ## A task which always fails.
+  # A task which always fails.
   def false_task work_dir = '.', env = {}
     task :false_task, [work_dir], cd(work_dir, 'false'), env,
          :having   => lambda { true },
@@ -35,13 +35,13 @@ module Percolate
          :yielding => lambda { false }
   end
 
-  ## Ruby has mkdir already. This is only an example of a task.
+  # Ruby has mkdir already. This is only an example of a task.
   def mkdir path, work_dir = '.', log = nil, env = {}
     dir = File.join work_dir, path
 
     task :mkdir, [path, work_dir], cd(work_dir, "mkdir #{path}"), env,
-         :having   => lambda { path and work_dir },
-         :confirm  => lambda { FileTest.directory?(dir) },
+         :having   => lambda { path && work_dir },
+         :confirm  => lambda { FileTest.directory? dir },
          :yielding => lambda { dir }
   end
 
@@ -50,8 +50,8 @@ module Percolate
 
     task :copy_file, [source_path, dest_file, work_dir],
          cd(work_dir, "cp #{source_path} #{dest}"), env,
-         :having   => lambda { source_path and work_dir },
-         :confirm  => lambda { FileTest.exists?(dest) },
+         :having   => lambda { source_path && work_dir },
+         :confirm  => lambda { FileTest.exists? dest },
          :yielding => lambda { dest }
   end
 
@@ -69,11 +69,12 @@ module Percolate
     dest = File.join work_dir, dest_file
     command = "rsync -azL #{source_host}:#{source_path} #{dest}"
 
-    lsf_task :rsync_file, [source_path, dest_file, work_dir],
+    lsf_task :rsync_file, [source_host, source_path, dest_file, work_dir],
              lsf(:rsync_file, $$, cd(work_dir, command), log), env,
-             :having   =>  lambda { source_host && source_path &&
-                                    dest_file && work_dir },
-             :confirm  => lambda { lsf_run_success?(log) and FileTest.exists?(dest) },
+             :having   => lambda { source_host && source_path &&
+                              dest_file && work_dir },
+             :confirm  => lambda { lsf_run_success?(log) &&
+                              FileTest.exists?(dest) },
              :yielding => lambda { dest }
   end
 end

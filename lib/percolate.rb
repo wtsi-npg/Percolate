@@ -29,12 +29,16 @@ module Percolate
 
   VERSION = '0.0.1'
 
-  ## An error raised by the Percolate system.
+  # An error raised by the Percolate system.
   class PercolateError < StandardError
   end
 
-  ## An error raised by a Percolate task.
+  # An error raised by a Percolate task.
   class PercolateTaskError < PercolateError
+  end
+
+  # An error raised by an asynchronous Percolate task.
+  class PercolateAsyncTaskError < PercolateTaskError
   end
 
   def cd path, command
@@ -51,13 +55,15 @@ module Percolate
     end
 
     def to_s
-      "#<#{self.class} task: #{self.task} value: #{self.value} stdout: #{self.stdout}>"
+      "#<#{self.class} task: #{self.task} value: #{self.value} " <<
+      "stdout: #{self.stdout}>"
     end
   end
 
-  ## Run a memoized system command having pre- and post-conditions.
+  # Run a memoized system command having pre- and post-conditions.
   def task fname, args, command, env, procs = {}
     having, confirm, yielding = ensure_procs procs
+
     memos = Percolate::System.get_memos fname
     result = memos[args]
 
@@ -80,9 +86,11 @@ module Percolate
 
       case # TODO: pass environment variables from env
         when $?.signaled?
-          raise PercolateTaskError, "Uncaught signal #{$?.termsig} from '#{command}' "
+          raise PercolateTaskError,
+                "Uncaught signal #{$?.termsig} from '#{command}' "
         when ! success
-          raise PercolateTaskError, "Non-zero exit #{$?.exitstatus} from '#{command}'"
+          raise PercolateTaskError,
+                "Non-zero exit #{$?.exitstatus} from '#{command}'"
         when success && confirm.call(*args.take(confirm.arity.abs))
           yielded = yielding.call(*args.take(yielding.arity.abs))
           result = Result.new fname, yielded, out

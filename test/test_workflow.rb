@@ -27,11 +27,12 @@ require 'percolate'
 module PercolateTest
   include Percolate
 
-  ## The unready workflow. Can never be run because its preconditions are not satisfied.
+  # The unready workflow. Can never be run because its preconditions
+  # are not satisfied.
   class UnreadyWorkflow < Workflow
     include Percolate
 
-    ## A task which is permanently unready and can never be run.
+    # A task which is permanently unready and can never be run.
     def unready_task work_dir = '.', env = {}
       task :unready_task, [work_dir], cd(work_dir, 'true'), env,
            :having   => lambda { false },
@@ -44,11 +45,12 @@ module PercolateTest
     end
   end
 
-  ## The unfinished workflow. Can never finish because its postconditions are not satisfied.
+  # The unfinished workflow. Can never finish because its
+  # postconditions are not satisfied.
   class UnfinishedWorkflow < Workflow
     include Percolate
 
-    ## A task which may be run, but which never finishes.
+    # A task which may be run, but which never finishes.
     def unfinished_task work_dir = '.', env = {}
       task :unfinished_task, [work_dir], cd(work_dir, 'true'), env,
            :having   => lambda { true },
@@ -104,7 +106,10 @@ module PercolateTest
         assert(x.is_a? Percolate::Result)
         assert_equal(:true_task, x.task)
         assert_equal(true, x.value)
-        assert(Percolate::System.get_memos(:true_task).has_key? ['.'])
+
+        memos = Percolate::System.get_memos(:true_task)
+        assert(memos.has_key? ['.'])
+        assert(memos[['.']].is_a? Percolate::Result)
       ensure
         File.delete wf.definition_file
       end
@@ -133,7 +138,9 @@ module PercolateTest
         Percolate::System.clear_memos
 
         assert(wf.restore)
-        assert(Percolate::System.get_memos(:true_task).has_key? ['.'])
+        memos = Percolate::System.get_memos(:true_task)
+        assert(memos.has_key? ['.'])
+        assert(memos[['.']].is_a? Percolate::Result)
       ensure
         File.delete wf.definition_file
         File.delete wf.run_file

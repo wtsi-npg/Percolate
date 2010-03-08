@@ -50,8 +50,8 @@ module Percolate
         jobname << "[1-#{size}]"
       end
 
-      "bsub -J'#{jobname}' -q #{queue} -R 'select[mem>#{mem}#{res}] " +
-              "rusage[mem=#{mem}]'#{dep} -M #{mem * 1000} " +
+      "bsub -J'#{jobname}' -q #{queue} -R 'select[mem>#{mem}#{res}] " <<
+              "rusage[mem=#{mem}]'#{dep} -M #{mem * 1000} " <<
               "-oo #{log} #{command}"
     end
 
@@ -62,8 +62,8 @@ module Percolate
       memos = Percolate::System.get_async_memos fname
       started, result = memos[args]
 
-      $log.debug "Entering task #{fname}, started? #{started or 'false'}, " +
-              "result? #{result.nil? ? 'nil' : result}"
+      $log.debug "Entering task #{fname}, started? #{started or 'false'}, " <<
+                 "result? #{result.nil? ? 'nil' : result}"
 
       if started # LSF job was started
         $log.debug "#{fname} LSF job '#{command}' is already started"
@@ -72,9 +72,10 @@ module Percolate
           result
         elsif confirm.call(*args.take(confirm.arity.abs))
           yielded = yielding.call(*args.take(yielding.arity.abs))
-          result = Result.new(fname, yielded, [])
-          memos[args] = [true, result_obj]
-          $log.debug "Postconditions for #{fname} satsified; returning #{result}"
+          result = Result.new fname, yielded, []
+          memos[args] = [true, result]
+          $log.debug "Postconditions for #{fname} satsified; " <<
+                     "returning #{result}"
           result
         else
           $log.debug "Postconditions for #{fname} not satsified; returning nil"
@@ -85,10 +86,11 @@ module Percolate
           $log.debug "Preconditions for #{fname} not satisfied, returning nil"
           nil
         else
-          $log.debug "Preconditions for #{fname} are satisfied; " +
-                  "running '#{command}' with env #{env}"
+          $log.debug "Preconditions for #{fname} are satisfied; " <<
+                     "running '#{command}' with env #{env}"
 
-          # Jump through hoops because bsub insists on polluting our stdout
+          # Jump through hoops because bsub insists on polluting our
+          # stdout
           out = []
           IO.popen command do |io|
             out = io.readlines
@@ -98,12 +100,15 @@ module Percolate
 
           case # TODO: pass environment variables from env
             when $?.signaled?
-              raise PercolateTaskError, "Uncaught signal #{$?.termsig} from '#{command}' "
+              raise PercolateAsyncTaskError,
+                    "Uncaught signal #{$?.termsig} from '#{command}' "
             when ! success
-              raise PercolateTaskError, "Non-zero exit #{$?.exitstatus} from '#{command}'"
+              raise PercolateAsyncTaskError,
+                    "Non-zero exit #{$?.exitstatus} from '#{command}'"
             else
               memos[args] = [true, nil]
-              $log.debug "#{fname} LSF job '#{command}' is running, meanwhile returning nil"
+              $log.debug "#{fname} LSF job '#{command}' is running, " <<
+                         "meanwhile returning nil"
               nil
           end
         end
@@ -147,7 +152,8 @@ module Percolate
                   run_success = true
                   exit_code = 0
                 when /^Exited with exit code (\d+)\./
-                  $log.debug "Job exited with code #{$1.to_i} in LSF log #{file}"
+                  $log.debug "Job exited with code #{$1.to_i} in LSF log" <<
+                             " #{file}"
                   run_success = false
                   exit_code = $1.to_i
                 when /^Exited with signal termination/
