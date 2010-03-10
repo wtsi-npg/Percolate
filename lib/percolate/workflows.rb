@@ -88,7 +88,7 @@ module Percolate
     def declare_passed
       if self.passed?
         raise PercolateError
-              "Cannot pass #{self} because it has already failed"
+              "Cannot pass #{self} because it has already passed"
       end
 
       $log.debug "Workflow #{self} passed"
@@ -106,7 +106,7 @@ module Percolate
     def declare_failed
       if self.failed?
         raise PercolateError
-              "Cannot fail #{self} because it has already passed"
+              "Cannot fail #{self} because it has already failed"
       end
 
       $log.debug "Workflow #{self} failed"

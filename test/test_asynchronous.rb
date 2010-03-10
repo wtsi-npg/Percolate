@@ -17,6 +17,7 @@
 #
 
 require 'test/unit'
+require 'timeout'
 
 libpath = File.expand_path('../lib')
 $:.unshift(libpath) unless $:.include?(libpath)
@@ -41,7 +42,7 @@ module PercolateTest
   class TestWorkflow < Test::Unit::TestCase
     include Percolate
 
-    LSF_PRESENT = system 'which bsub'
+    LSF_PRESENT = `which bsub`
 
     def data_path
       File.expand_path File.join File.dirname(__FILE__), '..', 'data'
@@ -80,14 +81,11 @@ module PercolateTest
           assert_nil(wf.run run_time, '.', log_file)
           assert(System.dirty_async?)
 
-          # FIXME -- use timeout module
-          # FIXME -- why do test failures avoid the ensure block?
-
-          time = 0
-          until (lsf_run_success?(log_file) || time > 60) do
-            sleep 5
-            time += 5
-            print '#'
+          Timeout.timeout(120) do
+            until (lsf_run_success?(log_file)) do
+              sleep 10
+              print '#'
+            end
           end
 
           # Pick up log file

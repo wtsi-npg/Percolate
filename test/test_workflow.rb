@@ -86,6 +86,71 @@ module PercolateTest
                         percolator.pass_dir, percolator.fail_dir
     end
 
+    def test_task_args
+      def bad_arg_task work_dir = '.', env = {}
+          task :bad_arg_task, [work_dir], Percolate.cd(work_dir, 'true'), env,
+                :having   => :not_a_proc,
+                :confirm  => lambda { false },
+                :yielding => lambda { true }
+      end
+
+      assert_raise ArgumentError do
+        bad_arg_task
+      end
+    end
+
+    def test_run_not_overridden
+      wf = Workflow.new "no_such_defn_file", "no_such_run_file",
+                        "no_such_pass_dir", "no_such_fail_dir"
+
+      assert_raise PercolateError do
+        wf.run
+      end
+    end
+
+    def test_missing_run_file
+      wf = Workflow.new "no_such_defn_file", "no_such_run_file",
+                        "no_such_pass_dir", "no_such_fail_dir"
+
+      assert_raise PercolateError do
+        wf.restore
+      end
+    end
+
+    def test_double_pass
+      begin
+        wf = make_empty_workflow
+        wf.run
+        wf.declare_passed
+        assert(wf.passed?)
+
+        assert_raise PercolateError do
+          wf.declare_passed
+        end
+
+      ensure
+        File.delete wf.passed_definition_file
+        File.delete wf.passed_run_file
+      end
+    end
+
+    def test_double_fail
+      begin
+        wf = make_empty_workflow
+        wf.run
+        wf.declare_failed
+        assert(wf.failed?)
+
+        assert_raise PercolateError do
+          wf.declare_failed
+        end
+
+      ensure
+        File.delete wf.failed_definition_file
+        File.delete wf.failed_run_file
+      end
+    end
+
     def test_make_workflow
       percolator = Percolator.new({'root_dir' => data_path})
       defn_file = File.join percolator.run_dir, 'test_def1.yml'
