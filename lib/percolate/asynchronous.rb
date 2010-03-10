@@ -52,7 +52,7 @@ module Percolate
 
       "bsub -J'#{jobname}' -q #{queue} -R 'select[mem>#{mem}#{res}] " <<
               "rusage[mem=#{mem}]'#{dep} -M #{mem * 1000} " <<
-              "-oo #{log} #{command}"
+              "-oo #{log} '#{command}'"
     end
 
     # Run or update a memoized batch command having pre- and

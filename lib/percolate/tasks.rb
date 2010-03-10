@@ -21,7 +21,7 @@ module Percolate
 
   # A task which succeeds.
   def true_task work_dir = '.', env = {}
-    task :true_task, [work_dir], cd(work_dir, 'true'), env,
+    task :true_task, [work_dir], Percolate.cd(work_dir, 'true'), env,
          :having   => lambda { work_dir },
          :confirm  => lambda { true },
          :yielding => lambda { true }
@@ -29,7 +29,7 @@ module Percolate
 
   # A task which always fails.
   def false_task work_dir = '.', env = {}
-    task :false_task, [work_dir], cd(work_dir, 'false'), env,
+    task :false_task, [work_dir], Percolate.cd(work_dir, 'false'), env,
          :having   => lambda { true },
          :confirm  => lambda { true },
          :yielding => lambda { false }
@@ -39,7 +39,7 @@ module Percolate
   def mkdir path, work_dir = '.', log = nil, env = {}
     dir = File.join work_dir, path
 
-    task :mkdir, [path, work_dir], cd(work_dir, "mkdir #{path}"), env,
+    task :mkdir, [path, work_dir], Percolate.cd(work_dir, "mkdir #{path}"), env,
          :having   => lambda { path && work_dir },
          :confirm  => lambda { FileTest.directory? dir },
          :yielding => lambda { dir }
@@ -55,22 +55,12 @@ module Percolate
          :yielding => lambda { dest }
   end
 
-  def async_sleep seconds, work_dir, log, env = {}
-    command = "sleep #{seconds}"
-
-    lsf_task :async_sleep, [seconds, work_dir],
-             lsf(:async_sleep, $$, cd(work_dir, command), log), env,
-             :having   => lambda { work_dir },
-             :confirm  => lambda { lsf_run_success? log },
-             :yielding => lambda { seconds }
-  end
-
   def rsync_file source_host, source_path, dest_file, work_dir, log, env = {}
     dest = File.join work_dir, dest_file
     command = "rsync -azL #{source_host}:#{source_path} #{dest}"
 
     lsf_task :rsync_file, [source_host, source_path, dest_file, work_dir],
-             lsf(:rsync_file, $$, cd(work_dir, command), log), env,
+             lsf(:rsync_file, $$, Percolate.cd(work_dir, command), log), env,
              :having   => lambda { source_host && source_path &&
                               dest_file && work_dir },
              :confirm  => lambda { lsf_run_success?(log) &&

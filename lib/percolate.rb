@@ -41,7 +41,7 @@ module Percolate
   class PercolateAsyncTaskError < PercolateTaskError
   end
 
-  def cd path, command
+  def self.cd path, command
     "cd #{path} \; #{command}"
   end
 

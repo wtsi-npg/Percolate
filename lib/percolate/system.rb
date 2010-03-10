@@ -54,12 +54,21 @@ module Percolate
     # Returns true if the outcome of one or more asynchronous tasks
     # that have been started is still unknown.
     def System.dirty_async?
-      $ASYNC_MEMOS.reject do |fname, memos|
-        memos.detect do |fn_args, run_state|
-          started, result = run_state
-          started && ! result
-        end
+      dirty = $ASYNC_MEMOS.keys.select do |fname|
+        dirty_async_memos? fname
       end
+
+      ! dirty.empty?
+    end
+
+    def System.dirty_async_memos? fname
+      memos = get_async_memos fname
+      dirty = memos.reject do |fn_args, run_state|
+        started, result = run_state
+        started && ! result.nil?
+      end
+
+      ! dirty.keys.empty?
     end
 
     # Purges the memoization data for function fname where

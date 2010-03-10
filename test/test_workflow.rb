@@ -34,7 +34,7 @@ module PercolateTest
 
     # A task which is permanently unready and can never be run.
     def unready_task work_dir = '.', env = {}
-      task :unready_task, [work_dir], cd(work_dir, 'true'), env,
+      task :unready_task, [work_dir], Percolate.cd(work_dir, 'true'), env,
            :having   => lambda { false },
            :confirm  => lambda { true },
            :yielding => lambda { true }
@@ -52,7 +52,7 @@ module PercolateTest
 
     # A task which may be run, but which never finishes.
     def unfinished_task work_dir = '.', env = {}
-      task :unfinished_task, [work_dir], cd(work_dir, 'true'), env,
+      task :unfinished_task, [work_dir], Percolate.cd(work_dir, 'true'), env,
            :having   => lambda { true },
            :confirm  => lambda { false },
            :yielding => lambda { true }

@@ -6,25 +6,25 @@ require 'rake/rdoctask'
 require 'rake/testtask'
 require 'rcov/rcovtask'
 
-spec = Gem::Specification.new do |s|
-  s.name = 'percolate'
-  s.version = '0.0.1'
-  s.has_rdoc = true
-  s.extra_rdoc_files = ['README', 'LICENSE']
-  s.summary = 'The Percolate workflow utility.'
-  s.description = s.summary
-  s.author = 'Keith James'
-  s.email = 'kdj@sanger.ac.uk'
-  s.executables = ['percolate', 'wrapper']
-  s.files = %w(LICENSE README Rakefile) + Dir.glob('{bin,lib,spec}/**/*')
-  s.require_path = 'lib'
-  s.bindir = 'bin'
+spec = Gem::Specification.new do |spec|
+  spec.name = 'percolate'
+  spec.version = '0.0.1'
+  spec.has_rdoc = true
+  spec.extra_rdoc_files = ['README', 'LICENSE']
+  spec.summary = 'The Percolate workflow utility.'
+  spec.description = spec.summary
+  spec.author = 'Keith James'
+  spec.email = 'kdj@sanger.ac.uk'
+  spec.executables = ['percolate', 'wrapper']
+  spec.files = %w(LICENSE README Rakefile) + Dir.glob('{bin,lib,spec}/**/*')
+  spec.require_path = 'lib'
+  spec.bindir = 'bin'
 end
 
-Rake::GemPackageTask.new(spec) do |p|
-  p.gem_spec = spec
-  p.need_tar = true
-  p.need_zip = false
+Rake::GemPackageTask.new(spec) do |pack|
+  pack.gem_spec = spec
+  pack.need_tar = true
+  pack.need_zip = false
 end
 
 Rake::RDocTask.new do |rdoc|
@@ -40,11 +40,9 @@ Rake::TestTask.new do |t|
   t.test_files = FileList['test/**/*.rb']
 end
 
-namespace :rcov do
-  Rcov::RcovTask.new(:all) do |rcov|
-    rcov.pattern    = FileList['test/**/*.rb']
-    rcov.output_dir = 'coverage'
-    rcov.verbose    = true
-    rcov.rcov_opts << "--sort coverage -x 'rcov,ruby'"
-  end
+Rcov::RcovTask.new do |rcov|
+  rcov.pattern    = FileList['test/**/*.rb']
+  rcov.output_dir = 'coverage'
+  rcov.verbose    = true
+  rcov.rcov_opts << "--sort coverage -x 'rcov,ruby'"
 end
