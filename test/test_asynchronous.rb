@@ -42,7 +42,7 @@ module PercolateTest
   class TestWorkflow < Test::Unit::TestCase
     include Percolate
 
-    LSF_PRESENT = `which bsub`
+    $LSF_PRESENT = system 'which bsub'
 
     def data_path
       File.expand_path File.join File.dirname(__FILE__), '..', 'data'
@@ -65,7 +65,7 @@ module PercolateTest
     end
 
     def test_minimal_async_workflow
-      if LSF_PRESENT
+      if $LSF_PRESENT
         begin
           percolator = Percolator.new({'root_dir' => data_path,
                                         'log_file' => 'percolate-test.log'})
