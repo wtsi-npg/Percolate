@@ -42,7 +42,7 @@ module PercolateTest
   class TestWorkflow < Test::Unit::TestCase
     include Percolate
 
-    $LSF_PRESENT = system 'which bsub'
+    $LSF_PRESENT = system 'which bsub >/dev/null'
 
     def data_path
       File.expand_path File.join File.dirname(__FILE__), '..', 'data'
@@ -59,8 +59,12 @@ module PercolateTest
     def test_lsf_run_success?
       assert_nil(lsf_run_success? 'no_such_file')
       assert_nil(lsf_run_success? File.join data_path, 'lsf_incomplete.log')
-      assert_equal(false, lsf_run_success?(File.join data_path,
-                                           'lsf_unsuccessful_complete.log'))
+
+      assert_raise PercolateAsyncTaskError do
+        lsf_run_success?(File.join data_path,
+                         'lsf_unsuccessful_complete.log')
+      end
+
       assert(lsf_run_success?(File.join data_path, 'lsf_successful_complete.log'))
     end
 
@@ -68,7 +72,7 @@ module PercolateTest
       if $LSF_PRESENT
         begin
           percolator = Percolator.new({'root_dir' => data_path,
-                                        'log_file' => 'percolate-test.log'})
+                                       'log_file' => 'percolate-test.log'})
           log_file = File.join data_path, 'minimal_async_workflow.log'
 
           wf = MinimalAsyncWorkflow.new 'dummy_defn', 'dummy_run',
