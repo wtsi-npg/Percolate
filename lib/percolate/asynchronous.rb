@@ -20,29 +20,32 @@ module Percolate
   module Asynchronous
     LSF_QUEUES = [:yesterday, :normal, :long, :basement]
 
-    def lsf name, uid, command, log, config = {:queue     => :normal,
-                                               :memory    => 1900,
-                                               :depend    => nil,
-                                               :resources => nil,
-                                               :size      => 1}
-      queue, mem, dep, res, size = config[:queue], config[:memory], '', '',
-              config[:size]
+    def lsf name, uid, command, log, args = {}
+      defaults = {:queue     => :normal,
+                  :memory    => 1900,
+                  :depend    => nil,
+                  :resources => nil,
+                  :size      => 1}
+      args = defaults.merge(args)
+
+      queue, mem, dep, res, size =
+        args[:queue], args[:memory], '', '', args[:size]
 
       unless LSF_QUEUES.member? queue
-        raise ArgumentError, "config[:queue] must be one of #{LSF_QUEUES}"
+        raise ArgumentError, ":queue must be one of #{LSF_QUEUES.inspect}"
       end
       unless mem.is_a? Fixnum and mem > 0
-        raise ArgumentError, "config[:memory] must be a positive Fixnum"
+        raise ArgumentError, ":memory must be a positive Fixnum"
       end
       unless size.is_a? Fixnum and size > 0
-        raise ArgumentError, "size must be a positive Fixnum"
+        raise ArgumentError, ":size must be a positive Fixnum"
       end
 
-      if config[:resources]
-        res = " && #{config[:resources]}"
+      if args[:resources]
+        res = " && #{args[:resources]}"
       end
-      if config[:depend]
-        dep = " -w #{config[:depend]}"
+      if args[:depend]
+        dep = " -w #{args[:depend]}"
       end
 
       jobname = "#{name}.#{uid}"
@@ -67,24 +70,31 @@ module Percolate
 
       if started # LSF job was started
         $log.debug "#{fname} LSF job '#{command}' is already started"
+
         if ! result.nil?
           $log.debug "Returning memoized #{fname} result: #{result}"
-          result
-        elsif confirm.call(*args.take(confirm.arity.abs))
-          yielded = yielding.call(*args.take(yielding.arity.abs))
-          result = Result.new fname, yielded, []
-          memos[args] = [true, result]
-          $log.debug "Postconditions for #{fname} satsified; " <<
-                     "returning #{result}"
-          result
         else
-          $log.debug "Postconditions for #{fname} not satsified; returning nil"
-          nil
+          begin
+            if confirm.call(*args.take(confirm.arity.abs))
+              yielded = yielding.call(*args.take(yielding.arity.abs))
+              result = Result.new fname, yielded, []
+              memos[args] = [true, result]
+              $log.debug "Postconditions for #{fname} satsified; " <<
+                         "returning #{result}"
+            else
+              $log.debug "Postconditions for #{fname} not satsified; " <<
+                         "returning nil"
+            end
+          rescue PercolateAsyncTaskError => pate
+            $log.debug "#{fname} encountered an error; #{pate.message}"
+            $log.info "Resetting #{fname} for restart after error"
+            memos[args] = [nil, nil]
+          end
         end
       else # Can we start the LSF job?
         if ! having.call(*args.take(having.arity.abs))
-          $log.debug "Preconditions for #{fname} not satisfied, returning nil"
-          nil
+          $log.debug "Preconditions for #{fname} not satisfied; " <<
+                     "returning nil"
         else
           $log.debug "Preconditions for #{fname} are satisfied; " <<
                      "running '#{command}' with env #{env}"
@@ -101,7 +111,7 @@ module Percolate
           case # TODO: pass environment variables from env
             when $?.signaled?
               raise PercolateAsyncTaskError,
-                    "Uncaught signal #{$?.termsig} from '#{command}' "
+                    "Uncaught signal #{$?.termsig} from '#{command}'"
             when ! success
               raise PercolateAsyncTaskError,
                     "Non-zero exit #{$?.exitstatus} from '#{command}'"
@@ -109,14 +119,21 @@ module Percolate
               memos[args] = [true, nil]
               $log.debug "#{fname} LSF job '#{command}' is running, " <<
                          "meanwhile returning nil"
-              nil
           end
         end
       end
+
+      result
     end
 
     def lsf_run_success? log_file
-      read_lsf_log(log_file).first
+      run_success, exit_code = read_lsf_log log_file
+      if run_success == false
+        raise PercolateAsyncTaskError,
+              "Task failed with exit code #{exit_code}"
+      end
+
+      run_success
     end
 
     def read_lsf_log file
