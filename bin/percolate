@@ -1,8 +1,9 @@
 #!/usr/bin/env ruby
 
+require 'rubygems'
 require 'yaml'
 require 'optparse'
-require 'lib/percolate/percolator'
+require 'percolate'
 
 arguments = Percolate::PercolatorArguments.new(ARGV)
 
