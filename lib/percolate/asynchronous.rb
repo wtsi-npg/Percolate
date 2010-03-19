@@ -66,7 +66,7 @@ module Percolate
       started, result = memos[args]
 
       $log.debug "Entering task #{fname}, started? #{started or 'false'}, " <<
-                 "result? #{result.nil? ? 'nil' : result}"
+                 "result? #{result.inspect}"
 
       if started # LSF job was started
         $log.debug "#{fname} LSF job '#{command}' is already started"
@@ -89,6 +89,7 @@ module Percolate
             $log.debug "#{fname} encountered an error; #{pate.message}"
             $log.info "Resetting #{fname} for restart after error"
             memos[args] = [nil, nil]
+            raise pate
           end
         end
       else # Can we start the LSF job?
