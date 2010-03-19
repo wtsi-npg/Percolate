@@ -55,7 +55,7 @@ module Percolate
     end
 
     def to_s
-      "#<#{self.class} task: #{self.task} value: #{self.value} " <<
+      "#<#{self.class} task: #{self.task} value: #{self.value.inspect} " <<
       "stdout: #{self.stdout}>"
     end
   end
