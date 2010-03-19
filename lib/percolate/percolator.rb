@@ -160,6 +160,11 @@ module Percolate
         $log.info "Loading workflow definition #{file} with #{self}"
 
         defn = YAML.load_file file
+        lib = defn['library']
+        if lib
+          require lib
+        end
+
         workflow_module = defn['group']
         workflow_class = defn['workflow']
         workflow_args = defn['arguments']
@@ -176,16 +181,17 @@ module Percolate
                 case workflow_args
                     when NilClass ; []
                     when String ; workflow_args.split
+                    when Array ; workflow_args
                   else
                     raise ArgumentError,
                           "Expected an argument string, but found " <<
-                          "#{workflow_args}"
+                          "#{workflow_args.inspect}"
                 end
 
         modyle = Object.const_get(workflow_module)
         klass = modyle.const_get(workflow_class)
 
-        $log.info "Found workflow #{klass} with arguments #{processed_args}"
+        $log.info "Found workflow #{klass} with arguments #{processed_args.inspect}"
 
         [klass, processed_args]
       rescue ArgumentError => ae
@@ -250,12 +256,12 @@ module Percolate
             end
 
             result = if ! workflow.finished?
-                       workflow.run(workflow_args)
+                       workflow.run(*workflow_args)
                      else
                        nil
                      end
 
-            $log.debug "Workflow run result is #{result.nil? ? 'nil' : result}"
+            $log.debug "Workflow run result is #{result.inspect}"
 
             if result
               $log.info "Workflow #{definition} passed"
@@ -267,13 +273,16 @@ module Percolate
           rescue => e
             $log.error "Workflow #{definition} failed: #{e}"
             $log.error e.backtrace.join("\n")
-            workflow.declare_failed
+
+            if workflow
+              workflow.declare_failed
+            end
           end
         else
           $log.debug "Busy lock #{lock} for #{definition}, skipping"
         end
       ensure
-        if ! lock.flock(File::LOCK_UN).zero?
+        if lock.flock(File::LOCK_UN).nonzero?
           raise PercolateError
                 "Failed to release lock #{lock} for #{definition}"
         end
