@@ -42,7 +42,7 @@ module PercolateTest
   class TestWorkflow < Test::Unit::TestCase
     include Percolate
 
-    $LSF_PRESENT = system 'which bsub >/dev/null'
+    $LSF_PRESENT = system 'which bsub >/dev/null 2>&1'
 
     def data_path
       File.expand_path File.join File.dirname(__FILE__), '..', 'data'
