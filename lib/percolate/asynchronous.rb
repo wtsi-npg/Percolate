@@ -103,9 +103,7 @@ module Percolate
           # Jump through hoops because bsub insists on polluting our
           # stdout
           out = []
-          IO.popen command do |io|
-            out = io.readlines
-          end
+          IO.popen(command) { |io| out = io.readlines }
           success = $?.exited? && $?.exitstatus.zero?
           $log.info "bsub reported #{out} for #{fname}"
 

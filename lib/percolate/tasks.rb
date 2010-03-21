@@ -35,26 +35,6 @@ module Percolate
          :yielding => lambda { false }
   end
 
-  # Ruby has mkdir already. This is only an example of a task.
-  def mkdir path, work_dir = '.', log = nil, env = {}
-    dir = File.join work_dir, path
-
-    task :mkdir, [path, work_dir], Percolate.cd(work_dir, "mkdir #{path}"), env,
-         :having   => lambda { path && work_dir },
-         :confirm  => lambda { FileTest.directory? dir },
-         :yielding => lambda { dir }
-  end
-
-  def copy_file source_path, dest_file, work_dir = '.', log = nil, env = {}
-    dest = File.join work_dir, dest_file
-
-    task :copy_file, [source_path, dest_file, work_dir],
-         cd(work_dir, "cp #{source_path} #{dest}"), env,
-         :having   => lambda { source_path && work_dir },
-         :confirm  => lambda { FileTest.exists? dest },
-         :yielding => lambda { dest }
-  end
-
   def rsync_file source_host, source_path, dest_file, work_dir, log, env = {}
     dest = File.join work_dir, dest_file
     command = "rsync -azL #{source_host}:#{source_path} #{dest}"
@@ -62,9 +42,8 @@ module Percolate
     lsf_task :rsync_file, [source_host, source_path, dest_file, work_dir],
              lsf(:rsync_file, $$, Percolate.cd(work_dir, command), log), env,
              :having   => lambda { source_host && source_path &&
-                              dest_file && work_dir },
-             :confirm  => lambda { lsf_run_success?(log) &&
-                              FileTest.exists?(dest) },
+                               dest_file && work_dir },
+             :confirm  => lambda { lsf_run_success?(log) && FileTest.exists?(dest) },
              :yielding => lambda { dest }
   end
 end

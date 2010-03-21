@@ -61,6 +61,23 @@ module Percolate
   end
 
   # Run a memoized system command having pre- and post-conditions.
+  #
+  # Arguments:
+  #
+  # - fname (Symbol): name of memoized method, unique with respect to
+  #   the memoization namespace.
+  # - args: (Array): arguments for system command.
+  # - command (String): system command string.
+  # - env (Hash): hash of shell environment variable Strings for the
+  #   system command.
+  #
+  # - procs (Hash): hash of named Procs
+  #   - :having => precondition Proc
+  #   - :confirm => postcondition Proc
+  #   - :yielding => return value Proc
+  #
+  # Returns:
+  # - Return value of the :yielding Proc, or nil.
   def task fname, args, command, env, procs = {}
     having, confirm, yielding = ensure_procs procs
 
@@ -79,9 +96,7 @@ module Percolate
       $log.debug "Preconditions are satisfied; running '#{command}' with #{env}"
 
       out = []
-      IO.popen command do |io|
-        out = io.readlines
-      end
+      IO.popen(command) { |io| out = io.readlines }
       success = $?.exited? && $?.exitstatus.zero?
 
       case # TODO: pass environment variables from env
@@ -103,13 +118,14 @@ module Percolate
     end
   end
 
-  def ensure_procs procs # :nodoc
+  private
+  def ensure_procs procs
     [ensure_proc(:having,   procs[:having]),
      ensure_proc(:confirm,  procs[:confirm]),
      ensure_proc(:yielding, procs[:yielding])]
   end
 
-  def ensure_proc name, proc # :nodoc
+  def ensure_proc name, proc
     if proc.is_a? Proc
       proc
     else

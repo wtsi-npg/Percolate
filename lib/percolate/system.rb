@@ -71,16 +71,6 @@ module Percolate
       ! dirty.keys.empty?
     end
 
-    # Purges the memoization data for function fname where
-    # asynchronous tasks have been started, but are not complete.
-    def System.purge_async_failed fname # :nodoc
-      memos = get_async_memos fname
-      memos.reject! do |fn_args, run_state|
-        started, result = run_state
-        started && ! result
-      end
-    end
-
     private
     def System.ensure_memos hash, key # :nodoc
       if hash.has_key? key

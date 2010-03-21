@@ -241,17 +241,7 @@ module Percolate
 
             # If we find a failed workflow, it means that it is being
             # restarted.
-            if (workflow.failed? && Percolate::System.dirty_async?)
-              begin
-                $log.info "Cleaning async tasks in workflow #{definition}"
-                workflow.run(workflow_args)
-              rescue PercolateTaskError => pte
-                $log.error "Workflow #{definition} rescued during restart: #{pte}"
-                $log.error pte.backtrace.join("\n")
-              end
-            end
-
-            if (workflow.failed? && ! Percolate::System.dirty_async?)
+            if workflow.failed?
               workflow.restart
             end
 
