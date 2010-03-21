@@ -87,7 +87,7 @@ module Percolate
     # workflow.
     def declare_passed
       if self.passed?
-        raise PercolateError
+        raise PercolateError,
               "Cannot pass #{self} because it has already passed"
       end
 
@@ -105,7 +105,7 @@ module Percolate
     # workflow.
     def declare_failed
       if self.failed?
-        raise PercolateError
+        raise PercolateError,
               "Cannot fail #{self} because it has already failed"
       end
 
@@ -130,7 +130,7 @@ module Percolate
     # information. Returns the workflow.
     def restart
       unless self.finished?
-        raise PercolateError
+        raise PercolateError,
               "Cannot restart #{self} because it has not finished"
       end
 
