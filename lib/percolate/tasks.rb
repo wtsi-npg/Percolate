@@ -40,10 +40,10 @@ module Percolate
     command = "rsync -azL #{source_host}:#{source_path} #{dest}"
 
     lsf_task :rsync_file, [source_host, source_path, dest_file, work_dir],
-             lsf(:rsync_file, $$, Percolate.cd(work_dir, command), log), env,
+             lsf(:rsync_file, $$, Percolate.cd(work_dir, command), log), env, log,
              :having   => lambda { source_host && source_path &&
                                dest_file && work_dir },
-             :confirm  => lambda { lsf_run_success?(log) && FileTest.exists?(dest) },
+             :confirm  => lambda { FileTest.exists? dest },
              :yielding => lambda { dest }
   end
 end

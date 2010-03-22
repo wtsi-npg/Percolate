@@ -57,6 +57,10 @@ module TestPercolate
     def test_new_percolator
       percolator = Percolator.new({'root_dir' => data_path})
       assert_equal(data_path, percolator.root_dir)
+
+      assert_raise ArgumentError do
+        Percolator.new({'log_file' => '/'})
+      end
     end
 
     def test_find_definitions
@@ -89,6 +93,27 @@ module TestPercolate
       assert defn2.is_a? Array
       assert_equal(Percolate::FailingWorkflow, defn2[0])
       assert_equal(['/tmp'], defn2[1])
+
+      assert_raise PercolateError do
+        percolator.read_definition "no_such_file_exists"
+      end
+
+      assert_raise PercolateError do
+        percolator.read_definition data_path # A directory, not a file
+      end
+
+      # These print warnings to STDERR
+      old_stderr = $stderr
+      $stderr = StringIO.new
+      # $stderr.puts "[STDERR: "
+      assert_nil(percolator.read_definition File.join data_path, 'bad_module_def.yml')
+      assert_nil(percolator.read_definition File.join data_path, 'bad_workflow_def.yml')
+      assert_nil(percolator.read_definition File.join data_path, 'no_module_def.yml')
+      assert_nil(percolator.read_definition File.join data_path, 'no_workflow_def.yml')
+      # $stderr.puts "]\n"
+      # $stderr.rewind
+      # $stdout.puts $stderr.readlines
+      $stderr = old_stderr
     end
 
     def test_percolate_tasks_pass

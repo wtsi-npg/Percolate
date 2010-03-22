@@ -18,7 +18,7 @@
 
 module Percolate
   module Asynchronous
-    LSF_QUEUES = [:yesterday, :normal, :long, :basement]
+    LSF_QUEUES = [:yesterday, :small, :normal, :long, :basement, :test]
 
     def lsf name, uid, command, log, args = {}
       defaults = {:queue     => :normal,
@@ -60,7 +60,7 @@ module Percolate
 
     # Run or update a memoized batch command having pre- and
     # post-conditions.
-    def lsf_task fname, args, command, env, procs = {}
+    def lsf_task fname, args, command, env, log, procs = {}
       having, confirm, yielding = ensure_procs procs
       memos = Percolate::System.get_async_memos fname
       started, result = memos[args]
@@ -75,7 +75,7 @@ module Percolate
           $log.debug "Returning memoized #{fname} result: #{result}"
         else
           begin
-            if confirm.call(*args.take(confirm.arity.abs))
+            if lsf_run_success?(log) && confirm.call(*args.take(confirm.arity.abs))
               yielded = yielding.call(*args.take(yielding.arity.abs))
               result = Result.new fname, yielded, []
               memos[args] = [true, result]

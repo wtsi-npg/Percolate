@@ -94,9 +94,9 @@ module Percolate
       @pass_dir = (opts[:pass_dir] || File.join(@root_dir, 'pass'))
       @fail_dir = (opts[:fail_dir] || File.join(@root_dir, 'fail'))
 
-      if ! File.dirname(opts[:log_file]) == '.'
+      if FileTest.directory? opts[:log_file]
         raise ArgumentError,
-              ":log_file must be a file name, not a path: #{opts[:log_file]}"
+              ":log_file must be a file name, not a directory: #{opts[:log_file]}"
       end
 
       begin
@@ -195,13 +195,13 @@ module Percolate
 
         [klass, processed_args]
       rescue ArgumentError => ae
-        $stderr.puts "Error in workflow definiton '#{file}': #{ae.message}"
+        $stderr.puts "Error in workflow definiton '#{file}': #{ae}"
         nil
       rescue TypeError => te
-        $stderr.puts "Error in workflow definiton '#{file}': #{te.message}"
+        $stderr.puts "Error in workflow definiton '#{file}': #{te}"
         nil
       rescue NameError => ne
-        $stderr.puts "Error in workflow definiton '#{file}': #{ne.message}"
+        $stderr.puts "Error in workflow definiton '#{file}': #{ne}"
         nil
       end
     end

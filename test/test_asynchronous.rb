@@ -31,9 +31,10 @@ module AsyncTest
     command = "sleep #{seconds}"
 
     lsf_task :async_sleep, [seconds, work_dir],
-           Percolate.cd(work_dir, lsf(:async_sleep, $$, command, log)), env,
+           Percolate.cd(work_dir, lsf(:async_sleep, $$, command, log,
+                                      :queue => :test)), env, log,
            :having   => lambda { work_dir },
-           :confirm  => lambda { lsf_run_success? log },
+           :confirm  => lambda { true },
            :yielding => lambda { seconds }
   end
 end
@@ -66,6 +67,39 @@ module PercolateTest
       end
 
       assert(lsf_run_success?(File.join data_path, 'lsf_successful_complete.log'))
+    end
+
+    def test_lsf_args
+      command = 'sleep 10'
+      log = 'test_lsf_args.log'
+
+      assert_raise ArgumentError do
+        lsf(:async_sleep, $$, command, log, :queue => :no_such_queue)
+      end
+
+      assert_raise ArgumentError do
+        lsf(:async_sleep, $$, command, log, :memory => -1)
+      end
+
+      assert_raise ArgumentError do
+        lsf(:async_sleep, $$, command, log, :memory => 0)
+      end
+
+      assert_raise ArgumentError do
+        lsf(:async_sleep, $$, command, log, :memory => nil)
+      end
+
+      assert_raise ArgumentError do
+        lsf(:async_sleep, $$, command, log, :size => -1)
+      end
+
+      assert_raise ArgumentError do
+        lsf(:async_sleep, $$, command, log, :size => 0)
+      end
+
+      assert_raise ArgumentError do
+        lsf(:async_sleep, $$, command, log, :size => nil)
+      end
     end
 
     def test_minimal_async_workflow
