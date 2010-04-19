@@ -72,9 +72,18 @@ module Percolate
   #   system command.
   #
   # - procs (Hash): hash of named Procs
-  #   - :having => precondition Proc
-  #   - :confirm => postcondition Proc
-  #   - :yielding => return value Proc
+  #
+  #   - :having => pre-condition Proc, should evaluate true if
+  #     pre-conditions of execution are satisfied
+  #   - :confirm => post-condition Proc, should evaluate true if
+  #     post-conditions of execution are satisfied
+  #   - :yielding => return value Proc, should evaluate to the desired
+  #     return value
+  #
+  #  These Procs may accept no, some, or all the arguments that are
+  #  passed to the system command. Each will be called with the
+  #  appropriate number. For example, if the :having Proc has arity 2,
+  #  it will be called with the first 2 elements of args.
   #
   # Returns:
   # - Return value of the :yielding Proc, or nil.
