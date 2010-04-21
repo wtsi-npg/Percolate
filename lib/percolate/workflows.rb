@@ -22,15 +22,36 @@ module Percolate
   class Workflow
     include Percolate
 
+    DEFINITION_SUFFIX = '.yml'
+    RUN_SUFFIX = '.run'
+    BASENAME_REGEXP = /^[A-Za-z0-9_-]+$/
+
     attr_reader 'definition_file', 'run_file', 'pass_dir', 'fail_dir'
 
     def initialize definition_file, run_file, pass_dir, fail_dir
+      unless File.extname(definition_file) == DEFINITION_SUFFIX
+        raise ArgumentError,
+              "Invalid definition file name '#{definition_file}'. " <<
+              "Suffix must be '#{DEFINITION_SUFFIX}'"
+      end
+
+      unless File.basename(definition_file,
+                           File.extname(definition_file)).match(BASENAME_REGEXP)
+        raise ArgumentError,
+              "Invalid definition file name '#{definition_file}'. " <<
+              "Basename must match '#{BASENAME_REGEXP.inspect}'"
+      end
+
       @definition_file = definition_file
       @run_file = run_file
       @pass_dir = pass_dir
       @fail_dir = fail_dir
       @passed = false
       @failed = false
+    end
+
+    def run_name
+      File.basename self.definition_file
     end
 
     # Restores the workflow from its run file, if it exists. Returns

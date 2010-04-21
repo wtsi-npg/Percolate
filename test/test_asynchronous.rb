@@ -109,7 +109,7 @@ module PercolateTest
                                        'log_file' => 'percolate-test.log'})
           log_file = File.join data_path, 'minimal_async_workflow.log'
 
-          wf = MinimalAsyncWorkflow.new 'dummy_defn', 'dummy_run',
+          wf = MinimalAsyncWorkflow.new 'dummy_defn.yml', 'dummy_run.run',
                                         percolator.pass_dir, percolator.fail_dir
 
           assert(! System.dirty_async?)

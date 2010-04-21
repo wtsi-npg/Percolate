@@ -54,8 +54,8 @@ module Percolate
   # the directories where it expects to find workflow definitions and
   # run files.
   class Percolator
-    @@def_suffix = '.yml'
-    @@run_suffix = '.run'
+    @@def_suffix = Workflow::DEFINITION_SUFFIX
+    @@run_suffix = Workflow::RUN_SUFFIX
 
     attr_reader 'root_dir', 'lock_dir',
                 'run_dir',  'pass_dir', 'fail_dir', 'work_dir', 'tmp_dir',

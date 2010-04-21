@@ -86,6 +86,18 @@ module PercolateTest
                         percolator.pass_dir, percolator.fail_dir
     end
 
+    def test_bad_definition_suffix
+      assert_raise ArgumentError do
+        EmptyWorkflow.new "foo.txt", "foo.run", "pass_dir", "fail_dir"
+      end
+    end
+
+    def test_bad_definition_basename
+      assert_raise ArgumentError do
+        EmptyWorkflow.new "fo o.yml", "foo.run", "pass_dir", "fail_dir"
+      end
+    end
+
     def test_task_args
       def bad_arg_task work_dir = '.', env = {}
           task :bad_arg_task, [work_dir], Percolate.cd(work_dir, 'true'), env,
@@ -100,7 +112,7 @@ module PercolateTest
     end
 
     def test_run_not_overridden
-      wf = Workflow.new "no_such_defn_file", "no_such_run_file",
+      wf = Workflow.new "no_such_defn_file.yml", "no_such_run_file.run",
                         "no_such_pass_dir", "no_such_fail_dir"
 
       assert_raise PercolateError do
@@ -109,7 +121,7 @@ module PercolateTest
     end
 
     def test_missing_run_file
-      wf = Workflow.new "no_such_defn_file", "no_such_run_file",
+      wf = Workflow.new "no_such_defn_file.yml", "no_such_run_file.run",
                         "no_such_pass_dir", "no_such_fail_dir"
 
       assert_raise PercolateError do
