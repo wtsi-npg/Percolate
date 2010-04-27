@@ -68,19 +68,18 @@ module Percolate
       symbol_config = {}
       config.each do |key, value|
         if value
-          symbol_config[:"#{key}"] = value
+          symbol_config[key.intern] = value
         end
       end
 
       root_dir = File.expand_path '~/percolate'
       tmp_dir = File.join((ENV['TMPDIR'] || '/tmp'), ENV['USER'])
-      log_basename = 'percolate.log'
 
       defaults = {:root_dir  => root_dir,
                   :tmp_dir   => tmp_dir,
                   :work_dir  => tmp_dir,
                   :log_dir   => root_dir,
-                  :log_file  => log_basename,
+                  :log_file  => 'percolate.log',
                   :log_level => 'WARN'}
 
       opts = defaults.merge(symbol_config)

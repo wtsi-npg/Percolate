@@ -51,6 +51,8 @@ module TestPercolate
         config = YAML.load(file)
 
         assert_equal('test', config['root_dir'])
+        assert_equal('percolate-test.log', config['log_filename'])
+        assert_equal('INFO', config['log_level'])
       end
     end
 
