@@ -17,6 +17,7 @@
 #
 
 require 'fileutils'
+require 'set'
 require 'test/unit'
 
 libpath = File.expand_path('../lib')
@@ -298,6 +299,11 @@ module PercolateTest
                                   percolator.pass_dir, percolator.fail_dir
       assert_nil(wf.run)
       assert(! Percolate::System.get_memos(:unfinished_task).has_key?(['.']))
+    end
+
+    def test_find_workflows
+      assert([Percolate::EmptyWorkflow, Percolate::FailingWorkflow,
+              Percolate::Workflow].to_set.subset?(Percolate.find_workflows.to_set))
     end
   end
 end

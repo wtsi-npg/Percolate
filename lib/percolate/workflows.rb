@@ -26,7 +26,18 @@ module Percolate
     RUN_SUFFIX = '.run'
     BASENAME_REGEXP = /^[A-Za-z0-9_-]+$/
 
+    # Subclasses should set these
+    @@description = '<no description available>'
+    @@usage = '<no usage help available>'
+    @@version = '<no version information available>'
+
     attr_reader 'definition_file', 'run_file', 'pass_dir', 'fail_dir'
+
+    # Documentation string for online user help
+    attr_reader :usage
+
+    # User-centric workflow version string
+    attr_reader :version
 
     def initialize definition_file, run_file, pass_dir, fail_dir
       unless File.extname(definition_file) == DEFINITION_SUFFIX
@@ -48,6 +59,21 @@ module Percolate
       @fail_dir = fail_dir
       @passed = false
       @failed = false
+    end
+
+    # Returns the description string for online user help
+    def Workflow.description
+      @@description
+    end
+
+    # Returns the documentation string for online user help
+    def Workflow.usage
+      @@usage
+    end
+
+    # Returns the user-centric workflow version string
+    def Workflow.version
+      @@version
     end
 
     def run_name
@@ -195,6 +221,24 @@ module Percolate
   # The empty workflow. This returns a true value when run and does
   # nothing else.
   class EmptyWorkflow < Workflow
+    @@description = <<-DESC
+The empty workflow. This returns a true value when run and does nothing else
+DESC
+
+    @@usage = <<-USAGE
+EmptyWorkflow *args
+
+Arguments:
+
+- args (Array): args are ignored
+
+Returns:
+
+- true
+USAGE
+
+    @@version = '0.0.1'
+
     def run *args
       true_task *args
     end
@@ -203,9 +247,34 @@ module Percolate
   # The failing workflow. This fails by running the Unix 'false'
   # command.
   class FailingWorkflow < Workflow
+    @@description = <<-DESC
+The failing workflow. This fails by running the Unix 'false' command
+DESC
+
+    @@usage = <<-USAGE
+FailingWorkflow *args
+
+Arguments:
+
+- args (Array): args are ignored
+
+Returns:
+
+- true
+USAGE
+
+    @@version = '0.0.1'
+
     def run *args
       # args ignored intentionally
       false_task
     end
+  end
+
+  # Returns an array of all Workflow classes, optionally restricting
+  # the result to those in Module mod.
+  def Percolate.find_workflows mod = Percolate
+    ObjectSpace.each_object(Class).select {|c| c.ancestors.include?(Workflow) &&
+                                               c.ancestors.include?(mod) }
   end
 end
