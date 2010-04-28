@@ -69,17 +69,17 @@ module Percolate
 
     # The description string for online user help
     def description
-      self.class.description
+      self.class.description || 'No workflow description available'
     end
 
     # The usage string for online user help
      def usage
-       self.class.usage
+       self.class.usage || 'No workflow usage help available'
      end
 
     # The version string for online user help
     def version
-      self.class.version
+      self.class.version || 'No workflow version information available'
     end
 
     def run_name
