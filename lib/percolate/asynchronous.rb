@@ -18,7 +18,7 @@
 
 module Percolate
   module Asynchronous
-    LSF_QUEUES = [:yesterday, :small, :normal, :long, :basement, :test]
+    LSF_QUEUES = [:yesterday, :small, :normal, :long, :basement]
 
     def lsf name, uid, command, log, args = {}
       defaults = {:queue     => :normal,

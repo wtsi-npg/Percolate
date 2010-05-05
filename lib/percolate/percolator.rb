@@ -32,15 +32,27 @@ module Percolate
           self[:config] = file
         end
 
-        opts.on('-l', '--list [GROUP]', 'List available workflows') do |group|
+        opts.on('-l', '--load [library]', 'Load a workflow library') do |lib|
+          begin
+            require lib
+          rescue LoadError
+            puts "Could not load workflow library '#{lib}'"
+            exit 1
+          end
+        end
+
+        opts.on('-d', '--display [GROUP]', 'Display available workflows') do |group|
           begin
             $stderr.puts Percolate.find_workflows group
           rescue ArgumentError => ae
             $stderr.puts "Unknown workflow group #{group}"
+            exit 1
           end
+
+          exit
         end
 
-        opts.on('-p', '--percolate', 'Run all workflows') do
+        opts.on('-p', '--percolate', 'Run all defined workflows') do
           self[:percolate] = true
         end
 
@@ -66,7 +78,10 @@ module Percolate
               end
             rescue NameError => ne
               $stderr.puts "Unknown workflow #{wf}"
+              exit 1
             end
+
+          exit
         end
 
         opts.on('-h', '--help', 'Display this help and exit') do
@@ -80,6 +95,7 @@ module Percolate
       rescue OptionParser::ParseError => pe
         $stderr.puts opts
         $stderr.puts "\nInvalid argument: #{pe}"
+        exit 1
       end
 
       self

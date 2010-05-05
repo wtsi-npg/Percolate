@@ -27,7 +27,7 @@ require 'percolate/percolator'
 module Percolate
   $log = Logger.new STDERR
 
-  VERSION = '0.0.4'
+  VERSION = '0.0.5'
 
   # An error raised by the Percolate system.
   class PercolateError < StandardError
