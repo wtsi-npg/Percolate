@@ -44,6 +44,11 @@ module Percolate
           self[:percolate] = true
         end
 
+        opts.on('-v', '--version', 'Print the Percolate version and exit') do
+          $stderr.puts 'Version ' << VERSION
+          exit
+        end
+
         opts.on('-w', '--workflow [WORKFLOW]', 'Display workflow help') do |wf|
             begin
               klass = wf.split(/::/).inject(Object) { |m, c| m.const_get(c.to_sym) }
