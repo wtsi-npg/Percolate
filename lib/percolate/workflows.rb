@@ -30,15 +30,15 @@ module Percolate
     # subclass.
     class << self
       # The description string for online user help
-      def description str = nil
+      def description str = '<no description available>'
         @description ||= str
       end
       # The usage string for online user help
-      def usage str = nil
+      def usage str = '<no usage information available>'
         @usage ||= str
       end
       # The version string for online user help
-      def version str = nil
+      def version str = '<no version information available>'
         @version ||= str
       end
     end
@@ -69,17 +69,17 @@ module Percolate
 
     # The description string for online user help
     def description
-      self.class.description || 'No workflow description available'
+      self.class.description
     end
 
     # The usage string for online user help
      def usage
-       self.class.usage || 'No workflow usage help available'
+       self.class.usage
      end
 
     # The version string for online user help
     def version
-      self.class.version || 'No workflow version information available'
+      self.class.version
     end
 
     def run_name
@@ -243,7 +243,7 @@ Returns:
 - true
 USAGE
 
-    version '0.0.1'
+   version '0.0.1'
 
     def run *args
       true_task *args
@@ -280,7 +280,21 @@ USAGE
   # Returns an array of all Workflow classes, optionally restricting
   # the result to subclasses of ancestor.
   def Percolate.find_workflows ancestor = Percolate
+    begin
+      mod = case ancestor
+              when NilClass ; Percolate
+              when String ; Object.const_get ancestor
+              when Module ; ancestor
+            else
+              raise ArgumentError,
+                    "Expected a string or constant, but found #{ancestor}"
+            end
+    rescue NameError => ne
+      raise ArgumentError,
+            "Expected a Ruby module, but found #{ancestor.inspect}"
+    end
+
     ObjectSpace.each_object(Class).select {|c| c.ancestors.include?(Workflow) &&
-                                               c.ancestors.include?(ancestor) }
+                                               c.ancestors.include?(mod) }
   end
 end

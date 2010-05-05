@@ -32,6 +32,38 @@ module Percolate
           self[:config] = file
         end
 
+        opts.on('-l', '--list [GROUP]', 'List available workflows') do |group|
+          begin
+            $stderr.puts Percolate.find_workflows group
+          rescue ArgumentError => ae
+            $stderr.puts "Unknown workflow group #{group}"
+          end
+        end
+
+        opts.on('-p', '--percolate', 'Run all workflows') do
+          self[:percolate] = true
+        end
+
+        opts.on('-w', '--workflow [WORKFLOW]', 'Display workflow help') do |wf|
+            begin
+              klass = wf.split(/::/).inject(Object) { |m, c| m.const_get(c.to_sym) }
+
+              if klass.respond_to?(:version)
+                puts "#{klass.name} version #{klass.version}\n"
+              end
+
+              if klass.respond_to?(:description)
+                puts "#{klass.description}\n"
+              end
+
+              if klass.respond_to?(:usage)
+                puts "Usage:\n\n" << klass.usage
+              end
+            rescue NameError => ne
+              $stderr.puts "Unknown workflow #{wf}"
+            end
+        end
+
         opts.on('-h', '--help', 'Display this help and exit') do
           $stderr.puts opts
           exit
@@ -184,11 +216,11 @@ module Percolate
                   else
                     raise ArgumentError,
                           "Expected an argument string, but found " <<
-                          "#{workflow_args.inspect}"
+                          workflow_args.inspect
                 end
 
-        modyle = Object.const_get(workflow_module)
-        klass = modyle.const_get(workflow_class)
+        mod = Object.const_get(workflow_module)
+        klass = mod.const_get(workflow_class)
 
         $log.info "Found workflow #{klass} with arguments #{processed_args.inspect}"
 

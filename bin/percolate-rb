@@ -36,4 +36,9 @@ if config_file
    end
 end
 
-Percolate::Percolator.new(config).percolate
+# The :percolate flag means we are supposed to run workflows
+if arguments.has_key? :percolate
+  Percolate::Percolator.new(config).percolate
+else
+  Percolate::PercolatorArguments.new('-h')
+end
