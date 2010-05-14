@@ -32,7 +32,7 @@ module Percolate
           self[:config] = file
         end
 
-        opts.on('-l', '--load [library]', 'Load a workflow library') do |lib|
+        opts.on('-l', '--load [LIBRARY]', 'Load a workflow library') do |lib|
           begin
             require lib
           rescue LoadError

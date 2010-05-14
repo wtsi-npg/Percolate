@@ -228,7 +228,7 @@ module Percolate
   # nothing else.
   class EmptyWorkflow < Workflow
     description <<-DESC
-The empty workflow. This returns a true value when run and does nothing else
+The empty workflow. This returns a true value when run and does nothing else.
 DESC
 
     usage <<-USAGE
@@ -254,7 +254,7 @@ USAGE
   # command.
   class FailingWorkflow < Workflow
     description <<-DESC
-The failing workflow. This fails by running the Unix 'false' command
+The failing workflow. This fails by running the Unix 'false' command.
 DESC
 
     usage <<-USAGE

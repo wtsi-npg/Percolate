@@ -23,11 +23,12 @@ require 'percolate/asynchronous'
 require 'percolate/tasks'
 require 'percolate/workflows'
 require 'percolate/percolator'
+require 'percolate/partitions'
 
 module Percolate
   $log = Logger.new STDERR
 
-  VERSION = '0.0.5'
+  VERSION = '0.0.6'
 
   # An error raised by the Percolate system.
   class PercolateError < StandardError
