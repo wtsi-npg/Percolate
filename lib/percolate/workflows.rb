@@ -83,14 +83,14 @@ module Percolate
     end
 
     def run_name
-      File.basename self.definition_file
+      File.basename(self.definition_file)
     end
 
     # Restores the workflow from its run file, if it exists. Returns
     # the workflow.
     def restore
-      if File.exists? self.run_file
-        Percolate::System.restore_memos self.run_file
+      if File.exists?(self.run_file)
+        Percolate::System.restore_memos(self.run_file)
       else
         raise PercolateError,
               "Run file #{self.run_file} for #{self} does not exist"
@@ -101,8 +101,8 @@ module Percolate
 
     # Stores the workflow to its run file. Returns the workflow.
     def store
-      $log.debug "Storing workflow in #{self.run_file}"
-      Percolate::System.store_memos self.run_file
+      $log.debug("Storing workflow in #{self.run_file}")
+      Percolate::System.store_memos(self.run_file)
       self
     end
 
@@ -112,14 +112,14 @@ module Percolate
       begin
         self.store
 
-        if File.exists? self.run_file
-          $log.debug "Archiving #{self.run_file} to #{directory}"
-          FileUtils.mv self.run_file, directory
+        if File.exists?(self.run_file)
+          $log.debug("Archiving #{self.run_file} to #{directory}")
+          FileUtils.mv(self.run_file, directory)
         end
 
-        if File.exists? self.definition_file
-          $log.debug "Archiving #{self.definition_file} to #{directory}"
-          FileUtils.mv self.definition_file, directory
+        if File.exists?(self.definition_file)
+          $log.debug("Archiving #{self.definition_file} to #{directory}")
+          FileUtils.mv(self.definition_file, directory)
         end
       rescue Exception => e
         raise PercolateError,
@@ -144,9 +144,9 @@ module Percolate
               "Cannot pass #{self} because it has already passed"
       end
 
-      $log.debug "Workflow #{self} passed"
+      $log.debug("Workflow #{self} passed")
       @passed = true
-      self.archive self.pass_dir
+      self.archive(self.pass_dir)
     end
 
     # Returns true if the workflow has passed (finished successfully).
@@ -162,9 +162,9 @@ module Percolate
               "Cannot fail #{self} because it has already failed"
       end
 
-      $log.debug "Workflow #{self} failed"
+      $log.debug("Workflow #{self} failed")
       @failed = true
-      self.archive self.fail_dir
+      self.archive(self.fail_dir)
     end
 
     # Returns true if the workflow has failed (an error has been
@@ -188,10 +188,10 @@ module Percolate
       end
 
       if self.passed?
-        $log.debug "Restarting passed workflow #{self}"
+        $log.debug("Restarting passed workflow #{self}")
         @passed = false
       elsif self.failed?
-        $log.debug "Restarting failed workflow #{self}"
+        $log.debug("Restarting failed workflow #{self}")
         @failed = false
       end
 
@@ -200,22 +200,22 @@ module Percolate
 
     # Returns the archived location of the definition file.
     def passed_definition_file
-      File.join self.pass_dir, File.basename(self.definition_file)
+      File.join(self.pass_dir, File.basename(self.definition_file))
     end
 
     # Returns the archived location of the run file.
     def passed_run_file
-      File.join self.pass_dir, File.basename(self.run_file)
+      File.join(self.pass_dir, File.basename(self.run_file))
     end
 
     # Returns the archived location of the definition file.
     def failed_definition_file
-      File.join self.fail_dir, File.basename(self.definition_file)
+      File.join(self.fail_dir, File.basename(self.definition_file))
     end
 
     # Returns the archived location of the run file.
     def failed_run_file
-      File.join self.fail_dir, File.basename(self.run_file)
+      File.join(self.fail_dir, File.basename(self.run_file))
     end
 
     def to_s
@@ -246,7 +246,7 @@ USAGE
    version '0.0.1'
 
     def run *args
-      true_task *args
+      true_task(*args)
     end
   end
 
@@ -283,8 +283,8 @@ USAGE
     begin
       mod = case ancestor
               when NilClass ; Percolate
-              when String ; Object.const_get ancestor
-              when Module ; ancestor
+              when String   ; Object.const_get ancestor
+              when Module   ; ancestor
             else
               raise ArgumentError,
                     "Expected a string or constant, but found #{ancestor}"

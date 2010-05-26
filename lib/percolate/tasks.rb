@@ -21,29 +21,30 @@ module Percolate
 
   # A task which succeeds.
   def true_task work_dir = '.', env = {}
-    task :true_task, [work_dir], Percolate.cd(work_dir, 'true'), env,
+    task(:true_task, [work_dir], Percolate.cd(work_dir, 'true'), env,
          :having   => lambda { work_dir },
          :confirm  => lambda { true },
-         :yielding => lambda { true }
+         :yielding => lambda { true })
   end
 
   # A task which always fails.
   def false_task work_dir = '.', env = {}
-    task :false_task, [work_dir], Percolate.cd(work_dir, 'false'), env,
+    task(:false_task, [work_dir], Percolate.cd(work_dir, 'false'), env,
          :having   => lambda { true },
          :confirm  => lambda { true },
-         :yielding => lambda { false }
+         :yielding => lambda { false })
   end
 
   def rsync_file source_host, source_path, dest_file, work_dir, log, env = {}
-    dest = File.join work_dir, dest_file
+    dest = File.join(work_dir, dest_file)
     command = "rsync -azL #{source_host}:#{source_path} #{dest}"
 
-    lsf_task :rsync_file, [source_host, source_path, dest_file, work_dir],
-             lsf(:rsync_file, $$, Percolate.cd(work_dir, command), log), env, log,
+    lsf_task(:rsync_file, [source_host, source_path, dest_file, work_dir],
+             lsf(:rsync_file, $$, Percolate.cd(work_dir, command), log),
+             env, log,
              :having   => lambda { source_host && source_path &&
                                dest_file && work_dir },
              :confirm  => lambda { FileTest.exists? dest },
-             :yielding => lambda { dest }
+             :yielding => lambda { dest })
   end
 end

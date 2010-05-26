@@ -89,21 +89,22 @@ module Percolate
   # Returns:
   # - Return value of the :yielding Proc, or nil.
   def task fname, args, command, env, procs = {}
-    having, confirm, yielding = ensure_procs procs
+    having, confirm, yielding = ensure_procs(procs)
 
-    memos = Percolate::System.get_memos fname
+    memos = Percolate::System.get_memos(fname)
     result = memos[args]
 
-    $log.debug "Entering task #{fname}"
+    $log.debug("Entering task #{fname}")
 
     if ! result.nil?
-      $log.debug "Returning memoized result: #{result}"
+      $log.debug("Returning memoized result: #{result}")
       result
     elsif ! having.call(*args.take(having.arity.abs))
-      $log.debug "Preconditions not satisfied, returning nil"
+      $log.debug("Preconditions not satisfied, returning nil")
       nil
     else
-      $log.debug "Preconditions are satisfied; running '#{command}' with #{env}"
+      $log.debug("Preconditions are satisfied; running " <<
+                 "'#{command}' with #{env}")
 
       out = []
       IO.popen(command) { |io| out = io.readlines }
@@ -118,11 +119,11 @@ module Percolate
                 "Non-zero exit #{$?.exitstatus} from '#{command}'"
         when success && confirm.call(*args.take(confirm.arity.abs))
           yielded = yielding.call(*args.take(yielding.arity.abs))
-          result = Result.new fname, yielded, out
-          $log.debug "Postconditions satsified; returning #{result}"
+          result = Result.new(fname, yielded, out)
+          $log.debug("Postconditions satsified; returning #{result}")
           memos[args] = result
         else
-          $log.debug "Postconditions not satsified; returning nil"
+          $log.debug("Postconditions not satsified; returning nil")
           nil
       end
     end
@@ -136,7 +137,7 @@ module Percolate
   end
 
   def ensure_proc name, proc
-    if proc.is_a? Proc
+    if proc.is_a?(Proc)
       proc
     else
       raise ArgumentError, "a #{name} Proc is required"

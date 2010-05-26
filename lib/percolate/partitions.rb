@@ -20,11 +20,12 @@ module Percolate
   PARTITION_REGXEP = Regexp.new '^(.*)\.part\.(\d+)(\.\S+)$'
 
   def partitions filename, n
-    if File.directory? filename
-      raise ArgumentError, "#{filename} could not be partitioned; it is a directory"
+    if File.directory?(filename)
+      raise ArgumentError,
+            "#{filename} could not be partitioned; it is a directory"
     end
 
-    dir = File.dirname filename
+    dir = File.dirname(filename)
     if dir == '.'
       dir = ''
     end
@@ -40,7 +41,7 @@ module Percolate
       part = "#{prefix}.part.#{i}#{suffix}"
 
       if dir != ''
-        File.join dir, part
+        File.join(dir, part)
       else
         part
       end
@@ -57,8 +58,8 @@ module Percolate
   def partition_index filename
     if filename.nil?
       nil
-    elsif partition? filename
-      base, index, suffix = parse_partition filename
+    elsif partition?(filename)
+      base, index, suffix = parse_partition(filename)
       index.to_i
     else
       raise ArgumentError, "#{filename} is not a partition"
@@ -70,8 +71,8 @@ module Percolate
   def partition_parent filename
     if filename.nil?
       nil
-    elsif partition? filename
-      base, index, suffix = parse_partition filename
+    elsif partition?(filename)
+      base, index, suffix = parse_partition(filename)
       "#{base}#{suffix}"
     else
       raise ArgumentError, "#{filename} is not a partition"
@@ -82,7 +83,7 @@ module Percolate
   # an ArgumentError if it is not.
   def partition_template filename, placeholder = '%d'
     if partition? filename
-      replace_partition filename, placeholder
+      replace_partition(filename, placeholder)
     else
       raise ArgumentError, "#{filename} is not a partition"
     end
@@ -105,18 +106,18 @@ module Percolate
   def complete_partitions? filenames
     range = 0...filenames.size
     sibling_partitions?(filenames) &&
-      filenames.select { |f| ! range.include? partition_index(f) }.empty?
+      filenames.select { |f| ! range.include?(partition_index(f)) }.empty?
   end
 
   private
   def parse_partition filename
-    if PARTITION_REGXEP.match filename
+    if PARTITION_REGXEP.match(filename)
       [$1, $2, $3]
     end
   end
 
   def replace_partition filename, placeholder
-    if PARTITION_REGXEP.match filename
+    if PARTITION_REGXEP.match(filename)
       "#{$1}.part.#{placeholder}#{$3}"
     end
   end
@@ -124,7 +125,7 @@ module Percolate
   def duplicates array
     duplicates = Hash.new
     array.each do |elt|
-      if duplicates.has_key? elt
+      if duplicates.has_key?(elt)
         duplicates[elt] += 1
       else
         duplicates[elt] = 1

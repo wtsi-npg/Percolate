@@ -43,26 +43,26 @@ module Percolate
 
     # Returns the memoization data for function fname.
     def System.get_memos fname
-      ensure_memos $MEMOS, fname
+      ensure_memos($MEMOS, fname)
     end
 
     # Returns the memoization data for function fname.
     def System.get_async_memos fname
-      ensure_memos $ASYNC_MEMOS, fname
+      ensure_memos($ASYNC_MEMOS, fname)
     end
 
     # Returns true if the outcome of one or more asynchronous tasks
     # that have been started is still unknown.
     def System.dirty_async?
       dirty = $ASYNC_MEMOS.keys.select do |fname|
-        dirty_async_memos? fname
+        dirty_async_memos?(fname)
       end
 
       ! dirty.empty?
     end
 
     def System.dirty_async_memos? fname
-      memos = get_async_memos fname
+      memos = get_async_memos(fname)
       dirty = memos.reject do |fn_args, run_state|
         started, result = run_state
         started && ! result.nil?
@@ -73,7 +73,7 @@ module Percolate
 
     private
     def System.ensure_memos hash, key # :nodoc
-      if hash.has_key? key
+      if hash.has_key?(key)
         hash[key]
       else
         hash[key] = {}

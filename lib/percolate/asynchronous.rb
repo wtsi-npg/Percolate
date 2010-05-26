@@ -31,13 +31,13 @@ module Percolate
       queue, mem, dep, res, size =
         args[:queue], args[:memory], '', '', args[:size]
 
-      unless LSF_QUEUES.member? queue
+      unless LSF_QUEUES.member?(queue)
         raise ArgumentError, ":queue must be one of #{LSF_QUEUES.inspect}"
       end
-      unless mem.is_a? Fixnum and mem > 0
+      unless mem.is_a?(Fixnum) && mem > 0
         raise ArgumentError, ":memory must be a positive Fixnum"
       end
-      unless size.is_a? Fixnum and size > 0
+      unless size.is_a?(Fixnum) && size > 0
         raise ArgumentError, ":size must be a positive Fixnum"
       end
 
@@ -61,51 +61,52 @@ module Percolate
     # Run or update a memoized batch command having pre- and
     # post-conditions.
     def lsf_task fname, args, command, env, log, procs = {}
-      having, confirm, yielding = ensure_procs procs
-      memos = Percolate::System.get_async_memos fname
+      having, confirm, yielding = ensure_procs(procs)
+      memos = Percolate::System.get_async_memos(fname)
       started, result = memos[args]
 
-      $log.debug "Entering task #{fname}, started? #{started or 'false'}, " <<
-                 "result? #{result.inspect}"
+      $log.debug("Entering task #{fname}, started? #{started or 'false'}, " <<
+                 "result? #{result.inspect}")
 
       if started # LSF job was started
-        $log.debug "#{fname} LSF job '#{command}' is already started"
+        $log.debug("#{fname} LSF job '#{command}' is already started")
 
         if ! result.nil?
-          $log.debug "Returning memoized #{fname} result: #{result}"
+          $log.debug("Returning memoized #{fname} result: #{result}")
         else
           begin
-            if lsf_run_success?(log) && confirm.call(*args.take(confirm.arity.abs))
+            if lsf_run_success?(log) &&
+                confirm.call(*args.take(confirm.arity.abs))
               yielded = yielding.call(*args.take(yielding.arity.abs))
-              result = Result.new fname, yielded, []
+              result = Result.new(fname, yielded, [])
               memos[args] = [true, result]
-              $log.debug "Postconditions for #{fname} satsified; " <<
-                         "returning #{result}"
+              $log.debug("Postconditions for #{fname} satsified; " <<
+                         "returning #{result}")
             else
-              $log.debug "Postconditions for #{fname} not satsified; " <<
-                         "returning nil"
+              $log.debug("Postconditions for #{fname} not satsified; " <<
+                         "returning nil")
             end
           rescue PercolateAsyncTaskError => pate
-            $log.debug "#{fname} encountered an error; #{pate.message}"
-            $log.info "Resetting #{fname} for restart after error"
+            $log.debug("#{fname} encountered an error; #{pate.message}")
+            $log.info("Resetting #{fname} for restart after error")
             memos[args] = [nil, nil]
             raise pate
           end
         end
       else # Can we start the LSF job?
         if ! having.call(*args.take(having.arity.abs))
-          $log.debug "Preconditions for #{fname} not satisfied; " <<
-                     "returning nil"
+          $log.debug("Preconditions for #{fname} not satisfied; " <<
+                     "returning nil")
         else
-          $log.debug "Preconditions for #{fname} are satisfied; " <<
-                     "running '#{command}' with env #{env}"
+          $log.debug("Preconditions for #{fname} are satisfied; " <<
+                     "running '#{command}' with env #{env}")
 
           # Jump through hoops because bsub insists on polluting our
           # stdout
           out = []
           IO.popen(command) { |io| out = io.readlines }
           success = $?.exited? && $?.exitstatus.zero?
-          $log.info "bsub reported #{out} for #{fname}"
+          $log.info("bsub reported #{out} for #{fname}")
 
           case # TODO: pass environment variables from env
             when $?.signaled?
@@ -116,8 +117,8 @@ module Percolate
                     "Non-zero exit #{$?.exitstatus} from '#{command}'"
             else
               memos[args] = [true, nil]
-              $log.debug "#{fname} LSF job '#{command}' is running, " <<
-                         "meanwhile returning nil"
+              $log.debug("#{fname} LSF job '#{command}' is running, " <<
+                         "meanwhile returning nil")
           end
         end
       end
@@ -126,7 +127,7 @@ module Percolate
     end
 
     def lsf_run_success? log_file
-      run_success, exit_code = read_lsf_log log_file
+      run_success, exit_code = read_lsf_log(log_file)
       if run_success == false
         raise PercolateAsyncTaskError,
               "Task failed with exit code #{exit_code}"
@@ -153,33 +154,33 @@ module Percolate
       run_success = nil
       exit_code = nil
 
-      if File.exists? file
-        $log.debug "Reading LSF log #{file}"
+      if File.exists?(file)
+        $log.debug("Reading LSF log #{file}")
 
         open(file).each do |line|
-          state = select_state line, state
+          state = select_state(line, state)
           case state
             when :before_lsf_section, :after_lsf_section
               nil
             when :in_lsf_section
               case line
                 when /^Successfully completed./
-                  $log.debug "Job successfully completed in LSF log #{file}"
+                  $log.debug("Job successfully completed in LSF log #{file}")
                   run_success = true
                   exit_code = 0
                 when /^Exited with exit code (\d+)\./
-                  $log.debug "Job exited with code #{$1.to_i} in LSF log" <<
-                             " #{file}"
+                  $log.debug("Job exited with code #{$1.to_i} in LSF log" <<
+                             " #{file}")
                   run_success = false
                   exit_code = $1.to_i
                 when /^Exited with signal termination/
-                  $log.debug "Job terminated with signal in LSF log #{file}"
+                  $log.debug("Job terminated with signal in LSF log #{file}")
                   run_success = false
               end
           end
         end
       else
-        $log.debug "LSF log #{file} not created yet"
+        $log.debug("LSF log #{file} not created yet")
       end
 
       [run_success, exit_code]
