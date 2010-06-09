@@ -28,7 +28,7 @@ require 'percolate/partitions'
 module Percolate
   $log = Logger.new STDERR
 
-  VERSION = '0.0.6'
+  VERSION = '0.0.7'
 
   # An error raised by the Percolate system.
   class PercolateError < StandardError
