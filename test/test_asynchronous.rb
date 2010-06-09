@@ -43,23 +43,23 @@ module PercolateTest
   class TestWorkflow < Test::Unit::TestCase
     include Percolate
 
-    $LSF_PRESENT = system 'which bsub >/dev/null 2>&1'
+    $LSF_PRESENT = system('which bsub >/dev/null 2>&1')
 
     def data_path
-      File.expand_path File.join File.dirname(__FILE__), '..', 'data'
+      File.expand_path(File.join(File.dirname(__FILE__), '..', 'data'))
     end
 
     class MinimalAsyncWorkflow < Workflow
       include AsyncTest
 
       def run *args
-        async_sleep *args
+        async_sleep(*args)
       end
     end
 
     def test_lsf_run_success?
-      assert_nil(lsf_run_success? 'no_such_file')
-      assert_nil(lsf_run_success? File.join data_path, 'lsf_incomplete.log')
+      assert_nil(lsf_run_success?('no_such_file'))
+      assert_nil(lsf_run_success?(File.join data_path, 'lsf_incomplete.log'))
 
       assert_raise PercolateAsyncTaskError do
         lsf_run_success?(File.join data_path,
@@ -107,36 +107,36 @@ module PercolateTest
         begin
           percolator = Percolator.new({'root_dir' => data_path,
                                        'log_file' => 'percolate-test.log'})
-          log_file = File.join data_path, 'minimal_async_workflow.log'
+          log_file = File.join(data_path, 'minimal_async_workflow.log')
 
-          wf = MinimalAsyncWorkflow.new 'dummy_defn.yml', 'dummy_run.run',
-                                        percolator.pass_dir, percolator.fail_dir
+          wf = MinimalAsyncWorkflow.new('dummy_defn.yml', 'dummy_run.run',
+                                        percolator.pass_dir, percolator.fail_dir)
 
           assert(! System.dirty_async?)
           run_time = 10
 
           # Initially nil from async task
-          assert_nil(wf.run run_time, '.', log_file)
+          assert_nil(wf.run(run_time, '.', log_file))
           assert(System.dirty_async?)
 
           Timeout.timeout(120) do
             until (lsf_run_success?(log_file)) do
-              sleep 10
-              print '#'
+              sleep(10)
+              print('#')
             end
           end
 
           # Pick up log file
-          x = wf.run run_time, '.', log_file
+          x = wf.run(run_time, '.', log_file)
 
           assert(! System.dirty_async?)
-          assert(x.is_a? Percolate::Result)
+          assert(x.is_a?(Percolate::Result))
           assert_equal(:async_sleep, x.task)
           assert_equal(run_time, x.value)
 
         ensure
-          if File.exists? log_file
-             File.delete log_file
+          if File.exists?(log_file)
+             File.delete(log_file)
           end
         end
       end

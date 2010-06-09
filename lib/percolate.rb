@@ -129,6 +129,48 @@ module Percolate
     end
   end
 
+  # Run a memoized Ruby Proc having pre-conditions
+  #
+  # Arguments:
+  #
+  # - fname (Symbol): name of memoized method, unique with respect to
+  #   the memoization namespace.
+  # - args: (Array): arguments for the Proc
+  # - command (Proc): the Proc to memoize
+  # - having: (Proc):  pre-condition Proc, should evaluate true if
+  #   pre-conditions of execution are satisfied
+  #
+  #  The 'having' Proc may accept no, some, or all the arguments that
+  #  are passed to the 'command' Proc. It will be called with the
+  #  appropriate number. For example, if the 'having' Proc has arity 2,
+  #  it will be called with the first 2 elements of args.
+  #
+  # Returns:
+  # - Return value of the :command Proc, or nil.
+  def native_task fname, args, command, having
+    ensure_proc('command', command)
+    ensure_proc('having', having)
+
+    memos = Percolate::System.get_memos(fname)
+    result = memos[args]
+
+    $log.debug("Entering task #{fname}")
+
+    if ! result.nil?
+      $log.debug("Returning memoized result: #{result}")
+      result
+    elsif ! having.call(*args.take(having.arity.abs))
+      $log.debug("Preconditions not satisfied, returning nil")
+      nil
+    else
+      $log.debug("Preconditions are satisfied; calling '#{command}'")
+
+      result = Result.new(fname, command.call(*args), nil)
+      $log.debug("#{fname} called; returning #{result}")
+      memos[args] = result
+    end
+  end
+
   private
   def ensure_procs procs
     [ensure_proc(:having,   procs[:having]),

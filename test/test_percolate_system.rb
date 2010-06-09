@@ -26,6 +26,7 @@ require 'percolate'
 
 module PercolateTest
   class TestPercolateSystem < Test::Unit::TestCase
+    include Percolate
 
     def setup
       super
@@ -39,17 +40,17 @@ module PercolateTest
     def test_get_memos
       memos = Percolate::System.get_memos(:test_fn)
 
-      assert(memos.is_a? Hash)
+      assert(memos.is_a?(Hash))
       assert_equal(0, memos.size)
-      assert($MEMOS.has_key? :test_fn)
+      assert($MEMOS.has_key?(:test_fn))
     end
 
     def test_get_async_memos
       memos = Percolate::System.get_async_memos(:test_async_fn)
 
-      assert(memos.is_a? Hash)
+      assert(memos.is_a?(Hash))
       assert_equal(0, memos.size)
-      assert($ASYNC_MEMOS.has_key? :test_async_fn)
+      assert($ASYNC_MEMOS.has_key?(:test_async_fn))
     end
 
     def test_store_restore_memos
@@ -58,11 +59,30 @@ module PercolateTest
 
       Dir.mktmpdir 'percolate' do |dir|
         file = File.join dir, 'store_restore_memos.dat'
-        Percolate::System.store_memos file
-        data = Percolate::System.restore_memos file
+        Percolate::System.store_memos(file)
+        data = Percolate::System.restore_memos(file)
 
         assert_equal([$MEMOS, $ASYNC_MEMOS], data)
       end
+    end
+
+    def test_native_task
+      def test_add_task *args
+        having = lambda { |numbers| ! numbers.nil? }
+        command = lambda { |*numbers| numbers.inject(0) { |n, sum| n + sum } }
+
+        native_task(:test_add_task, args, command, having)
+      end
+
+      assert(! $MEMOS.has_key?(:test_add_task))
+
+      result = test_add_task(1, 2, 3)
+      assert_equal(:test_add_task, result.task)
+      assert_equal(6, result.value)
+
+      memos = Percolate::System.get_memos(:test_add_task)
+      assert(memos.is_a?(Hash))
+      assert($MEMOS.has_key?(:test_add_task))
     end
   end
 end
