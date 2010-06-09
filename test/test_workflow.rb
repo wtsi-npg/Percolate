@@ -35,14 +35,14 @@ module PercolateTest
 
     # A task which is permanently unready and can never be run.
     def unready_task work_dir = '.', env = {}
-      task :unready_task, [work_dir], Percolate.cd(work_dir, 'true'), env,
+      task(:unready_task, [work_dir], Percolate.cd(work_dir, 'true'), env,
            :having   => lambda { false },
            :confirm  => lambda { true },
-           :yielding => lambda { true }
+           :yielding => lambda { true })
     end
 
     def run *args
-      unready_task *args
+      unready_task(*args)
     end
   end
 
@@ -53,14 +53,14 @@ module PercolateTest
 
     # A task which may be run, but which never finishes.
     def unfinished_task work_dir = '.', env = {}
-      task :unfinished_task, [work_dir], Percolate.cd(work_dir, 'true'), env,
+      task(:unfinished_task, [work_dir], Percolate.cd(work_dir, 'true'), env,
            :having   => lambda { true },
            :confirm  => lambda { false },
-           :yielding => lambda { true }
+           :yielding => lambda { true })
     end
 
     def run *args
-      unfinished_task *args
+      unfinished_task(*args)
     end
   end
 
@@ -73,38 +73,38 @@ module PercolateTest
     end
 
     def data_path
-      File.expand_path File.join File.dirname(__FILE__), '..', 'data'
+      File.expand_path(File.join(File.dirname(__FILE__), '..', 'data'))
     end
 
     def make_empty_workflow
       percolator = Percolator.new({'root_dir' => data_path})
-      defn_file = File.join percolator.run_dir, 'test_def1_tmp.yml'
-      run_file = File.join percolator.run_dir, 'test_def1_tmp.run'
+      defn_file = File.join(percolator.run_dir, 'test_def1_tmp.yml')
+      run_file = File.join(percolator.run_dir, 'test_def1_tmp.run')
 
-      FileUtils.cp File.join(percolator.run_dir, 'test_def1.yml'), defn_file
+      FileUtils.cp(File.join(percolator.run_dir, 'test_def1.yml'), defn_file)
 
-      EmptyWorkflow.new defn_file, run_file,
-                        percolator.pass_dir, percolator.fail_dir
+      EmptyWorkflow.new(defn_file, run_file,
+                        percolator.pass_dir, percolator.fail_dir)
     end
 
     def test_bad_definition_suffix
       assert_raise ArgumentError do
-        EmptyWorkflow.new "foo.txt", "foo.run", "pass_dir", "fail_dir"
+        EmptyWorkflow.new("foo.txt", "foo.run", "pass_dir", "fail_dir")
       end
     end
 
     def test_bad_definition_basename
       assert_raise ArgumentError do
-        EmptyWorkflow.new "fo o.yml", "foo.run", "pass_dir", "fail_dir"
+        EmptyWorkflow.new("fo o.yml", "foo.run", "pass_dir", "fail_dir")
       end
     end
 
     def test_task_args
       def bad_arg_task work_dir = '.', env = {}
-          task :bad_arg_task, [work_dir], Percolate.cd(work_dir, 'true'), env,
-                :having   => :not_a_proc,
-                :confirm  => lambda { false },
-                :yielding => lambda { true }
+          task(:bad_arg_task, [work_dir], Percolate.cd(work_dir, 'true'), env,
+               :having   => :not_a_proc,
+               :confirm  => lambda { false },
+               :yielding => lambda { true })
       end
 
       assert_raise ArgumentError do
@@ -113,8 +113,8 @@ module PercolateTest
     end
 
     def test_run_not_overridden
-      wf = Workflow.new "no_such_defn_file.yml", "no_such_run_file.run",
-                        "no_such_pass_dir", "no_such_fail_dir"
+      wf = Workflow.new("no_such_defn_file.yml", "no_such_run_file.run",
+                        "no_such_pass_dir", "no_such_fail_dir")
 
       assert_raise PercolateError do
         wf.run
@@ -142,8 +142,8 @@ module PercolateTest
         end
 
       ensure
-        File.delete wf.passed_definition_file
-        File.delete wf.passed_run_file
+        File.delete(wf.passed_definition_file)
+        File.delete(wf.passed_run_file)
       end
     end
 
@@ -159,19 +159,19 @@ module PercolateTest
         end
 
       ensure
-        File.delete wf.failed_definition_file
-        File.delete wf.failed_run_file
+        File.delete(wf.failed_definition_file)
+        File.delete(wf.failed_run_file)
       end
     end
 
     def test_make_workflow
       percolator = Percolator.new({'root_dir' => data_path})
-      defn_file = File.join percolator.run_dir, 'test_def1.yml'
-      run_file = File.join percolator.run_dir, 'test_def1.run'
-      defn = percolator.read_definition defn_file
+      defn_file = File.join(percolator.run_dir, 'test_def1.yml')
+      run_file = File.join(percolator.run_dir, 'test_def1.run')
+      defn = percolator.read_definition(defn_file)
 
-      assert(Workflow.new defn_file, run_file,
-                          percolator.pass_dir, percolator.fail_dir)
+      assert(Workflow.new(defn_file, run_file,
+                          percolator.pass_dir, percolator.fail_dir))
     end
 
     def test_run_workflow
@@ -181,15 +181,15 @@ module PercolateTest
         assert(! wf.run(nil)) # Should require the work_dir arg
         assert(wf.run)
         x = wf.run
-        assert(x.is_a? Percolate::Result)
+        assert(x.is_a?(Percolate::Result))
         assert_equal(:true_task, x.task)
         assert_equal(true, x.value)
 
         memos = Percolate::System.get_memos(:true_task)
         assert(memos.has_key? ['.'])
-        assert(memos[['.']].is_a? Percolate::Result)
+        assert(memos[['.']].is_a?(Percolate::Result))
       ensure
-        File.delete wf.definition_file
+        File.delete(wf.definition_file)
       end
     end
 
@@ -200,10 +200,10 @@ module PercolateTest
         assert_equal(false, File.exists?(wf.run_file))
         wf.run
         assert(wf.store)
-        assert(File.exists? wf.run_file)
+        assert(File.exists?(wf.run_file))
       ensure
-        File.delete wf.definition_file
-        File.delete wf.run_file
+        File.delete(wf.definition_file)
+        File.delete(wf.run_file)
       end
     end
 
@@ -218,10 +218,10 @@ module PercolateTest
         assert(wf.restore)
         memos = Percolate::System.get_memos(:true_task)
         assert(memos.has_key? ['.'])
-        assert(memos[['.']].is_a? Percolate::Result)
+        assert(memos[['.']].is_a?(Percolate::Result))
       ensure
-        File.delete wf.definition_file
-        File.delete wf.run_file
+        File.delete(wf.definition_file)
+        File.delete(wf.run_file)
       end
     end
 
@@ -231,8 +231,8 @@ module PercolateTest
         wf.run
         wf.store
 
-        assert(File.exists? wf.definition_file)
-        assert(File.exists? wf.run_file)
+        assert(File.exists?(wf.definition_file))
+        assert(File.exists?(wf.run_file))
         assert_equal(false, File.exists?(wf.passed_definition_file))
         assert_equal(false, File.exists?(wf.passed_run_file))
 
@@ -244,11 +244,11 @@ module PercolateTest
 
         assert_equal(false, File.exists?(wf.definition_file))
         assert_equal(false, File.exists?(wf.run_file))
-        assert(File.exists? wf.passed_definition_file)
-        assert(File.exists? wf.passed_run_file)
+        assert(File.exists?(wf.passed_definition_file))
+        assert(File.exists?(wf.passed_run_file))
       ensure
-        File.delete wf.passed_definition_file
-        File.delete wf.passed_run_file
+        File.delete(wf.passed_definition_file)
+        File.delete(wf.passed_run_file)
       end
     end
 
@@ -258,8 +258,8 @@ module PercolateTest
         wf.run
         wf.store
 
-        assert(File.exists? wf.definition_file)
-        assert(File.exists? wf.run_file)
+        assert(File.exists?(wf.definition_file))
+        assert(File.exists?(wf.run_file))
         assert_equal(false, File.exists?(wf.failed_definition_file))
         assert_equal(false, File.exists?(wf.failed_run_file))
 
@@ -271,32 +271,32 @@ module PercolateTest
 
         assert_equal(false, File.exists?(wf.definition_file))
         assert_equal(false, File.exists?(wf.run_file))
-        assert(File.exists? wf.failed_definition_file)
-        assert(File.exists? wf.failed_run_file)
+        assert(File.exists?(wf.failed_definition_file))
+        assert(File.exists?(wf.failed_run_file))
       ensure
-        File.delete wf.failed_definition_file
-        File.delete wf.failed_run_file
+        File.delete(wf.failed_definition_file)
+        File.delete(wf.failed_run_file)
       end
     end
 
     def test_unready_workflow
       percolator = Percolator.new({'root_dir' => data_path})
-      defn_file = File.join percolator.run_dir, 'test_def1.yml'
-      run_file = File.join percolator.run_dir, 'test_def1.run'
+      defn_file = File.join(percolator.run_dir, 'test_def1.yml')
+      run_file = File.join(percolator.run_dir, 'test_def1.run')
 
-      wf = UnreadyWorkflow.new defn_file, run_file,
-                               percolator.pass_dir, percolator.fail_dir
+      wf = UnreadyWorkflow.new(defn_file, run_file,
+                               percolator.pass_dir, percolator.fail_dir)
       assert_nil(wf.run)
       assert(! Percolate::System.get_memos(:unready_task).has_key?(['.']))
     end
 
     def test_unfinished_workflow
       percolator = Percolator.new({'root_dir' => data_path})
-      defn_file = File.join percolator.run_dir, 'test_def1.yml'
-      run_file = File.join percolator.run_dir, 'test_def1.run'
+      defn_file = File.join(percolator.run_dir, 'test_def1.yml')
+      run_file = File.join(percolator.run_dir, 'test_def1.run')
 
-      wf = UnfinishedWorkflow.new defn_file, run_file,
-                                  percolator.pass_dir, percolator.fail_dir
+      wf = UnfinishedWorkflow.new(defn_file, run_file,
+                                  percolator.pass_dir, percolator.fail_dir)
       assert_nil(wf.run)
       assert(! Percolate::System.get_memos(:unfinished_task).has_key?(['.']))
     end

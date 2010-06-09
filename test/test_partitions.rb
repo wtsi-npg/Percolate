@@ -59,7 +59,7 @@ module PercolateTest
 
       assert_nil(partition_index nil)
       assert_raise ArgumentError do
-        partition_index 'foo.part.x.txt'
+        partition_index('foo.part.x.txt')
       end
     end
 
@@ -70,7 +70,7 @@ module PercolateTest
 
       assert_nil(partition_parent nil)
       assert_raise ArgumentError do
-        partition_parent 'foo.part.x.txt'
+        partition_parent('foo.part.x.txt')
       end
     end
 
@@ -81,16 +81,16 @@ module PercolateTest
       end
 
       assert_raise ArgumentError do
-        partition_template nil
+        partition_template(nil)
       end
       assert_raise ArgumentError do
-        partition_template 'foo.part.x.txt'
+        partition_template('foo.part.x.txt')
       end
     end
 
     def test_sibling_partitions?
       parts = (0...10).collect { |i| "foo.part.#{i}.txt" }
-      assert(sibling_partitions? parts)
+      assert(sibling_partitions?(parts))
       assert(! sibling_partitions?([]))
       assert(! sibling_partitions?([nil]))
       assert(! sibling_partitions?([nil, *parts]))

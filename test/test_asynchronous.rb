@@ -30,12 +30,12 @@ module AsyncTest
   def async_sleep seconds, work_dir, log, env = {}
     command = "sleep #{seconds}"
 
-    lsf_task :async_sleep, [seconds, work_dir],
-           Percolate.cd(work_dir, lsf(:async_sleep, $$, command, log,
-                                      :queue => :normal)), env, log,
-           :having   => lambda { work_dir },
-           :confirm  => lambda { true },
-           :yielding => lambda { seconds }
+    lsf_task(:async_sleep, [seconds, work_dir],
+             Percolate.cd(work_dir, lsf(:async_sleep, $$, command, log,
+                                        :queue => :normal)), env, log,
+             :having   => lambda { work_dir },
+             :confirm  => lambda { true },
+             :yielding => lambda { seconds })
   end
 end
 

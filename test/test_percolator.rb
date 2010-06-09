@@ -39,11 +39,11 @@ module TestPercolate
     end
 
     def data_path
-      File.expand_path File.join File.dirname(__FILE__), '..', 'data'
+      File.expand_path(File.join(File.dirname(__FILE__), '..', 'data'))
     end
 
     def test_path
-      File.expand_path File.join File.dirname(__FILE__), '..', 'test'
+      File.expand_path(File.join(File.dirname(__FILE__), '..', 'test'))
     end
 
     def test_read_config
@@ -68,27 +68,27 @@ module TestPercolate
     def test_find_definitions
       percolator = Percolator.new({'root_dir' => data_path})
       assert_equal(['test_def1.yml', 'test_def2.yml'],
-                   percolator.find_definitions.sort.map { |file| File.basename file } )
+                   percolator.find_definitions.sort.collect { |file| File.basename(file) } )
     end
 
     def test_find_run_files
       percolator = Percolator.new({'root_dir' => data_path})
       assert_equal(['test_def1.run'],
-                   percolator.find_run_files.map { |file| File.basename file } )
+                   percolator.find_run_files.collect { |file| File.basename(file) } )
     end
 
     def test_find_new_definitions
       percolator = Percolator.new({'root_dir' => data_path})
       assert_equal(['test_def2.yml'],
-                   percolator.find_new_definitions.map { |file| File.basename file } )
+                   percolator.find_new_definitions.collect { |file| File.basename(file) } )
     end
 
     def test_read_definition
       percolator = Percolator.new({'root_dir' => data_path})
-      defn1 = percolator.read_definition File.join percolator.run_dir, 'test_def1.yml'
-      defn2 = percolator.read_definition File.join percolator.run_dir, 'test_def2.yml'
+      defn1 = percolator.read_definition(File.join(percolator.run_dir, 'test_def1.yml'))
+      defn2 = percolator.read_definition(File.join(percolator.run_dir, 'test_def2.yml'))
 
-      assert defn1.is_a? Array
+      assert defn1.is_a?(Array)
       assert_equal(Percolate::EmptyWorkflow, defn1[0])
       assert_equal(['/tmp'], defn1[1])
 
@@ -97,21 +97,21 @@ module TestPercolate
       assert_equal(['/tmp'], defn2[1])
 
       assert_raise PercolateError do
-        percolator.read_definition "no_such_file_exists"
+        percolator.read_definition('no_such_file_exists')
       end
 
       assert_raise PercolateError do
-        percolator.read_definition data_path # A directory, not a file
+        percolator.read_definition(data_path) # A directory, not a file
       end
 
       # These print warnings to STDERR
       old_stderr = $stderr
       $stderr = StringIO.new
       # $stderr.puts "[STDERR: "
-      assert_nil(percolator.read_definition File.join data_path, 'bad_module_def.yml')
-      assert_nil(percolator.read_definition File.join data_path, 'bad_workflow_def.yml')
-      assert_nil(percolator.read_definition File.join data_path, 'no_module_def.yml')
-      assert_nil(percolator.read_definition File.join data_path, 'no_workflow_def.yml')
+      assert_nil(percolator.read_definition(File.join(data_path, 'bad_module_def.yml')))
+      assert_nil(percolator.read_definition(File.join(data_path, 'bad_workflow_def.yml')))
+      assert_nil(percolator.read_definition(File.join(data_path, 'no_module_def.yml')))
+      assert_nil(percolator.read_definition(File.join(data_path, 'no_workflow_def.yml')))
       # $stderr.puts "]\n"
       # $stderr.rewind
       # $stdout.puts $stderr.readlines
@@ -121,18 +121,18 @@ module TestPercolate
     def test_percolate_tasks_pass
       begin
         percolator = Percolator.new({'root_dir' => data_path})
-        defn_file = File.join percolator.run_dir, 'test_def1_tmp.yml'
-        run_file = File.join percolator.run_dir, 'test_def1_tmp.run'
+        defn_file = File.join(percolator.run_dir, 'test_def1_tmp.yml')
+        run_file = File.join(percolator.run_dir, 'test_def1_tmp.run')
 
-        FileUtils.cp File.join(percolator.run_dir, 'test_def1.yml'), defn_file
+        FileUtils.cp(File.join(percolator.run_dir, 'test_def1.yml'), defn_file)
         assert(percolator.percolate_tasks(defn_file).passed?)
 
         [defn_file, run_file].each do |file|
-          assert(File.exists? File.join percolator.pass_dir, File.basename(file))
+          assert(File.exists?(File.join(percolator.pass_dir, File.basename(file))))
         end
       ensure
         [defn_file, run_file].each do |file|
-          File.delete File.join(percolator.pass_dir, File.basename(file))
+          File.delete(File.join(percolator.pass_dir, File.basename(file)))
         end
       end
     end
@@ -140,18 +140,18 @@ module TestPercolate
     def test_percolate_tasks_fail
       begin
         percolator = Percolator.new({'root_dir' => data_path})
-        defn_file = File.join percolator.run_dir, 'test_def2_tmp.yml'
-        run_file = File.join percolator.run_dir, 'test_def2_tmp.run'
+        defn_file = File.join(percolator.run_dir, 'test_def2_tmp.yml')
+        run_file = File.join(percolator.run_dir, 'test_def2_tmp.run')
 
-        FileUtils.cp File.join(percolator.run_dir, 'test_def2.yml'), defn_file
+        FileUtils.cp(File.join(percolator.run_dir, 'test_def2.yml'), defn_file)
         assert(percolator.percolate_tasks(defn_file).failed?)
 
         [defn_file, run_file].each do |file|
-          assert(File.exists? File.join(percolator.fail_dir, File.basename(file)))
+          assert(File.exists?(File.join(percolator.fail_dir, File.basename(file))))
         end
       ensure
         [defn_file, run_file].each do |file|
-          File.delete File.join(percolator.fail_dir, File.basename(file))
+          File.delete(File.join(percolator.fail_dir, File.basename(file)))
         end
       end
     end
