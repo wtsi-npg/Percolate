@@ -113,9 +113,27 @@ module Percolate
     @@def_suffix = Workflow::DEFINITION_SUFFIX
     @@run_suffix = Workflow::RUN_SUFFIX
 
-    attr_reader 'root_dir', 'lock_dir',
-                'run_dir',  'pass_dir', 'fail_dir', 'work_dir', 'tmp_dir',
-                'log_dir',  'log_file'
+    # The root of all the Percolate runtime directories. Defaults to
+    # $HOME/percolate
+    attr_reader :root_dir
+    # The directory where lock files are created
+    attr_reader :lock_dir
+    # The directory where running workflow definitions are to be placed
+    attr_reader :run_dir
+    # The directory where completed (passed) workflow definitions are
+    # to be placed
+    attr_reader :pass_dir
+    # The directory where completed (failed) workflow definitions are
+    # to be placed
+    attr_reader :fail_dir
+    # The working directory for workflows
+    attr_reader :work_dir
+    # The tmp file directory for workflows. Defaults to /tmp/<username>
+    attr_reader :tmp_dir
+    # The directory where log files are to be placed
+    attr_reader :log_dir
+    # The name of the Percolate log file
+    attr_reader :log_file
 
     # The config hash will normally be supplied via a YAML file on the
     # command line or a YAML .percolate file in the user's home
@@ -289,12 +307,15 @@ module Percolate
             # clearing between workflows, workflow state would leak
             # from one workflow to another.
             $log.debug("Emptying memo table")
-            Percolate::System.clear_memos
+            System.clear_memos
 
             if File.exists?(run_file)
               $log.info("Restoring state of #{definition} from #{run_file}")
               workflow.restore
             end
+
+            Asynchronous.message_queue(workflow.message_queue)
+            System.update_async_memos
 
             # If we find a failed workflow, it means that it is being
             # restarted.

@@ -18,43 +18,109 @@
 
 module Percolate
   module System
-    $MEMOS = {}
-    $ASYNC_MEMOS = {}
+    @@memos = {}
+    @@async_memos = {}
 
-    # Clears the memoization data.
+    def System.memos
+      @@memos
+    end
+
+    def System.async_memos
+      @@async_memos
+    end
+
+    # Clears the memoization data
     def System.clear_memos
-      $MEMOS.clear
-      $ASYNC_MEMOS.clear
+      @@memos.clear
+      @@async_memos.clear
     end
 
     # Stores the memoization data to file filename.
     def System.store_memos filename
       File.open(filename, 'w') do |file|
-        Marshal.dump([$MEMOS, $ASYNC_MEMOS], file)
+        Marshal.dump([@@memos, @@async_memos], file)
       end
     end
 
     # Restores the memoization data to file filename.
     def System.restore_memos filename
       File.open(filename, 'r') do |file|
-        $MEMOS, $ASYNC_MEMOS = Marshal.load(file)
+        @@memos, @@async_memos = Marshal.load(file)
       end
     end
 
     # Returns the memoization data for function fname.
     def System.get_memos fname
-      ensure_memos($MEMOS, fname)
+      ensure_memos(@@memos, fname)
     end
 
     # Returns the memoization data for function fname.
     def System.get_async_memos fname
-      ensure_memos($ASYNC_MEMOS, fname)
+      ensure_memos(@@async_memos, fname)
+    end
+
+    def System.update_async_memos
+      client = Asynchronous.message_client
+      updates = Hash.new
+
+      $log.debug("Started fetching messages from #{client.inspect}")
+
+      loop do
+        msg = client.get_message
+        if msg
+          if updates.has_key?(msg.task_identity)
+            updates[msg.task_identity] << msg
+          else
+            updates[msg.task_identity] = [msg]
+          end
+        else
+          break
+        end
+      end
+
+      $log.debug("Fetched #{updates.size} messages from " <<
+                 "#{Asynchronous.message_queue}")
+      updates.each_value do |msgs|
+        msgs.each do |msg|
+          $log.debug("Received #{msg.inspect}")
+        end
+      end
+
+      @@async_memos.each do |fname, memos|
+        memos.each do |fn_args, result|
+          task_id = result.task_identity
+          $log.debug("Checking messages for updates to #{result.inspect}")
+
+          if updates.has_key?(task_id)
+            msgs = updates[task_id]
+            msgs.each do |msg|
+              case msg.state
+                when :started
+                  $log.debug("#{task_id} has started")
+                  result.started!(msg.time)
+                when :finished
+                  $log.debug("#{task_id} has finished")
+                  result.finished!(nil, msg.time, msg.exit_code)
+              else
+                raise PercolateError, "Invalid message: " << msg.inspect
+              end
+            end
+          end
+        end
+      end
+
+      client.close
+    end
+
+    def System.async_run_finished? fname, args
+      result = get_async_memos(fname)[args]
+      result && result.finished?
     end
 
     # Returns true if the outcome of one or more asynchronous tasks
     # that have been started is still unknown.
     def System.dirty_async?
-      dirty = $ASYNC_MEMOS.keys.select do |fname|
+      dirty = @@async_memos.keys.select do |fname|
         dirty_async_memos?(fname)
       end
 
@@ -63,9 +129,8 @@ module Percolate
 
     def System.dirty_async_memos? fname
       memos = get_async_memos(fname)
-      dirty = memos.reject do |fn_args, run_state|
-        started, result = run_state
-        started && ! result.nil?
+      dirty = memos.reject do |fn_args, result|
+        result && result.submitted? && result.finished?
       end
 
       ! dirty.keys.empty?

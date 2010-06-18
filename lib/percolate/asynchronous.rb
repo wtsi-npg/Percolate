@@ -18,9 +18,50 @@
 
 module Percolate
   module Asynchronous
-    LSF_QUEUES = [:yesterday, :small, :normal, :long, :basement]
+    @@batch_submitter = 'bsub'
+    @@batch_wrapper = 'percolate-wrap'
+    @@batch_queues = [:yesterday, :small, :normal, :long, :basement]
 
-    def lsf name, uid, command, log, args = {}
+    def batch_submitter
+      @@batch_submitter
+    end
+
+    def batch_wrapper wrapper = nil
+      if wrapper
+        @@batch_wrapper = wrapper
+      end
+      @@batch_wrapper
+    end
+
+    def batch_queues queues = nil
+      if queues
+        unless queues.is_a?(Array)
+          raise ArgumentError, "the queues argument must be an Array"
+        end
+        @@batch_queues = queues
+      end
+      @@batch_queues
+    end
+
+    # Wraps a command String in an LSF job submission command.
+    #
+    # Arguments:
+    #
+    # - task_id (String): a task identifier.
+    # - command (String): The command to be executed on the batch queue.
+    # - log (String): The path of the LSF log file to be created.
+    # - args (Hash): Various arguments to LSF:
+    #   - :queue     => LSF queue (Symbol) e.g. :normal, :long
+    #   - :memory    => LSF memory limit in Mb (Fixnum)
+    #   - :depend    => LSF job dependency (String)
+    #   - :resources => LSF resource requirements (String)
+    #   - :size      => LSF job array size (Fixnum)
+    #
+    # Returns:
+    #
+    # - String
+    #
+    def lsf task_id, command, work_dir, log, args = {}
       defaults = {:queue     => :normal,
                   :memory    => 1900,
                   :depend    => nil,
@@ -31,8 +72,8 @@ module Percolate
       queue, mem, dep, res, size =
         args[:queue], args[:memory], '', '', args[:size]
 
-      unless LSF_QUEUES.member?(queue)
-        raise ArgumentError, ":queue must be one of #{LSF_QUEUES.inspect}"
+      unless batch_queues.member?(queue)
+        raise ArgumentError, ":queue must be one of #{batch_queues.inspect}"
       end
       unless mem.is_a?(Fixnum) && mem > 0
         raise ArgumentError, ":memory must be a positive Fixnum"
@@ -48,38 +89,44 @@ module Percolate
         dep = " -w #{args[:depend]}"
       end
 
-      jobname = "#{name}.#{uid}"
+      uid = $$
+      jobname = "#{task_id}.#{uid}"
       if size > 1
         jobname << "[1-#{size}]"
       end
 
-      "bsub -J'#{jobname}' -q #{queue} -R 'select[mem>#{mem}#{res}] " <<
-              "rusage[mem=#{mem}]'#{dep} -M #{mem * 1000} " <<
-              "-oo #{log} '#{command}'"
+      cmd_str = "#{batch_wrapper} --host #{Asynchronous.message_host} " <<
+                "--port #{Asynchronous.message_port} " <<
+                "--queue #{Asynchronous.message_queue} " <<
+                "--task #{task_id} -- #{command}"
+
+      Percolate.cd(work_dir,
+                   "#{batch_submitter} -J'#{jobname}' -q #{queue} " <<
+                   "-R 'select[mem>#{mem}#{res}] " <<
+                   "rusage[mem=#{mem}]'#{dep} " <<
+                   "-M #{mem * 1000} -oo #{log} '#{cmd_str}'")
     end
 
     # Run or update a memoized batch command having pre- and
     # post-conditions.
-    def lsf_task fname, args, command, env, log, procs = {}
+    def lsf_task fname, args, command, env, procs = {}
       having, confirm, yielding = ensure_procs(procs)
-      memos = Percolate::System.get_async_memos(fname)
-      started, result = memos[args]
+      memos = System.get_async_memos(fname)
+      result = memos[args]
+      submitted = result && result.submitted?
 
-      $log.debug("Entering task #{fname}, started? #{started or 'false'}, " <<
-                 "result? #{result.inspect}")
+      task_id = Percolate.task_identity(fname, args)
+      $log.debug("Entering task #{fname}")
 
-      if started # LSF job was started
-        $log.debug("#{fname} LSF job '#{command}' is already started")
+      if submitted # LSF job was submitted
+        $log.debug("#{fname} LSF job '#{command}' is already submitted")
 
-        if ! result.nil?
+        if result.value? # if submitted, result is not nil, see above
           $log.debug("Returning memoized #{fname} result: #{result}")
         else
           begin
-            if lsf_run_success?(log) &&
-                confirm.call(*args.take(confirm.arity.abs))
-              yielded = yielding.call(*args.take(yielding.arity.abs))
-              result = Result.new(fname, yielded, [])
-              memos[args] = [true, result]
+            if result.finished? && confirm.call(*args.take(confirm.arity.abs))
+              result.finished!(yielding.call(*args.take(yielding.arity.abs)))
               $log.debug("Postconditions for #{fname} satsified; " <<
                          "returning #{result}")
             else
@@ -88,42 +135,117 @@ module Percolate
             end
           rescue PercolateAsyncTaskError => pate
             $log.debug("#{fname} encountered an error; #{pate.message}")
-            $log.info("Resetting #{fname} for restart after error")
-            memos[args] = [nil, nil]
+            $log.info("Resetting #{fname} for resubmission after error")
+            memos.delete(args)
             raise pate
           end
         end
-      else # Can we start the LSF job?
+      else # Can we submit the LSF job?
         if ! having.call(*args.take(having.arity.abs))
           $log.debug("Preconditions for #{fname} not satisfied; " <<
                      "returning nil")
         else
-          $log.debug("Preconditions for #{fname} are satisfied; " <<
-                     "running '#{command}' with env #{env}")
+          $log.debug("Preconditions for #{fname} satisfied; " <<
+                     "submitting '#{command}'")
 
-          # Jump through hoops because bsub insists on polluting our
-          # stdout
-          out = []
-          IO.popen(command) { |io| out = io.readlines }
-          success = $?.exited? && $?.exitstatus.zero?
-          $log.info("bsub reported #{out} for #{fname}")
-
-          case # TODO: pass environment variables from env
-            when $?.signaled?
-              raise PercolateAsyncTaskError,
-                    "Uncaught signal #{$?.termsig} from '#{command}'"
-            when ! success
-              raise PercolateAsyncTaskError,
-                    "Non-zero exit #{$?.exitstatus} from '#{command}'"
-            else
-              memos[args] = [true, nil]
-              $log.debug("#{fname} LSF job '#{command}' is running, " <<
-                         "meanwhile returning nil")
+          if submit_async(fname, command)
+            task_id = Percolate.task_identity(fname, args)
+            submission_time = Time.now
+            memos[args] = Result.new(fname, task_id, submission_time)
           end
         end
       end
 
       result
+    end
+
+    def lsf_task_array fname, args_arrays, command, env, logs, procs = {}
+      having, confirm, yielding = ensure_procs(procs)
+      memos = System.get_async_memos(fname)
+
+      # If first in array was submitted, all were submitted
+      submitted = memos.has_key?(args_arrays.first) &&
+        memos[args_arrays.first].submitted?
+
+      $log.debug("Entering task #{fname}")
+      results = Array.new(args_arrays.size)
+
+      if submitted
+        args_arrays.each_with_index do |args, i|
+          result = memos[args]
+
+          if result && result.value?
+            $log.debug "Collecting memoized #{fname} result: #{result}"
+            results[i] = result
+          else
+            begin
+              if result.finished? && confirm.call(*args.take(confirm.arity.abs))
+                value = yielding.call(*args.take(yielding.arity.abs))
+                result.finished!(value)
+                results[i] = result # FIXME -- unecessary?
+                $log.debug("Postconditions for #{fname} satsified; " <<
+                           "collecting #{result}")
+              else
+                $log.debug("Postconditions for #{fname} not satsified; " <<
+                           "collecting nil")
+              end
+            rescue PercolateAsyncTaskError => pate
+              $log.debug("#{fname} encountered an error; #{pate.message}")
+              $log.info("Resetting #{fname} for resubmission after error")
+              # How do you resubmit a subset of a job array?
+              # memos.delete(args) FIXME -- must requeue these instead
+              raise pate
+            end
+          end
+        end
+      else
+        # Can't submit any members of a job array until all their
+        # preconditions are met
+        pre = args_arrays.collect do |args|
+          having.call(*args.take(having.arity.abs))
+        end
+
+        if pre.include?(false)
+          $log.debug("Preconditions for #{fname} not satisfied; " <<
+                     "returning nil")
+        else
+          $log.debug("Preconditions for #{fname} are satisfied; " <<
+                     "submitting '#{command}' with env #{env}")
+
+          if submit_async(fname, command)
+            submission_time = Time.now
+            args_arrays.each do |args|
+              task_id = Percolate.task_identity(fname, args)
+              memos[args] = Result.new(fname, task_id, submission_time)
+            end
+          end
+        end
+      end
+
+      results
+    end
+
+   def submit_async fname, command
+      # Jump through hoops because bsub insists on polluting our
+      # stdout
+      status, stdout = system_command(command)
+      success = command_success?(status)
+
+      $log.info("submission reported #{stdout} for #{fname}")
+
+      case # TODO: pass environment variables from env
+        when status.signaled?
+          raise PercolateAsyncTaskError,
+                "Uncaught signal #{status.termsig} from '#{command}'"
+        when ! success
+          raise PercolateAsyncTaskError,
+                "Non-zero exit #{status.exitstatus} from '#{command}'"
+      else
+        $log.debug("#{fname} async job '#{command}' is submitted, " <<
+                   "meanwhile returning nil")
+      end
+
+      success
     end
 
     def lsf_run_success? log_file

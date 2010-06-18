@@ -1,0 +1,20 @@
+#!/usr/bin/env ruby
+
+require 'rubygems'
+require 'optparse'
+require 'percolate/message_queue'
+
+args = Percolate::Asynchronous::MessageClientArguments.new(ARGV)
+command = ARGV.join(' ')
+client = Percolate::Asynchronous::MessageClient.new(args[:queue],
+                                                    args[:host], args[:port])
+
+client.send_message(Percolate::Asynchronous::TaskMessage.new(args[:task_id],
+                                                             :started))
+
+system(command)
+
+client.send_message(Percolate::Asynchronous::TaskMessage.new(args[:task_id],
+                                                             :finished,
+                                                             $?.exitstatus))
+exit($?.exitstatus)

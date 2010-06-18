@@ -31,7 +31,8 @@ module PercolateTest
 
     def test_partitions
       assert_equal(['foo.part.0.txt'], partitions('foo.txt', 1))
-      assert_equal(['foo.part.0.txt', 'foo.part.1.txt'], partitions('foo.txt', 2))
+      assert_equal(['foo.part.0.txt', 'foo.part.1.txt'],
+                   partitions('foo.txt', 2))
 
       assert_equal(['/bar/foo.part.0.txt'], partitions('/bar/foo.txt', 1))
     end

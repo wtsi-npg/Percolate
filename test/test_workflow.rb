@@ -181,13 +181,13 @@ module PercolateTest
         assert(! wf.run(nil)) # Should require the work_dir arg
         assert(wf.run)
         x = wf.run
-        assert(x.is_a?(Percolate::Result))
+        assert(x.is_a?(Result))
         assert_equal(:true_task, x.task)
         assert_equal(true, x.value)
 
-        memos = Percolate::System.get_memos(:true_task)
+        memos = System.get_memos(:true_task)
         assert(memos.has_key? ['.'])
-        assert(memos[['.']].is_a?(Percolate::Result))
+        assert(memos[['.']].is_a?(Result))
       ensure
         File.delete(wf.definition_file)
       end
@@ -213,12 +213,12 @@ module PercolateTest
         wf.run
         wf.store
 
-        Percolate::System.clear_memos
+        System.clear_memos
 
         assert(wf.restore)
-        memos = Percolate::System.get_memos(:true_task)
+        memos = System.get_memos(:true_task)
         assert(memos.has_key? ['.'])
-        assert(memos[['.']].is_a?(Percolate::Result))
+        assert(memos[['.']].is_a?(Result))
       ensure
         File.delete(wf.definition_file)
         File.delete(wf.run_file)
@@ -287,7 +287,7 @@ module PercolateTest
       wf = UnreadyWorkflow.new(defn_file, run_file,
                                percolator.pass_dir, percolator.fail_dir)
       assert_nil(wf.run)
-      assert(! Percolate::System.get_memos(:unready_task).has_key?(['.']))
+      assert(! System.get_memos(:unready_task).has_key?(['.']))
     end
 
     def test_unfinished_workflow
@@ -298,12 +298,12 @@ module PercolateTest
       wf = UnfinishedWorkflow.new(defn_file, run_file,
                                   percolator.pass_dir, percolator.fail_dir)
       assert_nil(wf.run)
-      assert(! Percolate::System.get_memos(:unfinished_task).has_key?(['.']))
+      assert(! System.get_memos(:unfinished_task).has_key?(['.']))
     end
 
     def test_find_workflows
-      assert([Percolate::EmptyWorkflow, Percolate::FailingWorkflow,
-              Percolate::Workflow].to_set.subset?(Percolate.find_workflows.to_set))
+      assert([EmptyWorkflow, FailingWorkflow,
+              Workflow].to_set.subset?(Percolate.find_workflows.to_set))
     end
   end
 end

@@ -8,7 +8,7 @@ require 'rcov/rcovtask'
 
 spec = Gem::Specification.new do |spec|
   spec.name = 'percolate'
-  spec.version = '0.0.7'
+  spec.version = '0.1.0'
   spec.has_rdoc = true
   spec.extra_rdoc_files = ['README', 'LICENSE']
   spec.summary = 'The Percolate workflow utility.'
