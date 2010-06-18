@@ -18,13 +18,21 @@
 
 module Percolate
   module System
+    # Memoization Hash for synchronous tasks
     @@memos = {}
+    # Memoization Hash for asynchronous tasks
     @@async_memos = {}
 
+    # Returns a Hash of memoization data for synchronous tasks. Keys
+    # are function name symbols, values are Hashes mapping task
+    # argument Arrays to Result objects.
     def System.memos
       @@memos
     end
 
+    # Returns a Hash of memoization data for asynchronous tasks. Keys
+    # are function name symbols, values are Hashes mapping task
+    # argument Arrays to Result objects.
     def System.async_memos
       @@async_memos
     end
@@ -59,6 +67,9 @@ module Percolate
       ensure_memos(@@async_memos, fname)
     end
 
+    # Updates memoization results for asynchronous tasks by polling a
+    # the current message queue. Returns true if any messages were
+    # received, or false otherwise.
     def System.update_async_memos
       client = Asynchronous.message_client
       updates = Hash.new
@@ -110,6 +121,8 @@ module Percolate
       end
 
       client.close
+
+      return (updates.size > 0)
     end
 
     def System.async_run_finished? fname, args
