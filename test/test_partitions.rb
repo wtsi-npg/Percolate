@@ -35,6 +35,14 @@ module PercolateTest
                    partitions('foo.txt', 2))
 
       assert_equal(['/bar/foo.part.0.txt'], partitions('/bar/foo.txt', 1))
+
+      assert_raise ArgumentError do
+        partitions('/', 1)
+      end
+
+      assert_raise ArgumentError do
+        partitions('foo', 1)
+      end
     end
 
     def test_partition?

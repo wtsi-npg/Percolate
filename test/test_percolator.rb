@@ -56,6 +56,15 @@ module TestPercolate
       end
     end
 
+    def test_percolator_arguments
+      # assert(PercolatorArguments.new(['-h']))
+      # assert(PercolatorArguments.new(['-v']))
+      # assert(PercolatorArguments.new(['-w']))
+
+      args = PercolatorArguments.new(['-p'])
+      assert_equal({:percolate => true}, args)
+    end
+
     def test_new_percolator
       percolator = Percolator.new({'root_dir' => data_path})
       assert_equal(data_path, percolator.root_dir)
