@@ -17,7 +17,6 @@
 #
 
 require 'fileutils'
-require 'set'
 require 'test/unit'
 
 libpath = File.expand_path('../lib')

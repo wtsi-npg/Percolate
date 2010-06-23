@@ -18,7 +18,7 @@
 
 require 'fileutils'
 
-require 'percolate/system'
+require 'percolate/memoize'
 require 'percolate/message_queue'
 require 'percolate/asynchronous'
 require 'percolate/tasks'
