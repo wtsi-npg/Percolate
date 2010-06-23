@@ -66,10 +66,11 @@ module PercolateTest
 
   class TestWorkflow < Test::Unit::TestCase
     include Percolate
+    include Percolate::System
 
     def setup
       super
-      Percolate::System.clear_memos
+      clear_memos
     end
 
     def data_path
@@ -185,7 +186,7 @@ module PercolateTest
         assert_equal(:true_task, x.task)
         assert_equal(true, x.value)
 
-        memos = System.get_memos(:true_task)
+        memos = get_memos(:true_task)
         assert(memos.has_key? ['.'])
         assert(memos[['.']].is_a?(Result))
       ensure
@@ -213,10 +214,10 @@ module PercolateTest
         wf.run
         wf.store
 
-        System.clear_memos
+        clear_memos
 
         assert(wf.restore)
-        memos = System.get_memos(:true_task)
+        memos = get_memos(:true_task)
         assert(memos.has_key? ['.'])
         assert(memos[['.']].is_a?(Result))
       ensure
@@ -287,7 +288,7 @@ module PercolateTest
       wf = UnreadyWorkflow.new(defn_file, run_file,
                                percolator.pass_dir, percolator.fail_dir)
       assert_nil(wf.run)
-      assert(! System.get_memos(:unready_task).has_key?(['.']))
+      assert(! get_memos(:unready_task).has_key?(['.']))
     end
 
     def test_unfinished_workflow
@@ -298,7 +299,7 @@ module PercolateTest
       wf = UnfinishedWorkflow.new(defn_file, run_file,
                                   percolator.pass_dir, percolator.fail_dir)
       assert_nil(wf.run)
-      assert(! System.get_memos(:unfinished_task).has_key?(['.']))
+      assert(! get_memos(:unfinished_task).has_key?(['.']))
     end
 
     def test_find_workflows

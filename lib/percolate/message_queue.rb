@@ -21,7 +21,7 @@ require 'beanstalk-client'
 
 module Percolate
   module Asynchronous
-    @@message_host = 'hgs3b'
+    @@message_host = 'hgs3b' # 'localhost'
     @@message_port = '11300'
     @@message_queue = nil
 

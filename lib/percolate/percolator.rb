@@ -110,6 +110,8 @@ module Percolate
   # the directories where it expects to find workflow definitions and
   # run files.
   class Percolator
+    include Percolate::System
+
     @@def_suffix = Workflow::DEFINITION_SUFFIX
     @@run_suffix = Workflow::RUN_SUFFIX
 
@@ -307,7 +309,7 @@ module Percolate
             # clearing between workflows, workflow state would leak
             # from one workflow to another.
             $log.debug("Emptying memo table")
-            System.clear_memos
+            clear_memos # System.clear_memos
 
             if File.exists?(run_file)
               $log.info("Restoring state of #{definition} from #{run_file}")
@@ -315,7 +317,7 @@ module Percolate
             end
 
             Asynchronous.message_queue(workflow.message_queue)
-            System.update_async_memos
+            update_async_memos
 
             # If we find a failed workflow, it means that it is being
             # restarted.

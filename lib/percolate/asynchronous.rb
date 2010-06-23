@@ -111,7 +111,7 @@ module Percolate
     # post-conditions.
     def lsf_task fname, args, command, env, procs = {}
       having, confirm, yielding = ensure_procs(procs)
-      memos = System.get_async_memos(fname)
+      memos = get_async_memos(fname)
       result = memos[args]
       submitted = result && result.submitted?
 
@@ -161,7 +161,7 @@ module Percolate
 
     def lsf_task_array fname, args_arrays, command, env, logs, procs = {}
       having, confirm, yielding = ensure_procs(procs)
-      memos = System.get_async_memos(fname)
+      memos = get_async_memos(fname)
 
       # If first in array was submitted, all were submitted
       submitted = memos.has_key?(args_arrays.first) &&
@@ -225,15 +225,16 @@ module Percolate
       results
     end
 
-   def submit_async fname, command
+    def submit_async fname, command
       # Jump through hoops because bsub insists on polluting our
       # stdout
+      # TODO: pass environment variables from env
       status, stdout = system_command(command)
       success = command_success?(status)
 
       $log.info("submission reported #{stdout} for #{fname}")
 
-      case # TODO: pass environment variables from env
+      case
         when status.signaled?
           raise PercolateAsyncTaskError,
                 "Uncaught signal #{status.termsig} from '#{command}'"

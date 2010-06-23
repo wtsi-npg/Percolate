@@ -23,6 +23,7 @@ module Percolate
   # basic workflow management methods.
   class Workflow
     include Percolate
+    include Percolate::System
 
     DEFINITION_SUFFIX = '.yml'
     RUN_SUFFIX = '.run'
@@ -99,7 +100,8 @@ module Percolate
     # the workflow.
     def restore
       if File.exists?(self.run_file)
-        System.restore_memos(self.run_file)
+        # System.restore_memos(self.run_file)
+        restore_memos(self.run_file)
       else
         raise PercolateError,
               "Run file #{self.run_file} for #{self} does not exist"
@@ -111,7 +113,8 @@ module Percolate
     # Stores the workflow to its run file. Returns the workflow.
     def store
       $log.debug("Storing workflow in #{self.run_file}")
-      Percolate::System.store_memos(self.run_file)
+      # Percolate::System.store_memos(self.run_file)
+      store_memos(self.run_file)
       self
     end
 

@@ -45,7 +45,7 @@ module Percolate
              lsf(:rsync_file, command, work_dir, log),
              env,
              :having   => lambda { source_host && source_path &&
-                               dest_file && work_dir },
+                              dest_file && work_dir },
              :confirm  => lambda { FileTest.exists? dest },
              :yielding => lambda { dest })
   end

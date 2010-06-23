@@ -27,6 +27,7 @@ require 'percolate/percolator'
 require 'percolate/partitions'
 
 module Percolate
+  include Percolate::System
   $log = Logger.new(STDERR)
 
   VERSION = '0.1.0'
@@ -43,10 +44,14 @@ module Percolate
   class PercolateAsyncTaskError < PercolateTaskError
   end
 
+  # Returns a task identity string for a call to function named fname
+  # with arguments Array args.
   def self.task_identity fname, args
     fname.to_s + '-' + Digest::MD5.hexdigest(fname.to_s + args.inspect)
   end
 
+  # Returns a copy of String command with a change directory operation
+  # prepended.
   def self.cd path, command
     "cd #{path} \; #{command}"
   end
@@ -97,29 +102,31 @@ module Percolate
       @stderr          = stderr
     end
 
+    # Sets the Result on completion of a task.
     def finished! value, finish_time = Time.now, exit_code = 0
       self.finish_time = finish_time
       self.exit_code = exit_code
       self.value = value
     end
 
+    # Sets the time at which the task started.
     def started! start_time = Time.now
       self.start_time = start_time
     end
 
-    # Return true if the task that will generate the Result's value
+    # Returns true if the task that will generate the Result's value
     # has been submitted.
     def submitted?
       ! self.submission_time.nil?
     end
 
-    # Return true if the task that will generate the Result's value
+    # Returns true if the task that will generate the Result's value
     # has been started.
     def started?
       ! self.start_time.nil?
     end
 
-    # Return true if the task that will generate the Result's value
+    # Returns true if the task that will generate the Result's value
     # has finished.
     def finished?
       ! self.finish_time.nil?
@@ -169,7 +176,8 @@ module Percolate
   def task fname, args, command, env, procs = {}
     having, confirm, yielding = ensure_procs(procs)
 
-    memos = Percolate::System.get_memos(fname)
+    # memos = Percolate::System.get_memos(fname)
+    memos = get_memos(fname)
     result = memos[args]
 
     $log.debug("Entering task #{fname}")
@@ -230,7 +238,8 @@ module Percolate
     ensure_proc('command', command)
     ensure_proc('having', having)
 
-    memos = Percolate::System.get_memos(fname)
+    # memos = Percolate::System.get_memos(fname)
+    memos = get_memos(fname)
     result = memos[args]
 
     $log.debug("Entering task #{fname}")

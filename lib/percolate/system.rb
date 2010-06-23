@@ -26,51 +26,50 @@ module Percolate
     # Returns a Hash of memoization data for synchronous tasks. Keys
     # are function name symbols, values are Hashes mapping task
     # argument Arrays to Result objects.
-    def System.memos
+    def all_memos
       @@memos
     end
 
     # Returns a Hash of memoization data for asynchronous tasks. Keys
     # are function name symbols, values are Hashes mapping task
     # argument Arrays to Result objects.
-    def System.async_memos
+    def all_async_memos
       @@async_memos
     end
 
-    # Clears the memoization data
-    def System.clear_memos
+    def clear_memos
       @@memos.clear
       @@async_memos.clear
     end
 
     # Stores the memoization data to file filename.
-    def System.store_memos filename
+    def store_memos filename
       File.open(filename, 'w') do |file|
         Marshal.dump([@@memos, @@async_memos], file)
       end
     end
 
     # Restores the memoization data to file filename.
-    def System.restore_memos filename
+    def restore_memos filename
       File.open(filename, 'r') do |file|
         @@memos, @@async_memos = Marshal.load(file)
       end
     end
 
     # Returns the memoization data for function fname.
-    def System.get_memos fname
+    def get_memos fname
       ensure_memos(@@memos, fname)
     end
 
     # Returns the memoization data for function fname.
-    def System.get_async_memos fname
+    def get_async_memos fname
       ensure_memos(@@async_memos, fname)
     end
 
     # Updates memoization results for asynchronous tasks by polling a
     # the current message queue. Returns true if any messages were
     # received, or false otherwise.
-    def System.update_async_memos
+    def update_async_memos
       client = Asynchronous.message_client
       updates = Hash.new
 
@@ -125,14 +124,14 @@ module Percolate
       return (updates.size > 0)
     end
 
-    def System.async_run_finished? fname, args
+    def async_run_finished? fname, args
       result = get_async_memos(fname)[args]
       result && result.finished?
     end
 
     # Returns true if the outcome of one or more asynchronous tasks
     # that have been started is still unknown.
-    def System.dirty_async?
+    def dirty_async?
       dirty = @@async_memos.keys.select do |fname|
         dirty_async_memos?(fname)
       end
@@ -140,7 +139,7 @@ module Percolate
       ! dirty.empty?
     end
 
-    def System.dirty_async_memos? fname
+    def dirty_async_memos? fname
       memos = get_async_memos(fname)
       dirty = memos.reject do |fn_args, result|
         result && result.submitted? && result.finished?
@@ -150,7 +149,7 @@ module Percolate
     end
 
     private
-    def System.ensure_memos hash, key # :nodoc
+    def ensure_memos hash, key # :nodoc
       if hash.has_key?(key)
         hash[key]
       else

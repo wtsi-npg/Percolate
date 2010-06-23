@@ -44,6 +44,7 @@ end
 module PercolateTest
   class TestWorkflow < Test::Unit::TestCase
     include Percolate
+    include Percolate::System
 
     $LSF_PRESENT = system('which bsub >/dev/null 2>&1')
 
@@ -125,17 +126,16 @@ module PercolateTest
                                       percolator.fail_dir)
         Asynchronous.message_queue(wf.message_queue)
 
-        assert(! System.dirty_async?)
+        assert(! dirty_async?)
         run_time = 10
 
         # Initially nil from async task
         assert_nil(wf.run(run_time, '.', lsf_log))
-        assert(System.dirty_async?)
+        assert(dirty_async?)
 
         Timeout.timeout(120) do
-          until (System.async_run_finished?(:async_sleep,
-                                            [run_time, '.'])) do
-              System.update_async_memos
+          until (async_run_finished?(:async_sleep, [run_time, '.'])) do
+              update_async_memos
               sleep(10)
               print('#')
             end
@@ -144,7 +144,7 @@ module PercolateTest
           # Pick up result
           x = wf.run(run_time, '.', lsf_log)
 
-          assert(! System.dirty_async?)
+          assert(! dirty_async?)
           assert(x.is_a?(Result))
           assert(x.started?)
           assert(x.finished?)
