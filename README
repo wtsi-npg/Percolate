@@ -41,11 +41,11 @@ including those used to wrap command-line programs.
    be 'nil', but could also include an Array which contained one or
    more 'nil' values.
 
- - A wrapper function must be able to respond to two categories of
+ - A wrapper function must be able to respond to two modes of
    execution; the first is when called with all required arguments
    being non-empty, at which point it must return a value, the second
    is when called with one or more of its required arguments being
-   empty, when it must return an empty value itself.
+   empty, when it must return an empty value.
 
  - Multiple calls to a function with the same arguments must always
    yield the same return value (i.e. the function must be idempotent).
@@ -71,27 +71,39 @@ return values. These may be data themselves e.g. identifier strings or
 may be proxies for external data e.g. filenames or URIs.
 
 
-=== Percolate scripts
+=== Percolate workflows
 
-A script is simply a Percolate function which calls other functions. A
-driver calls each script repeatedly, with its required arguments,
-until it returns a non-empty value or raises an error. If no error is
-raised, the script is complete, otherwise it has failed. Failed
-scripts may be restarted from their last successful function call,
-after diagnosing and fixing the underlying problem.
+A Workflow is a Ruby object with a 'run' method which calls one or
+more Percolate functions. A driver script calls each Workflow.run
+method repeatedly, with its required arguments, until it returns a
+non-empty value or raises an error. If no error is raised, the
+Workflow is complete, otherwise it has failed. Failed scripts may be
+restarted from their last successful function call, after diagnosing
+and fixing the underlying problem.
 
 
-=== Advanced use
+=== The Percolate configuration file
 
-Since scripts are themselves functions, they become modular, provided
-they use a common way of representing their data. It is possible to
-use higher-order functions where Percolate functions are passed as
-arguments or new functions are returned.
+This file controls core settings, such as the Percolate root directory
+location, log file name and logging verbosity. The file is in YAML
+format. The default configuration file is located at $HOME/.percolate
 
-For example, an analysis script function could be passed to a function
-which, under specific circumstances, composes it with a
-post-processing function to create a new script. In this way, more
-abstract design intentions (in this example, selecting alternative
-post-processing options at runtime) may be organised separately from
-the implementation details (specific post-processing algorithms and
-data formats).
+The log file contains a YAML map:
+
+root_dir: <path to Percolate root, defaults to ~/percolate>
+log_file: <log file name, defaults to percolate.log>
+log_level: <log verbosity, one of TRACE|DEBUG|INFO|WARN, defaults to WARN>
+
+
+The root directory contains the follow subdirectories:
+
+in/    A directory where new workflow configuration files are placed
+pass/  A directory to which completed workflow configuration files are moved
+fail/  A directory to which failed workflow configuration files are moved
+
+locks/ A directory where temporary lock files are created during a workflow
+       lifecycle
+
+If the root directory or any of the subdirectories are absent,
+Percolate will create them automatically.
+
