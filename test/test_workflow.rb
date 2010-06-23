@@ -66,7 +66,7 @@ module PercolateTest
 
   class TestWorkflow < Test::Unit::TestCase
     include Percolate
-    include Percolate::System
+    include Percolate::Memoize
 
     def setup
       super

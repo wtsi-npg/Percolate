@@ -23,7 +23,7 @@ module Percolate
   # basic workflow management methods.
   class Workflow
     include Percolate
-    include Percolate::System
+    include Percolate::Memoize
 
     DEFINITION_SUFFIX = '.yml'
     RUN_SUFFIX = '.run'

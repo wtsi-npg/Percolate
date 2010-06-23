@@ -110,7 +110,7 @@ module Percolate
   # the directories where it expects to find workflow definitions and
   # run files.
   class Percolator
-    include Percolate::System
+    include Percolate::Memoize
 
     @@def_suffix = Workflow::DEFINITION_SUFFIX
     @@run_suffix = Workflow::RUN_SUFFIX

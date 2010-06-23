@@ -44,7 +44,7 @@ end
 module PercolateTest
   class TestWorkflow < Test::Unit::TestCase
     include Percolate
-    include Percolate::System
+    include Percolate::Memoize
 
     $LSF_PRESENT = system('which bsub >/dev/null 2>&1')
 

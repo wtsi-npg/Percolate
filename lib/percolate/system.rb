@@ -17,7 +17,7 @@
 #
 
 module Percolate
-  module System
+  module Memoize
     # Memoization Hash for synchronous tasks
     @@memos = {}
     # Memoization Hash for asynchronous tasks

@@ -28,7 +28,7 @@ require 'percolate'
 module PercolateTest
   class TestPercolateSystem < Test::Unit::TestCase
     include Percolate
-    include Percolate::System
+    include Percolate::Memoize
 
     def setup
       super

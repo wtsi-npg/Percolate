@@ -27,7 +27,7 @@ require 'percolate/percolator'
 require 'percolate/partitions'
 
 module Percolate
-  include Percolate::System
+  include Percolate::Memoize
   $log = Logger.new(STDERR)
 
   VERSION = '0.1.0'
@@ -176,7 +176,6 @@ module Percolate
   def task fname, args, command, env, procs = {}
     having, confirm, yielding = ensure_procs(procs)
 
-    # memos = Percolate::System.get_memos(fname)
     memos = get_memos(fname)
     result = memos[args]
 
@@ -238,7 +237,6 @@ module Percolate
     ensure_proc('command', command)
     ensure_proc('having', having)
 
-    # memos = Percolate::System.get_memos(fname)
     memos = get_memos(fname)
     result = memos[args]
 
