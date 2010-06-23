@@ -22,11 +22,14 @@ require 'beanstalk-client'
 
 module Percolate
   module Asynchronous
-    @@message_host = 'hgs3b' # 'localhost'
+    @@message_host = 'localhost'
     @@message_port = '11300'
     @@message_queue = nil
 
-    def Asynchronous.message_host
+    def Asynchronous.message_host host = nil
+      if host
+        @@message_host = host
+      end
       @@message_host
     end
 
@@ -125,9 +128,9 @@ module Percolate
     end
 
     def Asynchronous.message_client
-      $log.debug("Connecting to message host #{message_host} " <<
-                 "port #{message_port}")
-      MessageClient.new(message_queue, message_host, message_port)
+      $log.debug("Connecting to message host #{self.message_host} " <<
+                 "port #{self.message_port}")
+      MessageClient.new(self.message_queue, self.message_host, self.message_port)
     end
   end
 end

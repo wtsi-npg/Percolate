@@ -19,6 +19,7 @@
 require 'yaml'
 require 'optparse'
 require 'logger'
+require 'socket'
 
 module Percolate
   class PercolatorArguments < Hash
@@ -169,6 +170,9 @@ module Percolate
       @pass_dir = (opts[:pass_dir] || File.join(@root_dir, 'pass'))
       @fail_dir = (opts[:fail_dir] || File.join(@root_dir, 'fail'))
 
+      msg_host = (opts[:msg_host] || Socket.gethostname)
+      Asynchronous.message_host(msg_host)
+
       if FileTest.directory?(opts[:log_file])
         raise ArgumentError,
               ":log_file must be a file name, not a directory: " <<
@@ -309,15 +313,17 @@ module Percolate
             # clearing between workflows, workflow state would leak
             # from one workflow to another.
             $log.debug("Emptying memo table")
-            clear_memos # System.clear_memos
+            clear_memos
 
             if File.exists?(run_file)
               $log.info("Restoring state of #{definition} from #{run_file}")
               workflow.restore
             end
 
-            Asynchronous.message_queue(workflow.message_queue)
-            update_async_memos
+            if dirty_async?
+              Asynchronous.message_queue(workflow.message_queue)
+              update_async_memos
+            end
 
             # If we find a failed workflow, it means that it is being
             # restarted.

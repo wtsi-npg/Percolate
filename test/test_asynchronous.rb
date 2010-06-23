@@ -118,7 +118,8 @@ module PercolateTest
       if $LSF_PRESENT
         percolator = Percolator.new({'root_dir'  => data_path,
                                      'log_file'  => 'percolate-test.log',
-                                     'log_level' => 'DEBUG'})
+                                     'log_level' => 'DEBUG',
+                                     'msg_host'  => 'hgs3b'})
         lsf_log = File.join(data_path, 'minimal_async_workflow.log')
 
         wf = MinimalAsyncWorkflow.new('dummy_defn.yml', 'dummy_run.run',
