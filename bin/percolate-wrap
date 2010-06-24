@@ -2,21 +2,32 @@
 
 require 'rubygems'
 require 'optparse'
-# require 'percolate/message_queue'
+require 'percolate/message_queue'
 
-require '/nfs/users/nfs_k/kdj/dev/ruby/percolate-rb.git/lib/percolate/message_queue'
+include Percolate::Asynchronous
 
-args = Percolate::Asynchronous::MessageClientArguments.new(ARGV)
+args = MessageClientArguments.new(ARGV)
 command = ARGV.join(' ')
-client = Percolate::Asynchronous::MessageClient.new(args[:queue],
-                                                    args[:host], args[:port])
 
-client.send_message(Percolate::Asynchronous::TaskMessage.new(args[:task_id],
-                                                             :started))
+begin
+  if ! args.has_key?(:task_id)
+    raise ArgumentError, 'Error: a --task_id argument must be provided'
+  elsif ! args.has_key?(:queue)
+    raise ArgumentError, 'Error: a --queue argument must be provided'
+  elsif ! args.has_key?(:host)
+    raise ArgumentError, 'Error: a --host argument must be provided'
+  elsif ! args.has_key?(:port)
+    raise ArgumentError, 'Error: a --port argument must be provided'
+  end
+rescue ArgumentError => ae
+  $stderr.puts(ae)
+  exit(1)
+end
 
+client = MessageClient.new(args[:queue], args[:host], args[:port])
+
+client.send_message(TaskMessage.new(args[:task_id], :started))
 system(command)
+client.send_message(TaskMessage.new(args[:task_id], :finished, $?.exitstatus))
 
-client.send_message(Percolate::Asynchronous::TaskMessage.new(args[:task_id],
-                                                             :finished,
-                                                             $?.exitstatus))
 exit($?.exitstatus)

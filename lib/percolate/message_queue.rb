@@ -52,10 +52,10 @@ module Percolate
 
         opts = OptionParser.new do |opts|
           opts.banner = "Usage: #$0 [options]"
-          t = [:task_id, '-t', '--task task_id',  'Percolate task identity']
-          q = [:queue,   '-q', '--queue queue',   'Percolate queue name']
-          h = [:host,    '-h', '--host hostname', 'Percolate queue host']
-          p = [:port,    '-p', '--port port',     'Percolate queue port']
+          t = [:task_id, '-t', '--task  TASK_ID',  'Percolate task identity']
+          q = [:queue,   '-q', '--queue QUEUE',    'Percolate queue name']
+          h = [:host,    '-h', '--host  HOSTNAME', 'Percolate queue host']
+          p = [:port,    '-p', '--port  [PORT]',   'Percolate queue port']
           [t, q, h, p].each do |key, short, long, doc|
             opts.on(short, long, doc) { |opt| self[key] = opt }
           end
@@ -68,7 +68,6 @@ module Percolate
 
         begin
           opts.parse!(args)
-
         rescue OptionParser::ParseError => pe
           $stderr.puts opts
           $stderr.puts "\nInvalid argument: #{pe}"

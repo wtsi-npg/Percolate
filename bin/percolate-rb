@@ -9,40 +9,42 @@ require 'optparse'
 
 require 'percolate'
 
-arguments = Percolate::PercolatorArguments.new(ARGV)
+include Percolate
+
+arguments = PercolatorArguments.new(ARGV)
 
 config = {}
 default_config = File.expand_path '~/.percolate'
 config_file = nil
 
-if arguments.has_key? :config
+if arguments.has_key?(:config)
    config_file = arguments[:config]
-elsif File.exists? default_config
+elsif File.exists?(default_config)
    config_file = default_config
 end
 
 if config_file
    begin
-     if ! File.exists? config_file
+     if ! File.exists?(config_file)
        raise ArgumentError,
              "Percolate configuration '#{config_file}' does not exist"
-     elsif ! File.file? config_file
+     elsif ! File.file?(config_file)
        raise ArgumentError,
              "Percolate configuration '#{config_file}' is not a file"
-     elsif ! File.readable? config_file
+     elsif ! File.readable?(config_file)
        raise ArgumentError,
              "Percolate configuration '#{config_file}' is not readable"
      else
        config = YAML.load_file(config_file)
      end
    rescue ArgumentError => ae
-     $stderr.puts "Invalid configuration: #{ae}"
+     $stderr.puts("Invalid configuration: #{ae}")
    end
 end
 
 # The :percolate flag means we are supposed to run workflows
-if arguments.has_key? :percolate
-  Percolate::Percolator.new(config).percolate
+if arguments.has_key?(:percolate)
+  Percolator.new(config).percolate
 else
-  Percolate::PercolatorArguments.new('-h')
+  PercolatorArguments.new('-h')
 end
