@@ -320,8 +320,8 @@ module Percolate
               workflow.restore
             end
 
+            Asynchronous.message_queue(workflow.message_queue)
             if dirty_async?
-              Asynchronous.message_queue(workflow.message_queue)
               update_async_memos
             end
 
