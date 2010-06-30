@@ -2,16 +2,16 @@
 
 require 'rubygems'
 require 'optparse'
-require 'percolate/message_queue'
+
+require 'percolate'
 
 include Percolate::Asynchronous
 
 args = MessageClientArguments.new(ARGV)
-command = ARGV.join(' ')
 
 begin
   if ! args.has_key?(:task_id)
-    raise ArgumentError, 'Error: a --task_id argument must be provided'
+    raise ArgumentError, 'Error: a --task argument must be provided'
   elsif ! args.has_key?(:queue)
     raise ArgumentError, 'Error: a --queue argument must be provided'
   elsif ! args.has_key?(:host)
@@ -24,10 +24,26 @@ rescue ArgumentError => ae
   exit(1)
 end
 
+task_id = nil
+command = nil
+
+if args.has_key?(:index)
+  file = args[:task_id] + '.txt'
+  job_index = ENV['LSB_JOBINDEX']
+  unless job_index
+    raise Percolate::PercolateError, "LSB_JOBINDEX was not set"
+  end
+
+  task_id, command = read_array_command(file, Integer(job_index))
+else
+  task_id = args[:task_id]
+  command = ARGV.join(' ')
+end
+
 client = MessageClient.new(args[:queue], args[:host], args[:port])
 
-client.send_message(TaskMessage.new(args[:task_id], :started))
+client.send_message(TaskMessage.new(task_id, command, :started))
 system(command)
-client.send_message(TaskMessage.new(args[:task_id], :finished, $?.exitstatus))
+client.send_message(TaskMessage.new(task_id, command, :finished, $?.exitstatus))
 
 exit($?.exitstatus)

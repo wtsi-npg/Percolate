@@ -17,6 +17,7 @@
 #
 
 require 'fileutils'
+require 'logger'
 
 require 'percolate/memoize'
 require 'percolate/message_queue'
@@ -109,9 +110,15 @@ module Percolate
       self.value = value
     end
 
-    # Sets the time at which the task started.
+    # Sets the time at which the task started. Tasks may be restarted,
+    # in which case the finish time, value, stdout and stderr are set
+    # to nil
     def started! start_time = Time.now
       self.start_time = start_time
+      self.finish_time = nil
+      self.value = nil
+      self.stdout = nil
+      self.stderr = nil
     end
 
     # Returns true if the task that will generate the Result's value
@@ -136,6 +143,10 @@ module Percolate
     # has returned something i.e. the value is not nil.
     def value?
       ! self.value.nil?
+    end
+
+    def failed?
+      self.finished? && ! self.exit_code.zero?
     end
 
     def to_s
@@ -192,12 +203,13 @@ module Percolate
 
       submission_time = start_time = Time.now
       status, stdout = system_command(command)
+      finish_time = Time.now
       success = command_success?(status)
 
       case # TODO: pass environment variables from env
         when status.signaled?
           raise PercolateTaskError,
-                "Uncaught signal #{status.termsig} from '#{command}' "
+                "Uncaught signal #{status.termsig} from '#{command}'"
         when ! success
           raise PercolateTaskError,
                 "Non-zero exit #{status.exitstatus} from '#{command}'"
@@ -205,7 +217,7 @@ module Percolate
           yielded = yielding.call(*args.take(yielding.arity.abs))
           task_id = Percolate.task_identity(fname, args)
           result = Result.new(fname, task_id, submission_time, start_time,
-                              Time.now, yielded, status.exitstatus, stdout)
+                              finish_time, yielded, status.exitstatus, stdout)
           $log.debug("Postconditions satsified; returning #{result}")
           memos[args] = result
         else
@@ -242,7 +254,7 @@ module Percolate
 
     $log.debug("Entering task #{fname}")
 
-    if ! result.nil?
+    if result
       $log.debug("Returning memoized result: #{result}")
       result
     elsif ! having.call(*args.take(having.arity.abs))

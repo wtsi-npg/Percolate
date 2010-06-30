@@ -106,7 +106,11 @@ module Percolate
             msgs.each do |msg|
               case msg.state
                 when :started
-                  $log.debug("#{task_id} has started")
+                  if result.started? || result.finished?
+                    $log.warn("#{task_id} has been restarted")
+                  else
+                    $log.debug("#{task_id} has started")
+                  end
                   result.started!(msg.time)
                 when :finished
                   $log.debug("#{task_id} has finished")

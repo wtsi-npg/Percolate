@@ -14,7 +14,7 @@ include Percolate
 arguments = PercolatorArguments.new(ARGV)
 
 config = {}
-default_config = File.expand_path '~/.percolate'
+default_config = File.expand_path('~/.percolate')
 config_file = nil
 
 if arguments.has_key?(:config)
@@ -39,6 +39,7 @@ if config_file
      end
    rescue ArgumentError => ae
      $stderr.puts("Invalid configuration: #{ae}")
+     exit(1)
    end
 end
 

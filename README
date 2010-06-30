@@ -97,9 +97,9 @@ log_level: <log verbosity, one of TRACE|DEBUG|INFO|WARN, defaults to WARN>
 
 The root directory contains the follow subdirectories:
 
-in/    A directory where new workflow configuration files are placed
-pass/  A directory to which completed workflow configuration files are moved
-fail/  A directory to which failed workflow configuration files are moved
+in/    A directory where new workflow definition files are placed
+pass/  A directory to which completed workflow definition files are moved
+fail/  A directory to which failed workflow definition files are moved
 
 locks/ A directory where temporary lock files are created during a workflow
        lifecycle
@@ -107,3 +107,19 @@ locks/ A directory where temporary lock files are created during a workflow
 If the root directory or any of the subdirectories are absent,
 Percolate will create them automatically.
 
+
+=== Percolate batch jobs
+
+Percolate runs batch jobs inside a wrapper which sends messages
+describing job progress to a central message queue. The Percolate
+driver takes messages from the queue each time it runs and uses the
+information to decide which new functions may be run or submitted to
+batch queues.
+
+If one or more batch jobs fail, the driver moves the workflow
+definition file to the 'fail' directory. Any batch jobs from a failed
+workflow that are left running will still send messages to the message
+queue; the driver will simply ignore them for the time being. The
+failed batch jobs may be re-submitted or re-queued and the workflow
+definiton file moved back to the 'in' directory, at which point the
+driver will again start to process messages for that workflow.

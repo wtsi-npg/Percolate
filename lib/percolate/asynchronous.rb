@@ -16,6 +16,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+require 'yaml'
+
 module Percolate
   module Asynchronous
     @@batch_submitter = 'bsub'
@@ -62,24 +64,24 @@ module Percolate
     # - String
     #
     def lsf task_id, command, work_dir, log, args = {}
-      defaults = {:queue     => :normal,
-                  :memory    => 1900,
-                  :depend    => nil,
-                  :resources => nil,
-                  :size      => 1}
+      defaults = {:queue      => :normal,
+                  :memory     => 1900,
+                  :depend     => nil,
+                  :resources  => nil,
+                  :array_file => nil}
       args = defaults.merge(args)
 
-      queue, mem, dep, res, size =
-        args[:queue], args[:memory], '', '', args[:size]
+      queue, mem, dep, res, uid = args[:queue], args[:memory], '', '', $$
 
-      unless batch_queues.member?(queue)
+      unless batch_queues.include?(queue)
         raise ArgumentError, ":queue must be one of #{batch_queues.inspect}"
       end
       unless mem.is_a?(Fixnum) && mem > 0
         raise ArgumentError, ":memory must be a positive Fixnum"
       end
-      unless size.is_a?(Fixnum) && size > 0
-        raise ArgumentError, ":size must be a positive Fixnum"
+      if command && args[:array_file]
+        raise ArgumentError,
+              "Both a single command and a command array file were supplied"
       end
 
       if args[:resources]
@@ -89,22 +91,28 @@ module Percolate
         dep = " -w #{args[:depend]}"
       end
 
-      uid = $$
-      jobname = "#{task_id}.#{uid}"
-      if size > 1
-        jobname << "[1-#{size}]"
-      end
-
       cmd_str = "#{batch_wrapper} --host #{Asynchronous.message_host} " <<
                 "--port #{Asynchronous.message_port} " <<
                 "--queue #{Asynchronous.message_queue} " <<
-                "--task #{task_id} -- #{command}"
+                "--task #{task_id}"
+
+      job_name = "#{task_id}.#{uid}"
+      if args[:array_file]
+        # In a job array the actual command is pulled from the job's
+        # command array file using the LSF job index
+        size = count_lines(args[:array_file])
+        job_name << "[1-#{size}]"
+        cmd_str << ' --index'
+      else
+        # Otherwise the command is run directly
+        cmd_str << " -- '#{command}'"
+      end
 
       Percolate.cd(work_dir,
-                   "#{batch_submitter} -J'#{jobname}' -q #{queue} " <<
+                   "#{batch_submitter} -J'#{job_name}' -q #{queue} " <<
                    "-R 'select[mem>#{mem}#{res}] " <<
                    "rusage[mem=#{mem}]'#{dep} " <<
-                   "-M #{mem * 1000} -oo #{log} '#{cmd_str}'")
+                   "-M #{mem * 1000} -oo #{log} #{cmd_str}")
     end
 
     # Run or update a memoized batch command having pre- and
@@ -115,7 +123,6 @@ module Percolate
       result = memos[args]
       submitted = result && result.submitted?
 
-      task_id = Percolate.task_identity(fname, args)
       $log.debug("Entering task #{fname}")
 
       if submitted # LSF job was submitted
@@ -125,7 +132,11 @@ module Percolate
           $log.debug("Returning memoized #{fname} result: #{result}")
         else
           begin
-            if result.finished? && confirm.call(*args.take(confirm.arity.abs))
+            if result.failed?
+              raise PercolateAsyncTaskError,
+                    "#{fname} args: #{args.inspect} failed"
+            elsif result.finished? &&
+                confirm.call(*args.take(confirm.arity.abs))
               result.finished!(yielding.call(*args.take(yielding.arity.abs)))
               $log.debug("Postconditions for #{fname} satsified; " <<
                          "returning #{result}")
@@ -134,9 +145,8 @@ module Percolate
                          "returning nil")
             end
           rescue PercolateAsyncTaskError => pate
-            $log.debug("#{fname} encountered an error; #{pate.message}")
-            $log.info("Resetting #{fname} for resubmission after error")
-            memos.delete(args)
+            # Any of the having, confirm or yielding procs may throw this
+            $log.error("#{fname} requires attention: #{pate.message}")
             raise pate
           end
         end
@@ -159,7 +169,7 @@ module Percolate
       result
     end
 
-    def lsf_task_array fname, args_arrays, command, env, logs, procs = {}
+    def lsf_task_array fname, args_arrays, commands, command, env, procs = {}
       having, confirm, yielding = ensure_procs(procs)
       memos = get_async_memos(fname)
 
@@ -173,16 +183,20 @@ module Percolate
       if submitted
         args_arrays.each_with_index do |args, i|
           result = memos[args]
+          results[i] = result
+          $log.debug("Checking #{fname}[#{i}] args: #{args.inspect}, " <<
+                     "result: #{result}")
 
-          if result && result.value?
-            $log.debug "Collecting memoized #{fname} result: #{result}"
-            results[i] = result
+          if result.value?
+            $log.debug("Returning memoized #{fname} result: #{result}")
           else
             begin
-              if result.finished? && confirm.call(*args.take(confirm.arity.abs))
-                value = yielding.call(*args.take(yielding.arity.abs))
-                result.finished!(value)
-                results[i] = result # FIXME -- unecessary?
+              if result.failed?
+                raise PercolateAsyncTaskError,
+                     "#{fname}[#{i}] args: #{args.inspect} failed"
+              elsif result.finished? &&
+                  confirm.call(*args.take(confirm.arity.abs))
+                result.finished!(yielding.call(*args.take(yielding.arity.abs)))
                 $log.debug("Postconditions for #{fname} satsified; " <<
                            "collecting #{result}")
               else
@@ -190,10 +204,8 @@ module Percolate
                            "collecting nil")
               end
             rescue PercolateAsyncTaskError => pate
-              $log.debug("#{fname} encountered an error; #{pate.message}")
-              $log.info("Resetting #{fname} for resubmission after error")
-              # How do you resubmit a subset of a job array?
-              # memos.delete(args) FIXME -- must requeue these instead
+              # Any of the having, confirm or yielding procs may throw this
+              $log.error("#{fname}[#{i}] requires attention: #{pate.message}")
               raise pate
             end
           end
@@ -209,20 +221,65 @@ module Percolate
           $log.debug("Preconditions for #{fname} not satisfied; " <<
                      "returning nil")
         else
+          array_task_id = Percolate.task_identity(fname, args_arrays)
           $log.debug("Preconditions for #{fname} are satisfied; " <<
                      "submitting '#{command}' with env #{env}")
 
           if submit_async(fname, command)
             submission_time = Time.now
-            args_arrays.each do |args|
+            args_arrays.each_with_index do |args, i|
               task_id = Percolate.task_identity(fname, args)
-              memos[args] = Result.new(fname, task_id, submission_time)
+              result = Result.new(fname, task_id, submission_time)
+              memos[args] = result
+              $log.debug("Submitted #{fname}[#{i}] args: #{args.inspect}, " <<
+                         "result #{result}")
             end
           end
         end
       end
 
       results
+    end
+
+    def write_array_commands file, fname, args_array, commands
+       File.open(file, 'w') do |f|
+        args_array.zip(commands).each do |args, cmd|
+          task_id = Percolate.task_identity(fname, args)
+          f.puts("#{task_id}\t#{fname}\t#{args.inspect}\t#{cmd}")
+        end
+      end
+    end
+
+    def read_array_command file, lineno
+      task_id = nil
+      command = nil
+
+      File.open(file, 'r') do |f|
+        f.each_line do |line|
+          if f.lineno == lineno
+            fields = line.chomp.split("\t")
+            task_id = fields[0]
+            command = fields[3]
+            break
+          end
+        end
+      end
+
+      if task_id.nil?
+        raise PercolateError, "No such command line #{index} in #{file}"
+      elsif task_id.empty?
+        raise PercolateError, "Empty task_id at line #{index} in #{file}"
+      elsif command.empty?
+        raise PercolateError, "Empty command at line #{index} in #{file}"
+      else
+        [task_id, command]
+      end
+    end
+
+    def count_lines file
+      count = 0
+      open(file).each { |line| count = count + 1 }
+      count
     end
 
     def submit_async fname, command

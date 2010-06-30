@@ -17,7 +17,7 @@
 #
 
 module Percolate
-  PARTITION_REGXEP = Regexp.new '^(.*)\.part\.(\d+)(\.\S+)$'
+  PARTITION_REGXEP = Regexp.new('^(.*)\.part\.(\d+)(\.\S+)$')
 
   def partitions filename, n
     if File.directory?(filename)
@@ -82,7 +82,7 @@ module Percolate
   # Returns the template of filename if it is a partition, or raises
   # an ArgumentError if it is not.
   def partition_template filename, placeholder = '%d'
-    if partition? filename
+    if partition?(filename)
       replace_partition(filename, placeholder)
     else
       raise ArgumentError, "#{filename} is not a partition"
@@ -95,7 +95,7 @@ module Percolate
   def sibling_partitions? filenames
     if (! filenames.empty? && ! filenames.include?(nil) &&
         duplicates(filenames).empty?)
-      parents = filenames.collect { |f| partition_parent f }
+      parents = filenames.collect { |f| partition_parent(f) }
       parents.count(parents.first) == filenames.size
     end
   end

@@ -52,16 +52,27 @@ module Percolate
 
         opts = OptionParser.new do |opts|
           opts.banner = "Usage: #$0 [options]"
-          t = [:task_id, '-t', '--task  TASK_ID',  'Percolate task identity']
-          q = [:queue,   '-q', '--queue QUEUE',    'Percolate queue name']
-          h = [:host,    '-h', '--host  HOSTNAME', 'Percolate queue host']
-          p = [:port,    '-p', '--port  [PORT]',   'Percolate queue port']
-          [t, q, h, p].each do |key, short, long, doc|
+          t = [:task_id, '-t', '--task TASK_ID',  'Percolate task identity']
+          q = [:queue,   '-q', '--queue QUEUE',   'Percolate queue name']
+          h = [:host,    '-h', '--host HOSTNAME', 'Percolate queue host']
+          [t, q, h].each do |key, short, long, doc|
             opts.on(short, long, doc) { |opt| self[key] = opt }
           end
 
+          opts.on('-p', '--port [PORT]', 'Percolate queue port') do |port|
+            begin 
+              self[:port] = Integer(port)
+            rescue ArgumentError => ae
+              raise OptionParser::ParseError, ae.to_s
+            end
+          end
+
+          opts.on('-i', '--index', 'Percolate indexed task') do
+            self[:index] = true
+          end
+
           opts.on('-?', '--help', 'Display this help and exit') do
-            $stderr.puts opts
+            $stderr.puts(opts)
             exit
           end
         end
@@ -69,8 +80,8 @@ module Percolate
         begin
           opts.parse!(args)
         rescue OptionParser::ParseError => pe
-          $stderr.puts opts
-          $stderr.puts "\nInvalid argument: #{pe}"
+          $stderr.puts(opts)
+          $stderr.puts("\nInvalid argument: #{pe}")
         end
 
         self
@@ -92,7 +103,7 @@ module Percolate
       end
 
       def send_message message
-        self.pool.yput message
+        self.pool.yput(message)
       end
 
       def get_message
@@ -112,24 +123,26 @@ module Percolate
     class TaskMessage
       TASK_STATES = [:started, :finished]
 
-      attr_reader :task_identity, :state, :exit_code, :time
+      attr_reader :task_identity, :command, :state, :exit_code, :time
 
-      def initialize task_identity, state, exit_code = nil, time = Time.now
+      def initialize task_identity, command, state, exit_code = nil,
+                     time = Time.now
         unless TASK_STATES.include?(state)
           raise ArgumentError,
                 "Invalid state argument #{state}, must be one of " <<
                 TASK_STATES.inspect
         end
 
-        @task_identity, @state, @exit_code, @time =
-          task_identity, state, exit_code, time
+        @task_identity, @command, @state, @exit_code, @time =
+          task_identity, command, state, exit_code, time
       end
     end
 
     def Asynchronous.message_client
       $log.debug("Connecting to message host #{self.message_host} " <<
                  "port #{self.message_port}")
-      MessageClient.new(self.message_queue, self.message_host, self.message_port)
+      MessageClient.new(self.message_queue, self.message_host,
+                        self.message_port)
     end
   end
 end
