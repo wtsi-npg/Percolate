@@ -7,22 +7,56 @@ require 'percolate'
 
 include Percolate::Asynchronous
 
-args = MessageClientArguments.new(ARGV)
+class WrapClientArguments < Hash
+  def initialize args
+    super
 
-begin
-  if ! args.has_key?(:task_id)
-    raise ArgumentError, 'Error: a --task argument must be provided'
-  elsif ! args.has_key?(:queue)
-    raise ArgumentError, 'Error: a --queue argument must be provided'
-  elsif ! args.has_key?(:host)
-    raise ArgumentError, 'Error: a --host argument must be provided'
-  elsif ! args.has_key?(:port)
-    raise ArgumentError, 'Error: a --port argument must be provided'
+    opts = OptionParser.new do |opts|
+      opts.banner = "Usage: #$0 [options]"
+      t = [:task_id, '-t', '--task TASK_ID',  'Percolate task identity']
+      q = [:queue,   '-q', '--queue QUEUE',   'Percolate queue name']
+      h = [:host,    '-h', '--host HOSTNAME', 'Percolate queue host']
+      [t, q, h].each do |key, short, long, doc|
+        opts.on(short, long, doc) { |opt| self[key] = opt }
+      end
+
+      opts.on('-p', '--port [PORT]', 'Percolate queue port') do |port|
+        begin
+          self[:port] = Integer(port)
+        rescue ArgumentError => ae
+          raise OptionParser::ParseError, ae.to_s
+        end
+      end
+
+      opts.on('-i', '--index', 'Percolate indexed task') do
+        self[:index] = true
+      end
+
+      opts.on('-?', '--help', 'Display this help and exit') do
+        $stderr.puts(opts)
+        exit
+      end
+    end
+
+    begin
+      opts.parse!(args)
+
+      [:task_id, :queue, :host, :port].each do |arg|
+        if ! self.has_key?(arg)
+          raise ArgumentError, "a --#{arg} argument must be provided"
+        end
+      end
+    rescue Exception => e
+      $stderr.puts(opts)
+      $stderr.puts("\nCommand line error: #{e.message}")
+      exit(1)
+    end
+
+    self
   end
-rescue ArgumentError => ae
-  $stderr.puts(ae)
-  exit(1)
 end
+
+args = WrapClientArguments.new(ARGV)
 
 task_id = nil
 command = nil
@@ -31,7 +65,7 @@ if args.has_key?(:index)
   file = args[:task_id] + '.txt'
   job_index = ENV['LSB_JOBINDEX']
   unless job_index
-    raise Percolate::PercolateError, "LSB_JOBINDEX was not set"
+    raise PercolateError, "LSB_JOBINDEX was not set"
   end
 
   task_id, command = read_array_command(file, Integer(job_index))

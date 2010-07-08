@@ -46,46 +46,11 @@ module Percolate
       @@message_queue
     end
 
-    class MessageClientArguments < Hash
-      def initialize args
-        super
-
-        opts = OptionParser.new do |opts|
-          opts.banner = "Usage: #$0 [options]"
-          t = [:task_id, '-t', '--task TASK_ID',  'Percolate task identity']
-          q = [:queue,   '-q', '--queue QUEUE',   'Percolate queue name']
-          h = [:host,    '-h', '--host HOSTNAME', 'Percolate queue host']
-          [t, q, h].each do |key, short, long, doc|
-            opts.on(short, long, doc) { |opt| self[key] = opt }
-          end
-
-          opts.on('-p', '--port [PORT]', 'Percolate queue port') do |port|
-            begin 
-              self[:port] = Integer(port)
-            rescue ArgumentError => ae
-              raise OptionParser::ParseError, ae.to_s
-            end
-          end
-
-          opts.on('-i', '--index', 'Percolate indexed task') do
-            self[:index] = true
-          end
-
-          opts.on('-?', '--help', 'Display this help and exit') do
-            $stderr.puts(opts)
-            exit
-          end
-        end
-
-        begin
-          opts.parse!(args)
-        rescue OptionParser::ParseError => pe
-          $stderr.puts(opts)
-          $stderr.puts("\nInvalid argument: #{pe}")
-        end
-
-        self
-      end
+    def Asynchronous.message_client
+      $log.debug("Connecting to message host #{self.message_host} " <<
+                 "port #{self.message_port}")
+      MessageClient.new(self.message_queue, self.message_host,
+                        self.message_port)
     end
 
     class MessageClient
@@ -96,10 +61,14 @@ module Percolate
 
       def initialize queue, host = DEFAULT_HOST, port = DEFAULT_PORT
         @host, @port = host, port
-        @pool = Beanstalk::Pool.new("#{self.host}:#{self.port}")
+        @pool = Beanstalk::Pool.new(self.host_id)
         pool.watch(queue)
         pool.use(queue)
         pool.ignore('default')
+      end
+
+      def host_id
+        "#{self.host}:#{self.port}"
       end
 
       def send_message message
@@ -136,13 +105,6 @@ module Percolate
         @task_identity, @command, @state, @exit_code, @time =
           task_identity, command, state, exit_code, time
       end
-    end
-
-    def Asynchronous.message_client
-      $log.debug("Connecting to message host #{self.message_host} " <<
-                 "port #{self.message_port}")
-      MessageClient.new(self.message_queue, self.message_host,
-                        self.message_port)
     end
   end
 end
