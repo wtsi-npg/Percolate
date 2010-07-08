@@ -48,7 +48,7 @@ module Percolate
   # Returns a task identity string for a call to function named fname
   # with arguments Array args.
   def self.task_identity fname, args
-    fname.to_s + '-' + Digest::MD5.hexdigest(fname.to_s + args.inspect)
+    Digest::MD5.hexdigest(fname.to_s + args.inspect) + '-' + fname.to_s
   end
 
   # Returns a copy of String command with a change directory operation
@@ -106,19 +106,19 @@ module Percolate
     # Sets the Result on completion of a task.
     def finished! value, finish_time = Time.now, exit_code = 0
       self.finish_time = finish_time
-      self.exit_code = exit_code
-      self.value = value
+      self.exit_code   = exit_code
+      self.value       = value
     end
 
     # Sets the time at which the task started. Tasks may be restarted,
     # in which case the finish time, value, stdout and stderr are set
     # to nil
     def started! start_time = Time.now
-      self.start_time = start_time
+      self.start_time  = start_time
       self.finish_time = nil
-      self.value = nil
-      self.stdout = nil
-      self.stderr = nil
+      self.value       = nil
+      self.stdout      = nil
+      self.stderr      = nil
     end
 
     # Returns true if the task that will generate the Result's value
@@ -147,6 +147,12 @@ module Percolate
 
     def failed?
       self.finished? && ! self.exit_code.zero?
+    end
+
+    def runtime
+      if started? && finished?
+        self.finish_time - self.start_time
+      end
     end
 
     def to_s
