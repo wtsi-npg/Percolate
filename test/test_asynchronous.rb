@@ -91,19 +91,6 @@ module PercolateTest
       end
     end
 
-    def test_lsf_run_success?
-      assert_nil(lsf_run_success?('no_such_file'))
-      assert_nil(lsf_run_success?(File.join data_path, 'lsf_incomplete.log'))
-
-      assert_raise PercolateAsyncTaskError do
-        lsf_run_success?(File.join data_path,
-                         'lsf_unsuccessful_complete.log')
-      end
-
-      assert(lsf_run_success?(File.join data_path,
-                              'lsf_successful_complete.log'))
-    end
-
     def test_lsf_args
       command = 'sleep 10'
       work_dir = data_path
