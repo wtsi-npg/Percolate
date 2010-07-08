@@ -34,19 +34,4 @@ module Percolate
          :confirm  => lambda { true },
          :yielding => lambda { false })
   end
-
-  def rsync_file source_host, source_path, dest_file, work_dir, log, env = {}
-    dest = File.join(work_dir, dest_file)
-    command = "rsync -azL #{source_host}:#{source_path} #{dest}"
-    args = [source_host, source_path, dest_file, work_dir]
-    task_id = Percolate.task_identity(:rsync_file, args)
-
-    lsf_task(:rsync_file, args,
-             lsf(:rsync_file, command, work_dir, log),
-             env,
-             :having   => lambda { source_host && source_path &&
-                              dest_file && work_dir },
-             :confirm  => lambda { FileTest.exists? dest },
-             :yielding => lambda { dest })
-  end
 end
