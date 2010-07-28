@@ -1,0 +1,62 @@
+#!/usr/bin/env ruby
+
+require 'rubygems'
+require 'optparse'
+
+require 'percolate'
+
+include Percolate
+
+puts("opening #{ARGV[0]}")
+file = ARGV[0]
+
+memos, async_memos = {}, {}
+
+File.open(file, 'r') do |f|
+  memos, async_memos = Marshal.load(f)
+end
+
+def mean numbers
+  numbers.inject(0) { |sum, n| sum += n }.to_f / numbers.size
+end
+
+def median numbers
+  if numbers.empty?
+    nil
+  elsif (numbers.size % 2).zero?
+    m = numbers.size / 2
+    mean(numbers.sort[m - 1 .. m])
+  else
+    numbers.sort[numbers.size / 2]
+  end
+end
+
+def variance numbers
+  if numbers.empty?
+    nil
+  else
+    m = mean(numbers)
+    numbers.inject(0) { |var, n| var += (n - m) ** 2 }
+  end
+end
+
+def std_deviation numbers
+  Math.sqrt(variance(numbers) / (numbers.size - 1))
+end
+
+times = memos.keys.collect do |task|
+  runs = memos[task]
+  [task, runs.each_value.collect do |result|
+     result.runtime
+   end]
+end
+puts(times.inspect)
+
+times = async_memos.keys.collect do |task|
+  runs = async_memos[task]
+  [task, runs.each_value.collect do |result|
+     result.runtime
+   end]
+end
+puts(times.inspect)
+
