@@ -61,12 +61,12 @@ module Percolate
     #
     # - String
     #
-    def lsf task_id, command, work_dir, log, args = {}
-      defaults = {:queue      => :normal,
-                  :memory     => 1900,
-                  :depend     => nil,
-                  :resources  => nil,
-                  :array_file => nil}
+    def lsf task_id, command, work_dir, log, args = { }
+      defaults = { :queue      => :normal,
+                   :memory     => 1900,
+                   :depend     => nil,
+                   :resources  => nil,
+                   :array_file => nil }
       args = defaults.merge(args)
 
       queue, mem, dep, res, uid = args[:queue], args[:memory], '', '', $$
@@ -115,7 +115,7 @@ module Percolate
 
     # Run or update a memoized batch command having pre- and
     # post-conditions.
-    def lsf_task fname, args, command, env, procs = {}
+    def lsf_task fname, args, command, env, procs = { }
       having, confirm, yielding = ensure_procs(procs)
       memos = get_async_memos(fname)
       result = memos[args]
@@ -167,7 +167,7 @@ module Percolate
       result
     end
 
-    def lsf_task_array fname, args_arrays, commands, command, env, procs = {}
+    def lsf_task_array fname, args_arrays, commands, command, env, procs = { }
       having, confirm, yielding = ensure_procs(procs)
       memos = get_async_memos(fname)
 
@@ -281,6 +281,11 @@ module Percolate
     end
 
     def submit_async fname, command
+      # Check that the message queue has been set
+      unless Asynchronous.message_queue
+        raise PercolateError, "No message queue has been provided"
+      end
+
       # Jump through hoops because bsub insists on polluting our
       # stdout
       # TODO: pass environment variables from env
