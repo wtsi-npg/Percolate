@@ -190,7 +190,7 @@ module Percolate
   #
   # Returns:
   # - Return value of the :yielding Proc, or nil.
-  def task fname, args, command, env, procs = {}
+  def task fname, args, command, env, procs = { }
     having, confirm, yielding = ensure_procs(procs)
 
     memos = get_memos(fname)
@@ -275,7 +275,7 @@ module Percolate
       finish_time = Time.now
 
       result = Result.new(fname, task_id, submission_time, start_time,
-                         finish_time, value, nil, nil)
+                          finish_time, value, nil, nil)
       $log.debug("#{fname} called; returning #{result}")
       memos[args] = result
     end

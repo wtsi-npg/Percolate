@@ -113,8 +113,8 @@ module PercolateTest
     end
 
     def test_run_not_overridden
-      wf = Workflow.new("no_such_defn_file.yml", "no_such_run_file.run",
-                        "no_such_pass_dir", "no_such_fail_dir")
+      wf = Workflow.new('no_such_defn_file.yml', 'no_such_run_file.run',
+                        'no_such_pass_dir', 'no_such_fail_dir')
 
       assert_raise PercolateError do
         wf.run
@@ -122,8 +122,8 @@ module PercolateTest
     end
 
     def test_missing_run_file
-      wf = Workflow.new "no_such_defn_file.yml", "no_such_run_file.run",
-                        "no_such_pass_dir", "no_such_fail_dir"
+      wf = Workflow.new('no_such_defn_file.yml', 'no_such_run_file.run',
+                        'no_such_pass_dir', 'no_such_fail_dir')
 
       assert_raise PercolateError do
         wf.restore
