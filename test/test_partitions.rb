@@ -109,7 +109,7 @@ module PercolateTest
 
     def test_complete_partitions?
       parts = (0...10).collect { |i| "foo.part.#{i}.txt" }
-      assert(complete_partitions? parts)
+      assert(complete_partitions?(parts))
       assert(! complete_partitions?([]))
       assert(! complete_partitions?([nil]))
       assert(! complete_partitions?([nil, *parts]))

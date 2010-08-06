@@ -18,6 +18,16 @@
 
 module Percolate
   PARTITION_REGXEP = Regexp.new('^(.*)\.part\.(\d+)(\.\S+)$')
+  PARTITION_SEP = '.'
+  PARTITION_TAG = 'part'
+
+  def partition_sep
+    PARTITION_SEP
+  end
+
+  def partition_tag pref = PARTITION_SEP, post = PARTITION_SEP
+    "#{pref}#{PARTITION_TAG}#{post}"
+  end
 
   def partitions filename, n
     if File.directory?(filename)
@@ -38,7 +48,7 @@ module Percolate
     suffix = match[2]
 
     (0 .. n - 1).collect do |i|
-      part = "#{prefix}.part.#{i}#{suffix}"
+      part = "#{prefix}#{partition_tag}#{i}#{suffix}"
 
       if dir != ''
         File.join(dir, part)
@@ -93,8 +103,7 @@ module Percolate
   # distinct and share the same parent i.e. are partitions of the same
   # file.
   def sibling_partitions? filenames
-    if (! filenames.empty? && ! filenames.include?(nil) &&
-        duplicates(filenames).empty?)
+    if (! filenames.empty? && filenames.all? && duplicates(filenames).empty?)
       parents = filenames.collect { |f| partition_parent(f) }
       parents.count(parents.first) == filenames.size
     end
@@ -118,7 +127,7 @@ module Percolate
 
   def replace_partition filename, placeholder
     if PARTITION_REGXEP.match(filename)
-      "#{$1}.part.#{placeholder}#{$3}"
+      "#{$1}#{partition_tag}#{placeholder}#{$3}"
     end
   end
 

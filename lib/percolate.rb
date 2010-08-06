@@ -83,14 +83,6 @@ module Percolate
     # Task STDERR
     attr_accessor :stderr
 
-    # Boolean true if submitted
-    attr_accessor :submitted
-    # Boolean true if started
-    attr_accessor :started
-    # Boolean true if finished
-    attr_accessor :finished
-    protected     :submitted, :started, :finished
-
     def initialize task, task_identity, submission_time, start_time = nil,
                    finish_time = nil, value = nil, stdout = nil, stderr = nil
       @task            = task

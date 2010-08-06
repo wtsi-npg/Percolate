@@ -99,24 +99,26 @@ module Percolate
       @@async_memos.each do |fname, memos|
         memos.each do |fn_args, result|
           task_id = result.task_identity
-          $log.debug("Checking messages for updates to #{result.inspect}")
+          unless result.finished?
+            $log.debug("Checking messages for updates to #{result.inspect}")
 
-          if updates.has_key?(task_id)
-            msgs = updates[task_id]
-            msgs.each do |msg|
-              case msg.state
-                when :started
-                  if result.started? || result.finished?
-                    $log.warn("#{task_id} has been restarted")
-                  else
-                    $log.debug("#{task_id} has started")
-                  end
-                  result.started!(msg.time)
-                when :finished
-                  $log.debug("#{task_id} has finished")
-                  result.finished!(nil, msg.time, msg.exit_code)
-              else
-                raise PercolateError, "Invalid message: " << msg.inspect
+            if updates.has_key?(task_id)
+              msgs = updates[task_id]
+              msgs.each do |msg|
+                case msg.state
+                  when :started
+                    if result.started? || result.finished?
+                      $log.warn("#{task_id} has been restarted")
+                    else
+                      $log.debug("#{task_id} has started")
+                    end
+                    result.started!(msg.time)
+                  when :finished
+                    $log.debug("#{task_id} has finished")
+                    result.finished!(nil, msg.time, msg.exit_code)
+                else
+                  raise PercolateError, "Invalid message: " << msg.inspect
+                end
               end
             end
           end
