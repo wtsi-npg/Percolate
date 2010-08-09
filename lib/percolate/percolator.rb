@@ -305,7 +305,8 @@ module Percolate
           begin
             $log.debug("Successfully obtained lock #{lock} for #{definition}")
             workflow_class, workflow_args = read_definition(def_file)
-            workflow = workflow_class.new(def_file, run_file,
+            workflow = workflow_class.new(File.basename(def_file, '.yml'),
+                                          def_file, run_file,
                                           self.pass_dir, self.fail_dir)
 
             # The following step is vital because all the memoization

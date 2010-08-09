@@ -130,7 +130,8 @@ module PercolateTest
                                      'msg_host'  => 'hgs3b'})
         lsf_log = File.join(data_path, 'minimal_async_workflow.log')
 
-        wf = MinimalAsyncWorkflow.new('dummy_defn.yml', 'dummy_run.run',
+        wf = MinimalAsyncWorkflow.new(:dumm_def,
+                                      'dummy_def.yml', 'dummy_run.run',
                                       percolator.pass_dir,
                                       percolator.fail_dir)
         Asynchronous.message_queue(wf.message_queue)
@@ -172,7 +173,8 @@ module PercolateTest
                                      'msg_host'  => 'hgs3b'})
         lsf_log = File.join(data_path, 'minimal_p_async_workflow.log')
 
-        wf = MinimalPAsyncWorkflow.new('dummy_defn.yml', 'dummy_run.run',
+        wf = MinimalPAsyncWorkflow.new(:dummy_def, 
+                                       'dummy_def.yml', 'dummy_run.run',
                                        percolator.pass_dir,
                                        percolator.fail_dir)
         Asynchronous.message_queue(wf.message_queue)

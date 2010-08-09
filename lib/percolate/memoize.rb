@@ -98,10 +98,10 @@ module Percolate
 
       @@async_memos.each do |fname, memos|
         memos.each do |fn_args, result|
-          task_id = result.task_identity
           unless result.finished?
             $log.debug("Checking messages for updates to #{result.inspect}")
 
+            task_id = result.task_identity
             if updates.has_key?(task_id)
               msgs = updates[task_id]
               msgs.each do |msg|

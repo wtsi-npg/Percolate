@@ -46,6 +46,8 @@ module Percolate
       end
     end
 
+    # The unique workflow identity string
+    attr_reader :workflow_identity
     # The definition file for the workflow
     attr_reader :definition_file
     # The run (state) file for the workflow
@@ -55,20 +57,30 @@ module Percolate
     # The directory to which the files will be moved on failure
     attr_reader :fail_dir
 
-    def initialize definition_file, run_file, pass_dir, fail_dir
-      unless File.extname(definition_file) == DEFINITION_SUFFIX
+    def initialize identity, definition_file = nil, run_file = nil,
+                   pass_dir = nil, fail_dir = nil
+      unless identity.is_a?(String) || identity.is_a?(Symbol)
         raise ArgumentError,
-              "Invalid definition file name '#{definition_file}'. " <<
-              "Suffix must be '#{DEFINITION_SUFFIX}'"
+              "Invalid identity '#{identity.inspect}'. " <<
+              "Must be a String or Symbol."
       end
 
-      unless File.basename(definition_file,
-                           File.extname(definition_file)).match(BASENAME_REGEXP)
-        raise ArgumentError,
-              "Invalid definition file name '#{definition_file}'. " <<
-              "Basename must match '#{BASENAME_REGEXP.inspect}'"
+      if definition_file
+        unless File.extname(definition_file) == DEFINITION_SUFFIX
+          raise ArgumentError,
+                "Invalid definition file name '#{definition_file}'. " <<
+                "Suffix must be '#{DEFINITION_SUFFIX}'"
+        end
+
+        unless File.basename(definition_file,
+                             File.extname(definition_file)).match(BASENAME_REGEXP)
+          raise ArgumentError,
+                "Invalid definition file name '#{definition_file}'. " <<
+                "Basename must match '#{BASENAME_REGEXP.inspect}'"
+        end
       end
 
+      @workflow_identity = identity.to_s
       @definition_file = definition_file
       @run_file = run_file
       @pass_dir = pass_dir
@@ -92,6 +104,10 @@ module Percolate
       self.class.version
     end
 
+    def transient?
+      self.definition_file.nil?
+    end
+
     def run_name
       File.basename(self.definition_file)
     end
@@ -99,8 +115,8 @@ module Percolate
     # Restores the workflow from its run file, if it exists. Returns
     # the workflow.
     def restore
+      check_transient(:restore)
       if File.exists?(self.run_file)
-        # System.restore_memos(self.run_file)
         restore_memos(self.run_file)
       else
         raise PercolateError,
@@ -112,8 +128,8 @@ module Percolate
 
     # Stores the workflow to its run file. Returns the workflow.
     def store
+      check_transient(:store)
       $log.debug("Storing workflow in #{self.run_file}")
-      # Percolate::System.store_memos(self.run_file)
       store_memos(self.run_file)
       self
     end
@@ -151,6 +167,7 @@ module Percolate
     # Archives the workflow to the pass directory. Returns the
     # workflow.
     def declare_passed
+      check_transient(:declare_passed)
       if self.passed?
         raise PercolateError,
               "Cannot pass #{self} because it has already passed"
@@ -169,6 +186,7 @@ module Percolate
     # Archives the workflow to the fail directory. Returns the
     # workflow.
     def declare_failed
+      check_transient(:declare_failed)
       if self.failed?
         raise PercolateError,
               "Cannot fail #{self} because it has already failed"
@@ -194,6 +212,7 @@ module Percolate
     # Restarts workflow by removing any pass or fail
     # information. Returns the workflow.
     def restart
+      check_transient(:restart)
       unless self.finished?
         raise PercolateError,
               "Cannot restart #{self} because it has not finished"
@@ -212,29 +231,33 @@ module Percolate
 
     # Returns the archived location of the definition file.
     def passed_definition_file
+      check_transient(:passed_definition_file)
       File.join(self.pass_dir, File.basename(self.definition_file))
     end
 
     # Returns the archived location of the run file.
     def passed_run_file
+      check_transient(:passed_run_file)
       File.join(self.pass_dir, File.basename(self.run_file))
     end
 
     # Returns the archived location of the definition file.
     def failed_definition_file
+      check_transient(:failed_definition_file)
       File.join(self.fail_dir, File.basename(self.definition_file))
     end
 
     # Returns the archived location of the run file.
     def failed_run_file
+      check_transient(:failed_run_file)
       File.join(self.fail_dir, File.basename(self.run_file))
     end
 
     # Returns the message queue name for this workflow.
     def message_queue
-      rf = self.run_file
-      digest = Digest::MD5.hexdigest(rf)
-      "#{digest}-#{File.basename(rf, File.extname(rf))}".slice(0, 128)
+      identity = self.workflow_identity
+      digest = Digest::MD5.hexdigest(identity)
+      "#{digest}-#{identity}".slice(0, 128)
     end
 
     def to_s
@@ -253,6 +276,14 @@ module Percolate
               end
 
       "#<#{self.class} #{self.definition_file}#{state}#{result}>"
+    end
+
+    :private
+    def check_transient operation
+      if self.transient?
+        raise PercolateError,
+              "#{operation} cannot be performed on transient Task #{self.to_s}"
+      end
     end
   end
 

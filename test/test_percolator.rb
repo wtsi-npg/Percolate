@@ -51,7 +51,7 @@ module TestPercolate
         config = YAML.load(file)
 
         assert_equal('test', config['root_dir'])
-        assert_equal('percolate-test.log', config['log_filename'])
+        assert_equal('test-percolate.log', config['log_filename'])
         assert_equal('INFO', config['log_level'])
       end
     end
@@ -139,18 +139,18 @@ module TestPercolate
     def test_percolate_tasks_pass
       begin
         percolator = Percolator.new({'root_dir' => data_path})
-        defn_file = File.join(percolator.run_dir, 'test_def1_tmp.yml')
+        def_file = File.join(percolator.run_dir, 'test_def1_tmp.yml')
         run_file = File.join(percolator.run_dir, 'test_def1_tmp.run')
 
-        FileUtils.cp(File.join(percolator.run_dir, 'test_def1.yml'), defn_file)
-        assert(percolator.percolate_tasks(defn_file).passed?)
+        FileUtils.cp(File.join(percolator.run_dir, 'test_def1.yml'), def_file)
+        assert(percolator.percolate_tasks(def_file).passed?)
 
-        [defn_file, run_file].each do |file|
+        [def_file, run_file].each do |file|
           assert(File.exists?(File.join(percolator.pass_dir,
                                         File.basename(file))))
         end
       ensure
-        [defn_file, run_file].each do |file|
+        [def_file, run_file].each do |file|
           File.delete(File.join(percolator.pass_dir, File.basename(file)))
         end
       end
@@ -159,18 +159,18 @@ module TestPercolate
     def test_percolate_tasks_fail
       begin
         percolator = Percolator.new({'root_dir' => data_path})
-        defn_file = File.join(percolator.run_dir, 'test_def2_tmp.yml')
+        def_file = File.join(percolator.run_dir, 'test_def2_tmp.yml')
         run_file = File.join(percolator.run_dir, 'test_def2_tmp.run')
 
-        FileUtils.cp(File.join(percolator.run_dir, 'test_def2.yml'), defn_file)
-        assert(percolator.percolate_tasks(defn_file).failed?)
+        FileUtils.cp(File.join(percolator.run_dir, 'test_def2.yml'), def_file)
+        assert(percolator.percolate_tasks(def_file).failed?)
 
-        [defn_file, run_file].each do |file|
+        [def_file, run_file].each do |file|
           assert(File.exists?(File.join(percolator.fail_dir,
                                         File.basename(file))))
         end
       ensure
-        [defn_file, run_file].each do |file|
+        [def_file, run_file].each do |file|
           File.delete(File.join(percolator.fail_dir, File.basename(file)))
         end
       end
