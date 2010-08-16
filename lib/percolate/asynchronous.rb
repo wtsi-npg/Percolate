@@ -107,7 +107,7 @@ module Percolate
       end
 
       Percolate.cd(work_dir,
-                   "#{batch_submitter} -J'#{job_name}' -q #{queue} " <<
+                   "#{batch_submitter} -J '#{job_name}' -q #{queue} " <<
                    "-R 'select[mem>#{mem}#{res}] " <<
                    "rusage[mem=#{mem}]'#{dep} " <<
                    "-M #{mem * 1000} -oo #{log} #{cmd_str}")
