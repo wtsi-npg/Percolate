@@ -342,7 +342,7 @@ module Percolate
 
             if result
               $log.info("Workflow #{definition} passed")
-              workflow.declare_passed
+              workflow.declare_passed # Stores in pass directory
             else
               $log.info("Workflow #{definition} not passed; storing")
               workflow.store
@@ -352,7 +352,7 @@ module Percolate
             $log.error(e.backtrace.join("\n"))
 
             if workflow
-              workflow.declare_failed
+              workflow.declare_failed # Stores in fail directory
             end
           end
         else

@@ -57,10 +57,11 @@ module PercolateTest
     def test_store_restore_memos
       Dir.mktmpdir 'percolate' do |dir|
         file = File.join dir, 'store_restore_memos.dat'
-        store_memos(file)
+        state = :passed
+        store_memos(file, state)
         data = restore_memos(file)
 
-        assert_equal([all_memos, all_async_memos], data)
+        assert_equal([state, all_memos, all_async_memos], data)
       end
     end
 

@@ -117,7 +117,11 @@ module Percolate
     def restore
       check_transient(:restore)
       if File.exists?(self.run_file)
-        restore_memos(self.run_file)
+        state = restore_memos(self.run_file)
+        case state
+          when :passed ; @passed = true
+          when :failed ; @failed = true
+        end
       else
         raise PercolateError,
               "Run file #{self.run_file} for #{self} does not exist"
@@ -129,8 +133,16 @@ module Percolate
     # Stores the workflow to its run file. Returns the workflow.
     def store
       check_transient(:store)
-      $log.debug("Storing workflow in #{self.run_file}")
-      store_memos(self.run_file)
+      state = if self.passed?
+                :passed
+              elsif self.failed?
+                :failed
+              else
+                nil
+              end
+
+      $log.debug("Storing workflow in #{self.run_file}, state: #{state}")
+      store_memos(self.run_file, state)
       self
     end
 

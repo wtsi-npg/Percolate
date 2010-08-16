@@ -341,7 +341,6 @@ module PercolateTest
       assert_raise PercolateError do
         wf.restore
       end
-
     end
   end
 end

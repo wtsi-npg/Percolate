@@ -43,16 +43,17 @@ module Percolate
     end
 
     # Stores the memoization data to file filename.
-    def store_memos filename
+    def store_memos filename, state
       File.open(filename, 'w') do |file|
-        Marshal.dump([@@memos, @@async_memos], file)
+        Marshal.dump([state, @@memos, @@async_memos], file)
       end
     end
 
     # Restores the memoization data to file filename.
     def restore_memos filename
+      state = nil
       File.open(filename, 'r') do |file|
-        @@memos, @@async_memos = Marshal.load(file)
+        state, @@memos, @@async_memos = Marshal.load(file)
       end
     end
 
