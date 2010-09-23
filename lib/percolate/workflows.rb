@@ -104,6 +104,9 @@ module Percolate
       self.class.version
     end
 
+    # A transient workflow is one that does not have a definition
+    # file. Transient workflows are created at runtime by other
+    # workflows.
     def transient?
       self.definition_file.nil?
     end
