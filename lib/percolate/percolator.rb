@@ -161,10 +161,16 @@ module Percolate
 
       opts = defaults.merge(symbol_config)
 
+      # If the user has moved the root dir, but not defined a log dir,
+      # move the log_dir too
+      if symbol_config[:root_dir] && ! symbol_config[:log_dir]
+        opts[:log_dir] = opts[:root_dir]
+      end
+
       @root_dir = File.expand_path(opts[:root_dir])
       @tmp_dir  = File.expand_path(opts[:tmp_dir])
       @work_dir = File.expand_path(opts[:work_dir])
-      @log_dir  = opts[:log_dir]   || @root_dir
+      @log_dir  = File.expand_path(opts[:log_dir]) || @root_dir
       @lock_dir = (opts[:lock_dir] || File.join(@tmp_dir, 'locks'))
       @run_dir  = (opts[:run_dir]  || File.join(@root_dir, 'in'))
       @pass_dir = (opts[:pass_dir] || File.join(@root_dir, 'pass'))
