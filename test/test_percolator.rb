@@ -51,9 +51,18 @@ module TestPercolate
         config = YAML.load(file)
 
         assert_equal('test', config['root_dir'])
-        assert_equal('percolate-test.log', config['log_filename'])
+        assert_equal('test-percolate.log', config['log_filename'])
         assert_equal('INFO', config['log_level'])
       end
+    end
+
+    def test_percolator_arguments
+      # assert(PercolatorArguments.new(['-h']))
+      # assert(PercolatorArguments.new(['-v']))
+      # assert(PercolatorArguments.new(['-w']))
+
+      args = PercolatorArguments.new(['-p'])
+      assert_equal({:percolate => true}, args)
     end
 
     def test_new_percolator
@@ -68,32 +77,37 @@ module TestPercolate
     def test_find_definitions
       percolator = Percolator.new({'root_dir' => data_path})
       assert_equal(['test_def1.yml', 'test_def2.yml'],
-                   percolator.find_definitions.sort.collect { |file| File.basename(file) } )
+                   percolator.find_definitions.sort.collect { |file|
+                     File.basename(file) } )
     end
 
     def test_find_run_files
       percolator = Percolator.new({'root_dir' => data_path})
       assert_equal(['test_def1.run'],
-                   percolator.find_run_files.collect { |file| File.basename(file) } )
+                   percolator.find_run_files.collect { |file|
+                     File.basename(file) } )
     end
 
     def test_find_new_definitions
       percolator = Percolator.new({'root_dir' => data_path})
       assert_equal(['test_def2.yml'],
-                   percolator.find_new_definitions.collect { |file| File.basename(file) } )
+                   percolator.find_new_definitions.collect { |file|
+                     File.basename(file) } )
     end
 
     def test_read_definition
       percolator = Percolator.new({'root_dir' => data_path})
-      defn1 = percolator.read_definition(File.join(percolator.run_dir, 'test_def1.yml'))
-      defn2 = percolator.read_definition(File.join(percolator.run_dir, 'test_def2.yml'))
+      defn1 = percolator.read_definition(File.join(percolator.run_dir,
+                                                   'test_def1.yml'))
+      defn2 = percolator.read_definition(File.join(percolator.run_dir,
+                                                   'test_def2.yml'))
 
       assert defn1.is_a?(Array)
-      assert_equal(Percolate::EmptyWorkflow, defn1[0])
+      assert_equal(EmptyWorkflow, defn1[0])
       assert_equal(['/tmp'], defn1[1])
 
       assert defn2.is_a? Array
-      assert_equal(Percolate::FailingWorkflow, defn2[0])
+      assert_equal(FailingWorkflow, defn2[0])
       assert_equal(['/tmp'], defn2[1])
 
       assert_raise PercolateError do
@@ -108,10 +122,14 @@ module TestPercolate
       old_stderr = $stderr
       $stderr = StringIO.new
       # $stderr.puts "[STDERR: "
-      assert_nil(percolator.read_definition(File.join(data_path, 'bad_module_def.yml')))
-      assert_nil(percolator.read_definition(File.join(data_path, 'bad_workflow_def.yml')))
-      assert_nil(percolator.read_definition(File.join(data_path, 'no_module_def.yml')))
-      assert_nil(percolator.read_definition(File.join(data_path, 'no_workflow_def.yml')))
+      assert_nil(percolator.read_definition(File.join(data_path,
+                                                      'bad_module_def.yml')))
+      assert_nil(percolator.read_definition(File.join(data_path,
+                                                      'bad_workflow_def.yml')))
+      assert_nil(percolator.read_definition(File.join(data_path,
+                                                      'no_module_def.yml')))
+      assert_nil(percolator.read_definition(File.join(data_path,
+                                                      'no_workflow_def.yml')))
       # $stderr.puts "]\n"
       # $stderr.rewind
       # $stdout.puts $stderr.readlines
@@ -121,17 +139,18 @@ module TestPercolate
     def test_percolate_tasks_pass
       begin
         percolator = Percolator.new({'root_dir' => data_path})
-        defn_file = File.join(percolator.run_dir, 'test_def1_tmp.yml')
+        def_file = File.join(percolator.run_dir, 'test_def1_tmp.yml')
         run_file = File.join(percolator.run_dir, 'test_def1_tmp.run')
 
-        FileUtils.cp(File.join(percolator.run_dir, 'test_def1.yml'), defn_file)
-        assert(percolator.percolate_tasks(defn_file).passed?)
+        FileUtils.cp(File.join(percolator.run_dir, 'test_def1.yml'), def_file)
+        assert(percolator.percolate_tasks(def_file).passed?)
 
-        [defn_file, run_file].each do |file|
-          assert(File.exists?(File.join(percolator.pass_dir, File.basename(file))))
+        [def_file, run_file].each do |file|
+          assert(File.exists?(File.join(percolator.pass_dir,
+                                        File.basename(file))))
         end
       ensure
-        [defn_file, run_file].each do |file|
+        [def_file, run_file].each do |file|
           File.delete(File.join(percolator.pass_dir, File.basename(file)))
         end
       end
@@ -140,17 +159,18 @@ module TestPercolate
     def test_percolate_tasks_fail
       begin
         percolator = Percolator.new({'root_dir' => data_path})
-        defn_file = File.join(percolator.run_dir, 'test_def2_tmp.yml')
+        def_file = File.join(percolator.run_dir, 'test_def2_tmp.yml')
         run_file = File.join(percolator.run_dir, 'test_def2_tmp.run')
 
-        FileUtils.cp(File.join(percolator.run_dir, 'test_def2.yml'), defn_file)
-        assert(percolator.percolate_tasks(defn_file).failed?)
+        FileUtils.cp(File.join(percolator.run_dir, 'test_def2.yml'), def_file)
+        assert(percolator.percolate_tasks(def_file).failed?)
 
-        [defn_file, run_file].each do |file|
-          assert(File.exists?(File.join(percolator.fail_dir, File.basename(file))))
+        [def_file, run_file].each do |file|
+          assert(File.exists?(File.join(percolator.fail_dir,
+                                        File.basename(file))))
         end
       ensure
-        [defn_file, run_file].each do |file|
+        [def_file, run_file].each do |file|
           File.delete(File.join(percolator.fail_dir, File.basename(file)))
         end
       end

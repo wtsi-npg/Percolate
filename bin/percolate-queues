@@ -1,0 +1,111 @@
+#!/usr/bin/env ruby
+
+require 'rubygems'
+require 'yaml'
+require 'optparse'
+require 'beanstalk-client'
+
+class QueueClientArguments < Hash
+  def initialize args
+    super
+
+    opts = OptionParser.new do |opts|
+      opts.banner = "Usage: #$0 [options]"
+      h = [:host,  '-h', '--host HOSTNAME', 'Percolate queue host']
+      d = [:drain, '-d', '--drain QUEUE',   'Drain queue' ]
+      [h, d].each do |key, short, long, doc|
+        opts.on(short, long, doc) { |opt| self[key] = opt }
+      end
+
+      opts.on('-p', '--port [PORT]', 'Percolate queue port') do |port|
+        begin 
+          self[:port] = Integer(port)
+        rescue ArgumentError => ae
+          raise OptionParser::ParseError, ae.to_s
+        end
+      end
+
+      opts.on('-?', '--help', 'Display this help and exit') do
+        $stderr.puts(opts)
+        exit
+      end
+    end
+
+    begin
+      opts.parse!(args)
+
+      [:host, :port].each do |arg|
+        if ! self.has_key?(arg)
+          raise ArgumentError, "a --#{arg} argument must be provided"
+        end
+      end
+    rescue Exception => e
+      $stderr.puts(opts)
+      $stderr.puts("\nCommand line error: #{e.message}")
+      exit(1)
+    end
+
+    self
+  end
+end
+
+def host_id args
+  "#{args[:host]}:#{args[:port]}"
+end
+
+def queue_stats client
+  # puts client.raw_stats.inspect
+  puts("Current-connections: #{client.stats['current-connections']}\n\n")
+  queues = client.list_tubes
+
+  # puts "Queues: #{queues.inspect}"
+
+  queues.keys.each do |key|
+    queues[key].each do |queue|
+      puts("Queue: #{queue.inspect}")
+      puts("Client stats: #{client.stats_tube(queue).inspect}\n\n")
+    end
+  end
+end
+
+def drain_queue client, host_id, queue
+  queues = client.list_tubes[host_id]
+
+  unless queues.include?(queue)
+    raise ArgumentError, "No such queue '#{queue}' in #{queues.inspect}"
+  end
+
+  client.watch(queue)
+  client.use(queue)
+
+  msgs = []
+
+  loop do
+    if client.peek_ready
+      msg = client.reserve
+      msgs << msg.ybody
+      msg.delete
+    else
+      break
+    end
+  end
+
+  puts(YAML.dump(msgs))
+end
+
+args = QueueClientArguments.new(ARGV)
+client = Beanstalk::Pool.new(host_id(args))
+
+begin
+  if args.has_key?(:drain)
+    puts "Draining '#{args[:drain]}'"
+    drain_queue(client, host_id(args), args[:drain])
+  else
+    queue_stats(client)
+  end
+rescue Exception => e
+  $stderr.puts("Error: #{e}")
+  exit(1)
+ensure
+  client.close
+end

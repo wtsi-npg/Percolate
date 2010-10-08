@@ -1,0 +1,83 @@
+#!/usr/bin/env ruby
+
+require 'rubygems'
+require 'optparse'
+
+require 'percolate'
+
+include Percolate::Asynchronous
+
+class WrapClientArguments < Hash
+  def initialize args
+    super
+
+    opts = OptionParser.new do |opts|
+      opts.banner = "Usage: #$0 [options]"
+      t = [:task_id, '-t', '--task TASK_ID',  'Percolate task identity']
+      q = [:queue,   '-q', '--queue QUEUE',   'Percolate queue name']
+      h = [:host,    '-h', '--host HOSTNAME', 'Percolate queue host']
+      [t, q, h].each do |key, short, long, doc|
+        opts.on(short, long, doc) { |opt| self[key] = opt }
+      end
+
+      opts.on('-p', '--port [PORT]', 'Percolate queue port') do |port|
+        begin
+          self[:port] = Integer(port)
+        rescue ArgumentError => ae
+          raise OptionParser::ParseError, ae.to_s
+        end
+      end
+
+      opts.on('-i', '--index', 'Percolate indexed task') do
+        self[:index] = true
+      end
+
+      opts.on('-?', '--help', 'Display this help and exit') do
+        $stderr.puts(opts)
+        exit
+      end
+    end
+
+    begin
+      opts.parse!(args)
+
+      [:task_id, :queue, :host, :port].each do |arg|
+        if ! self.has_key?(arg)
+          raise ArgumentError, "a --#{arg} argument must be provided"
+        end
+      end
+    rescue Exception => e
+      $stderr.puts(opts)
+      $stderr.puts("\nCommand line error: #{e.message}")
+      exit(1)
+    end
+
+    self
+  end
+end
+
+args = WrapClientArguments.new(ARGV)
+
+task_id = nil
+command = nil
+
+if args.has_key?(:index)
+  file = args[:task_id] + '.txt'
+  job_index = ENV['LSB_JOBINDEX']
+  unless job_index
+    raise PercolateError, "LSB_JOBINDEX was not set"
+  end
+
+  task_id, command = read_array_command(file, Integer(job_index))
+else
+  task_id = args[:task_id]
+  command = ARGV.join(' ')
+end
+
+client = MessageClient.new(args[:queue], args[:host], args[:port])
+
+client.send_message(TaskMessage.new(task_id, command, :started))
+system(command)
+client.send_message(TaskMessage.new(task_id, command, :finished, $?.exitstatus))
+
+exit($?.exitstatus)

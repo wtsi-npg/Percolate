@@ -1,4 +1,4 @@
 
 root_dir: test
-log_filename: percolate-test.log
+log_filename: test-percolate.log
 log_level: INFO

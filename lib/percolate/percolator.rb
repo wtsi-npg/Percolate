@@ -19,6 +19,7 @@
 require 'yaml'
 require 'optparse'
 require 'logger'
+require 'socket'
 
 module Percolate
   class PercolatorArguments < Hash
@@ -110,12 +111,32 @@ module Percolate
   # the directories where it expects to find workflow definitions and
   # run files.
   class Percolator
+    include Percolate::Memoize
+
     @@def_suffix = Workflow::DEFINITION_SUFFIX
     @@run_suffix = Workflow::RUN_SUFFIX
 
-    attr_reader 'root_dir', 'lock_dir',
-                'run_dir',  'pass_dir', 'fail_dir', 'work_dir', 'tmp_dir',
-                'log_dir',  'log_file'
+    # The root of all the Percolate runtime directories. Defaults to
+    # $HOME/percolate
+    attr_reader :root_dir
+    # The directory where lock files are created
+    attr_reader :lock_dir
+    # The directory where running workflow definitions are to be placed
+    attr_reader :run_dir
+    # The directory where completed (passed) workflow definitions are
+    # to be placed
+    attr_reader :pass_dir
+    # The directory where completed (failed) workflow definitions are
+    # to be placed
+    attr_reader :fail_dir
+    # The working directory for workflows
+    attr_reader :work_dir
+    # The tmp file directory for workflows. Defaults to /tmp/<username>
+    attr_reader :tmp_dir
+    # The directory where log files are to be placed
+    attr_reader :log_dir
+    # The name of the Percolate log file
+    attr_reader :log_file
 
     # The config hash will normally be supplied via a YAML file on the
     # command line or a YAML .percolate file in the user's home
@@ -140,14 +161,23 @@ module Percolate
 
       opts = defaults.merge(symbol_config)
 
+      # If the user has moved the root dir, but not defined a log dir,
+      # move the log_dir too
+      if symbol_config[:root_dir] && ! symbol_config[:log_dir]
+        opts[:log_dir] = opts[:root_dir]
+      end
+
       @root_dir = File.expand_path(opts[:root_dir])
       @tmp_dir  = File.expand_path(opts[:tmp_dir])
       @work_dir = File.expand_path(opts[:work_dir])
-      @log_dir  = opts[:log_dir]   || @root_dir
+      @log_dir  = File.expand_path(opts[:log_dir]) || @root_dir
       @lock_dir = (opts[:lock_dir] || File.join(@tmp_dir, 'locks'))
       @run_dir  = (opts[:run_dir]  || File.join(@root_dir, 'in'))
       @pass_dir = (opts[:pass_dir] || File.join(@root_dir, 'pass'))
       @fail_dir = (opts[:fail_dir] || File.join(@root_dir, 'fail'))
+
+      msg_host = (opts[:msg_host] || Socket.gethostname)
+      Asynchronous.message_host(msg_host)
 
       if FileTest.directory?(opts[:log_file])
         raise ArgumentError,
@@ -281,7 +311,8 @@ module Percolate
           begin
             $log.debug("Successfully obtained lock #{lock} for #{definition}")
             workflow_class, workflow_args = read_definition(def_file)
-            workflow = workflow_class.new(def_file, run_file,
+            workflow = workflow_class.new(File.basename(def_file, '.yml'),
+                                          def_file, run_file,
                                           self.pass_dir, self.fail_dir)
 
             # The following step is vital because all the memoization
@@ -289,11 +320,16 @@ module Percolate
             # clearing between workflows, workflow state would leak
             # from one workflow to another.
             $log.debug("Emptying memo table")
-            Percolate::System.clear_memos
+            clear_memos
 
             if File.exists?(run_file)
               $log.info("Restoring state of #{definition} from #{run_file}")
               workflow.restore
+            end
+
+            Asynchronous.message_queue(workflow.message_queue)
+            if dirty_async?
+              update_async_memos
             end
 
             # If we find a failed workflow, it means that it is being
@@ -312,7 +348,7 @@ module Percolate
 
             if result
               $log.info("Workflow #{definition} passed")
-              workflow.declare_passed
+              workflow.declare_passed # Stores in pass directory
             else
               $log.info("Workflow #{definition} not passed; storing")
               workflow.store
@@ -322,7 +358,7 @@ module Percolate
             $log.error(e.backtrace.join("\n"))
 
             if workflow
-              workflow.declare_failed
+              workflow.declare_failed # Stores in fail directory
             end
           end
         else

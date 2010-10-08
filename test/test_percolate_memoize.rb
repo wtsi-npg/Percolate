@@ -27,10 +27,11 @@ require 'percolate'
 module PercolateTest
   class TestPercolateSystem < Test::Unit::TestCase
     include Percolate
+    include Percolate::Memoize
 
     def setup
       super
-      Percolate::System.clear_memos
+      clear_memos
     end
 
     def teardown
@@ -38,31 +39,29 @@ module PercolateTest
     end
 
     def test_get_memos
-      memos = Percolate::System.get_memos(:test_fn)
+      memos = get_memos(:test_fn)
 
       assert(memos.is_a?(Hash))
       assert_equal(0, memos.size)
-      assert($MEMOS.has_key?(:test_fn))
+      assert(all_memos.has_key?(:test_fn))
     end
 
     def test_get_async_memos
-      memos = Percolate::System.get_async_memos(:test_async_fn)
+      memos = get_async_memos(:test_async_fn)
 
       assert(memos.is_a?(Hash))
       assert_equal(0, memos.size)
-      assert($ASYNC_MEMOS.has_key?(:test_async_fn))
+      assert(all_async_memos.has_key?(:test_async_fn))
     end
 
     def test_store_restore_memos
-      Percolate::System.get_memos(:test_fn)
-      Percolate::System.get_async_memos(:test_async_fn)
-
       Dir.mktmpdir 'percolate' do |dir|
         file = File.join dir, 'store_restore_memos.dat'
-        Percolate::System.store_memos(file)
-        data = Percolate::System.restore_memos(file)
+        state = :passed
+        store_memos(file, state)
+        data = restore_memos(file)
 
-        assert_equal([$MEMOS, $ASYNC_MEMOS], data)
+        assert_equal([state, all_memos, all_async_memos], data)
       end
     end
 
@@ -74,15 +73,15 @@ module PercolateTest
         native_task(:test_add_task, args, command, having)
       end
 
-      assert(! $MEMOS.has_key?(:test_add_task))
+      assert(! all_memos.has_key?(:test_add_task))
 
       result = test_add_task(1, 2, 3)
       assert_equal(:test_add_task, result.task)
       assert_equal(6, result.value)
 
-      memos = Percolate::System.get_memos(:test_add_task)
+      memos = get_memos(:test_add_task)
       assert(memos.is_a?(Hash))
-      assert($MEMOS.has_key?(:test_add_task))
+      assert(all_memos.has_key?(:test_add_task))
     end
   end
 end

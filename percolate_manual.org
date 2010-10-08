@@ -1,0 +1,305 @@
+* Overview
+
+  Percolate is a lightweight library for coordinated execution of
+  external, command-line programs. It provides a means of defining
+  data transformation workflows as simple scripts and a driver to
+  execute those scripts.
+
+
+* Using Percolate
+
+** Basic use
+
+   Percolate workflows are run by placing files into the Percolate
+   directory tree. The root directory of this tree is relocatable, but
+   defaults to $HOME/percolate. 
+
+   The root directory contains the follow subdirectories:
+
+    - in/ :: A directory where new workflow definition files are placed
+    - pass/ :: A directory to which completed workflow definition files
+      are moved
+
+    - fail/ :: A directory to which failed workflow definition files
+      are moved
+
+    - locks/ :: A directory where temporary lock files are created
+                during a workflow lifecycle
+
+   If the root directory or any of the subdirectories are absent,
+   Percolate will create them automatically. To run a workflow, a
+   definition file containing its name and arguments is placed in the
+   Percolate 'in' directory. A driver script is run periodically
+   (normally as a cron job), which reads all the available definition
+   files from the 'in' directory and attempts to run as many steps as
+   possible from each of those workflows. If a workflow completes, the
+   definition file is moved to a 'pass' directory, or to a 'fail'
+   directory if an error occurs.
+
+   It is preferable for the root directory /not to be located on an
+   NFS filesystem/. This is because lock files are used to prevent the
+   same workflow being started multiple times and they do not always
+   behave well on NFS filesystems.
+
+   In general, it is safe to run the driver script on any host because
+   most workflows do not do much local compute, but rather run jobs on
+   a remote LSF batch queue. However, workflows are permitted to do
+   heavy compute locally, in which case the driver script /should not
+   be run on a cluster login node/ that is reserved for interactive
+   use. Individual workflow documentation should contain a warning if
+   this is the case.
+
+** Workflow definitions
+
+   These are the files that are placed into the 'in' directory. They
+   must be in [[http://www.yaml.org][YAML]] format and may have any name, provided it has a
+   .yml file extension. The basic structure of a workflow definition
+   is a YAML map describing the name of the Ruby library containing
+   the workflow, the name of the workflow and a list of data to be
+   input and output. For example:
+
+#+BEGIN_EXAMPLE
+library: mig
+group: MIG
+workflow: ChunkedPairedFastqMap
+arguments: 
+- /lustre/scratch103/sanger/kdj/5287/trimmed_5287_7_1.fastq
+- /lustre/scratch103/sanger/kdj/5287/trimmed_5287_7_2.fastq
+- /lustre/scratch103/sanger/kdj/reference/d_rerio.zv8.fasta
+- /lustre/scratch103/sanger/kdj/5287
+- :l: 30
+  :recover_space: false
+  :chunk_size: 250_000_000
+#+END_EXAMPLE
+
+  The following keys and values must be present in all definition
+  files:
+
+  - library :: The library containing the workflow to be run
+  - group :: The namespace of the workflow in the library
+  - workflow :: The workflow to run
+  - arguments :: The workflow argument list
+
+  The documentation of each workflow will describe what values to
+  use. [fn:1]
+
+  In addition to the definition file, Percolate will create a runtime
+  file for each workflow in the 'in' directory. These contain
+  information about the progress of the workflow and should not be
+  deleted. Even after a workflow is complete, these files remain
+  useful because they may be analysed to obtain statistics on the
+  efficiency of the run.[fn:2]
+
+  Often it is useful to create definition files with a script, in fact
+  this is the recommended method for managing large numbers of
+  workflows.
+
+
+** The Percolate driver
+
+   When the Percolate driver script or 'percolator' is run, it
+   executes as many steps as it can from the current workflows, either
+   within its own process or by launching external programs. The
+   external programs may be run on the local machine or on a compute
+   farm via an LSF batch queue. Some workflows may do all of these at
+   once. It may require a variable number of invocations of the
+   percolator in order to complete a workflow; if no work can safely
+   be done, perhaps because previous steps are not complete,
+   subsequent invocations will do nothing.
+
+   The percolator may also be run to query the available workflows in
+   any available libraries and print their online documentation. The
+   most commonly used command line arguments are:
+
+#+BEGIN_EXAMPLE
+    -l, --load [LIBRARY]             Load a workflow library
+    -d, --display [GROUP]            Display available workflows
+    -p, --percolate                  Run all defined workflows
+    -w, --workflow [WORKFLOW]        Display workflow help
+#+END_EXAMPLE
+
+    The /-p/ argument simply runs all the workflows defined in the
+    'in' directory. The /-l/ argument is combined with either the /-d/
+    or the /-w/ argument to query available workflows. For example, to
+    display all workflows in the group (Module) MIG in the library
+    'mig':
+
+#+BEGIN_EXAMPLE
+[kdj/D]511: percolate -l mig -d MIG
+MIG::PairedFullSummary
+MIG::BAMPostprocess
+MIG::ChunkedPairedFastqMap
+MIG::PairedFastqMap
+MIG::PairedFastqPreprocess
+#+END_EXAMPLE
+
+The online help for a workflow describes the arguments that must be
+provided in the workflow definition file. To display online help for
+the workflow 'MIG::ChunkedPairedFastqMap' in the library 'mig':
+
+#+BEGIN_EXAMPLE
+[kdj/D]515: percolate -l mig -w MIG::ChunkedPairedFastqMap
+MIG::ChunkedPairedFastqMap version 0.0.1
+Maps a pair of Fastq files of reads to a reference using BWA. Reads are
+broken into chunks of approximately 1 G base, to the nearest 500,00
+reads.
+
+Usage:
+
+ ChunkedPairedFastqMap args
+
+Arguments:
+
+- fwd_locator (String or URI): a string file name or URI. The file
+  must contain forward reads.
+- rev_locator (String or URI): a string file name or URI.  The file
+  must contain reverse reads.
+- reference (String): a string file name of the reference sequence in
+  Fasta format
+- work_dir (String): working directory (absolute path)
+
+- other arguments (keys and values):
+
+  :recover_space: <boolean>. Attempt to recover space on successful
+  completion by removing files.
+  :chunk_size: <integer>. Chunk size in G bases (default 1_000_000_000)
+
+Returns:
+
+- String (filename of BAM format file)
+#+END_EXAMPLE
+
+** Workflow failures
+
+   If some step in a workflow fails, it should do so in a controlled
+   way, meaning that the definition and runtime files are moved to the
+   'fail' directory. The first step in restarting the workflow is to
+   examine both the Percolate and LSF logs to identify the cause of
+   the failure. Once the cause has been resolved, the definition and
+   runtime files may be copied back to the 'in' directory and the
+   workflow will be restarted from the point where it failed.
+
+** Advanced use
+
+*** Suspending workflows
+
+    If no jobs are running, it is possible to archive the workflow is
+    a partially run state, simply by saving the definition and runtime
+    files, along with the contents of any working directories holding
+    workflow data. To restart a workflow, unarchive the working
+    directories and copy definition and runtime files back to the 'in'
+    directory.
+
+*** The Percolate message queue
+
+    Percolate receives updates on the progress of batch jobs via a
+    message queue. The message queue used by percolate is [[http://kr.github.com/beanstalkd/][beanstalkd]],
+    via the Ruby Beanstalk API. Percolate comes with a simple queue
+    query tool that can list queues and, if necessary, purge messages.
+
+#+BEGIN_EXAMPLE
+[kdj/D]502: percolate-queues --host hgs3b --port 11300
+Current-connections: 1
+
+Queue: "default"
+Client stats: {"name"=>"default", "total-jobs"=>0,
+"current-watching"=>1, "pause"=>0, "current-jobs-reserved"=>0,
+"current-using"=>1, "current-waiting"=>0, "current-jobs-urgent"=>0,
+"current-jobs-ready"=>0, "current-jobs-buried"=>0,
+"cmd-pause-tube"=>0, "current-jobs-delayed"=>0, "pause-time-left"=>0}
+#+END_EXAMPLE
+
+
+* Configuring Percolate
+
+** The Percolate configuration file
+
+    This file controls core settings, such as the Percolate root
+    directory location, log file name and logging verbosity. The file
+    is in [[http://www.yaml.org][YAML]] format. The default configuration file is located at
+    $HOME/.percolate. The file contains a YAML map of the form:
+
+#+BEGIN_EXAMPLE
+   root_dir: <path to Percolate root, defaults to ~/percolate>
+   log_file: <log file name, defaults to percolate.log>
+   log_level: <log verbosity, one of TRACE|DEBUG|INFO|WARN, defaults to WARN>
+#+END_EXAMPLE
+
+    Editing these values will change the Percolate driver's behaviour.
+
+
+* Writing your own workflows
+
+** Preparing command-line programs
+
+    Each command-line program should be wrapped in a single function
+    whose parameters represent the program's input and whose return
+    value represents the program's output. Calling the function with
+    some arguments will execute the program, either immediately or
+    later, on a batch queue.
+
+*** Percolate functions
+
+    The following applies to all functions used in Percolate scripts,
+    including those used to wrap command-line programs.
+
+    - Function arguments represent data and a non-empty argument is a
+      guarantee that the data are present when the call is made. For
+      example, when a file path is passed as an argument, that file
+      must already be present on disk. Function return values also
+      represent data and a non-empty value guarantees that the data
+      have been written by the wrapped program.
+
+      The meaning of "empty" depends on the conventions chosen by the
+      programmer. However, in Ruby it would be 'nil', but could also
+      include an Array which contained one or more 'nil' values.
+
+    - A wrapper function must be able to respond to two modes of
+      execution; the first is when called with all required arguments
+      being non-empty, at which point it must return a value, the
+      second is when called with one or more of its required arguments
+      being empty, when it must return an empty value.
+
+    - Multiple calls to a function with the same arguments must always
+      yield the same return value (i.e. the function must be
+      idempotent).
+
+    - It is safe to call a Percolate function many times without
+      worrying that the underlying command-line program will be run
+      more than once. You do not have to do anything special to
+      achieve this, it is taken care of by the Percolate system. All
+      function calls which yield a non-empty return value are memoized
+      (cached). It is therefore safe (and encouraged) to call the same
+      function again whenever you need access to its return value,
+      rather than storing the that value in a variable, for example.
+
+    The Percolate library takes responsibility for most of the
+    bookkeeping involved in writing suitable functions, both for
+    simple system commands and those involving a batch queue.
+
+*** Percolate data
+
+    Data are represented in Percolate scripts by function arguments and
+    return values. These may be data themselves e.g. identifier strings
+    or may be proxies for external data e.g. filenames or URIs.
+
+** Percolate workflows
+
+   A Workflow is a Ruby object with a 'run' method which calls one or
+   more Percolate functions. The driver script calls each Workflow.run
+   method repeatedly, with its required arguments, until it returns a
+   non-empty value or raises an error. If no error is raised, the
+   Workflow is complete, otherwise it has failed.
+
+   It is normal for workflows to create other workflows within their
+   internal functions and to return values from them. For this reason
+   it is advisable to write workflows that perform a single, well
+   defined task, much like any function should.
+
+* Footnotes
+
+[fn:1] The library, group and workflow values correspond to a Ruby
+library, Module and Class, respectively.
+
+[fn:2] Runtime files are serialized Ruby Hashes that may be examined
+using Marshal.load.

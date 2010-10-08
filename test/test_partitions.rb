@@ -31,9 +31,18 @@ module PercolateTest
 
     def test_partitions
       assert_equal(['foo.part.0.txt'], partitions('foo.txt', 1))
-      assert_equal(['foo.part.0.txt', 'foo.part.1.txt'], partitions('foo.txt', 2))
+      assert_equal(['foo.part.0.txt', 'foo.part.1.txt'],
+                   partitions('foo.txt', 2))
 
       assert_equal(['/bar/foo.part.0.txt'], partitions('/bar/foo.txt', 1))
+
+      assert_raise ArgumentError do
+        partitions('/', 1)
+      end
+
+      assert_raise ArgumentError do
+        partitions('foo', 1)
+      end
     end
 
     def test_partition?
@@ -100,7 +109,7 @@ module PercolateTest
 
     def test_complete_partitions?
       parts = (0...10).collect { |i| "foo.part.#{i}.txt" }
-      assert(complete_partitions? parts)
+      assert(complete_partitions?(parts))
       assert(! complete_partitions?([]))
       assert(! complete_partitions?([nil]))
       assert(! complete_partitions?([nil, *parts]))
