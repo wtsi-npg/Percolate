@@ -1,3 +1,4 @@
+# -*- coding: iso-8859-1 -*-
 #--
 #
 # Copyright (C) 2010 Genome Research Ltd. All rights reserved.
@@ -26,6 +27,8 @@ require 'percolate'
 
 module PercolateTest
   include Percolate
+
+  $BOOLEAN_WORKFLOW = false
 
   # The unready workflow. Can never be run because its preconditions
   # are not satisfied.
@@ -60,6 +63,24 @@ module PercolateTest
 
     def run *args
       unfinished_task(*args)
+    end
+  end
+
+  # Switchable workflow to that may be set to pass or fail.
+  class BooleanWorkflow < Workflow
+    include Percolate
+
+    def boolean_task work_dir = '.', env = {}
+      program = $BOOLEAN_WORKFLOW ? 'true' : 'false'
+
+      task(:boolean_task, [work_dir], Percolate.cd(work_dir, program), env,
+           :having   => lambda { true },
+           :confirm  => lambda { true },
+           :yielding => lambda { $BOOLEAN_WORKFLOW })
+    end
+
+    def run *args
+      boolean_task(*args)
     end
   end
 
@@ -274,6 +295,45 @@ module PercolateTest
         assert(File.exists?(wf.failed_run_file))
       ensure
         File.delete(wf.failed_definition_file)
+        File.delete(wf.failed_run_file)
+      end
+    end
+
+    def test_fail_then_pass_workflow
+      $BOOLEAN_WORKFLOW = false
+
+      percolator = Percolator.new({'root_dir' => data_path})
+      def_file = File.join(percolator.run_dir, 'test_def1_tmp.yml')
+      run_file = File.join(percolator.run_dir, 'test_def1_tmp.run')
+
+      FileUtils.cp(File.join(percolator.run_dir, 'test_def1.yml'), def_file)
+      wf = BooleanWorkflow.new(:test_def1, def_file, run_file,
+                               percolator.pass_dir, percolator.fail_dir)
+
+      begin
+        wf.run
+      rescue => e
+        assert(! wf.passed?)
+        wf.declare_failed
+        assert(wf.failed?)
+        assert(File.exists?(wf.failed_run_file))
+
+        # Move the run file back to try re-running
+        FileUtils.cp(wf.failed_run_file, wf.run_file)
+
+        $BOOLEAN_WORKFLOW = true
+        assert(wf.restore)
+
+        wf.restart
+        assert(wf.run)
+
+        memos = get_memos(:boolean_task)
+        assert(memos.has_key? ['.'])
+        assert(memos[['.']].is_a?(Result))
+      ensure
+        if File.exists?(wf.failed_definition_file)
+          File.delete(wf.failed_definition_file)
+        end
         File.delete(wf.failed_run_file)
       end
     end

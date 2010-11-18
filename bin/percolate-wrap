@@ -78,6 +78,15 @@ client = MessageClient.new(args[:queue], args[:host], args[:port])
 
 client.send_message(TaskMessage.new(task_id, command, :started))
 system(command)
-client.send_message(TaskMessage.new(task_id, command, :finished, $?.exitstatus))
 
-exit($?.exitstatus)
+exitstatus = if $?.exited?
+               $?.exitstatus
+             else
+               nil
+             end
+
+client.send_message(TaskMessage.new(task_id, command, :finished, exitstatus))
+
+exitstatus ||= 1
+
+exit(exitstatus)

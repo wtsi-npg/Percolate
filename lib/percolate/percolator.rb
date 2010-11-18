@@ -335,6 +335,7 @@ module Percolate
             # If we find a failed workflow, it means that it is being
             # restarted.
             if workflow.failed?
+              $log.info("Restarting #{definition} [FAILED] from #{run_file}")
               workflow.restart
             end
 
