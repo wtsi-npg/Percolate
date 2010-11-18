@@ -31,7 +31,7 @@ module Percolate
   include Percolate::Memoize
   $log = Logger.new(STDERR)
 
-  VERSION = '0.2.2'
+  VERSION = '0.3.0'
 
   # An error raised by the Percolate system.
   class PercolateError < StandardError

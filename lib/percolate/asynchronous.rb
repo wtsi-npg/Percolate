@@ -54,7 +54,8 @@ module Percolate
     #   - :queue     => LSF queue (Symbol) e.g. :normal, :long
     #   - :memory    => LSF memory limit in Mb (Fixnum)
     #   - :depend    => LSF job dependency (String)
-    #   - :resources => LSF resource requirements (String)
+    #   - :select    => LSF resource select options (String)
+    #   - :reserve   => LSF resource rusage options (String)
     #   - :size      => LSF job array size (Fixnum)
     #
     # Returns:
@@ -65,11 +66,13 @@ module Percolate
       defaults = { :queue      => :normal,
                    :memory     => 1900,
                    :depend     => nil,
-                   :resources  => nil,
-                   :array_file => nil }
+                   :select     => nil,
+                   :reserve    => nil,
+                   :array_file => nil}
       args = defaults.merge(args)
 
-      queue, mem, dep, res, uid = args[:queue], args[:memory], '', '', $$
+      queue, mem, depend, select, reserve, uid =
+        args[:queue], args[:memory], '', '', '', $$
 
       unless batch_queues.include?(queue)
         raise ArgumentError, ":queue must be one of #{batch_queues.inspect}"
@@ -82,11 +85,14 @@ module Percolate
               "Both a single command and a command array file were supplied"
       end
 
-      if args[:resources]
-        res = " && #{args[:resources]}"
+      if args[:select]
+        select = " && #{args[:select]}"
+      end
+      if args[:reserve]
+        reserve = ":#{args[:reserve]}"
       end
       if args[:depend]
-        dep = " -w #{args[:depend]}"
+        depend = " -w #{args[:depend]}"
       end
 
       cmd_str = "#{batch_wrapper} --host #{Asynchronous.message_host} " <<
@@ -108,8 +114,8 @@ module Percolate
 
       Percolate.cd(work_dir,
                    "#{batch_submitter} -J '#{job_name}' -q #{queue} " <<
-                   "-R 'select[mem>#{mem}#{res}] " <<
-                   "rusage[mem=#{mem}]'#{dep} " <<
+                   "-R 'select[mem>#{mem}#{select}] " <<
+                   "rusage[mem=#{mem}#{reserve}]'#{depend} " <<
                    "-M #{mem * 1000} -oo #{log} #{cmd_str}")
     end
 
