@@ -18,6 +18,7 @@
 
 require 'fileutils'
 require 'logger'
+require 'uri'
 
 require 'percolate/memoize'
 require 'percolate/message_queue'
@@ -31,7 +32,7 @@ module Percolate
   include Percolate::Memoize
   $log = Logger.new(STDERR)
 
-  VERSION = '0.3.0'
+  VERSION = '0.3.1'
 
   # An error raised by the Percolate system.
   class PercolateError < StandardError
@@ -274,7 +275,7 @@ module Percolate
   end
 
   private
-    def ensure_procs procs
+  def ensure_procs procs
     [:having, :confirm, :yielding].collect { |k| ensure_proc(k, procs[k]) }
   end
 
