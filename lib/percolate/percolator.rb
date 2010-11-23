@@ -16,10 +16,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-require 'yaml'
+
 require 'optparse'
 require 'logger'
 require 'socket'
+require 'yaml'
 
 module Percolate
   class PercolatorArguments < Hash
@@ -112,6 +113,8 @@ module Percolate
   # run files.
   class Percolator
     include Percolate::Memoize
+
+    URI_REGEXP = URI.regexp(['file', 'urn'])
 
     @@def_suffix = Workflow::DEFINITION_SUFFIX
     @@run_suffix = Workflow::RUN_SUFFIX
@@ -340,7 +343,8 @@ module Percolate
             end
 
             result = if ! workflow.finished?
-                       workflow.run(*workflow_args)
+                       workflow.run(*substitute_uris(workflow_args))
+                       # workflow.run(*workflow_args)
                      else
                        nil
                      end
@@ -395,6 +399,16 @@ module Percolate
           $stderr.puts(msg)
         end
       end
+    end
+
+    def substitute_uris args
+      args.collect { |arg|
+        if arg.is_a?(String) && URI_REGEXP.match(arg)
+          URI.parse(arg.slice(URI_REGEXP))
+        else
+          arg
+        end
+      }
     end
   end
 end

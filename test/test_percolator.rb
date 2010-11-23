@@ -18,6 +18,7 @@
 
 require 'fileutils'
 require 'tmpdir'
+require 'uri'
 require 'yaml'
 require 'test/unit'
 
@@ -174,6 +175,14 @@ module TestPercolate
           File.delete(File.join(percolator.fail_dir, File.basename(file)))
         end
       end
+    end
+
+    def test_substitute_uris
+      percolator = Percolator.new({'root_dir' => data_path})
+      assert_equal([1, 1.0, 'foo'], percolator.substitute_uris([1, 1.0, 'foo']))
+
+      assert(percolator.substitute_uris(['file:///foo']).first.is_a?(URI))
+      assert(percolator.substitute_uris(['urn:foo:bar']).first.is_a?(URI))
     end
   end
 end
