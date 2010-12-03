@@ -47,7 +47,7 @@ module Percolate
     end
 
     def Asynchronous.message_client
-      $log.debug("Connecting to message host #{self.message_host} " <<
+      $log.debug("Connecting to message host #{self.message_host} " +
                  "port #{self.message_port}")
       MessageClient.new(self.message_queue, self.message_host,
                         self.message_port)
@@ -98,7 +98,7 @@ module Percolate
                      time = Time.now
         unless TASK_STATES.include?(state)
           raise ArgumentError,
-                "Invalid state argument #{state}, must be one of " <<
+                "Invalid state argument #{state}, must be one of " +
                 TASK_STATES.inspect
         end
 

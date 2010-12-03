@@ -120,10 +120,17 @@ module Percolate
     def restore
       check_transient(:restore)
       if File.exists?(self.run_file)
-        state = restore_memos(self.run_file)
+        state, memo, async_memo = restore_memos(self.run_file)
+
+        $log.debug("Restored #{self} with state #{state}")
+
         case state
           when :passed ; @passed = true
           when :failed ; @failed = true
+          when nil     ; nil
+          else
+             raise PercolateError,
+                   "Bad state #{state} in #{self.run_file} for #{self}"
         end
       else
         raise PercolateError,

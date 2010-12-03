@@ -27,24 +27,24 @@ module Percolate
     def initialize args
       super
 
-      opts = OptionParser.new do |opts|
+      opts = OptionParser.new { |opts|
         opts.banner = "Usage: #$0 [options]"
         opts.on('-c', '--config [FILE]',
-                'Load Percolator configuration from FILE') do |file|
+                'Load Percolator configuration from FILE') { |file|
           self[:config] = file
-        end
+        }
 
-        opts.on('-l', '--load [LIBRARY]', 'Load a workflow library') do |lib|
+        opts.on('-l', '--load [LIBRARY]', 'Load a workflow library') { |lib|
           begin
             require lib
           rescue LoadError
             puts("Could not load workflow library '#{lib}'")
             exit 1
           end
-        end
+        }
 
         opts.on('-d', '--display [GROUP]',
-                'Display available workflows') do |group|
+                'Display available workflows') { |group|
           begin
             $stderr.puts(Percolate.find_workflows group)
           rescue ArgumentError => ae
@@ -53,22 +53,22 @@ module Percolate
           end
 
           exit
-        end
+        }
 
-        opts.on('-p', '--percolate', 'Run all defined workflows') do
+        opts.on('-p', '--percolate', 'Run all defined workflows') {
           self[:percolate] = true
-        end
+        }
 
-        opts.on('-v', '--version', 'Print the Percolate version and exit') do
-          $stderr.puts('Version ' << VERSION)
+        opts.on('-v', '--version', 'Print the Percolate version and exit') {
+          $stderr.puts('Version ' + VERSION)
           exit
-        end
+        }
 
-        opts.on('-w', '--workflow [WORKFLOW]', 'Display workflow help') do |wf|
+        opts.on('-w', '--workflow [WORKFLOW]', 'Display workflow help') { |wf|
           begin
-            klass = wf.split(/::/).inject(Object) do |m, c|
+            klass = wf.split(/::/).inject(Object) { |m, c|
               m.const_get(c.to_sym)
-            end
+            }
 
             if klass.respond_to?(:version)
               puts("#{klass.name} version #{klass.version}\n")
@@ -79,7 +79,7 @@ module Percolate
             end
 
             if klass.respond_to?(:usage)
-              puts("Usage:\n\n" << klass.usage)
+              puts("Usage:\n\n" + klass.usage)
             end
           rescue NameError => ne
             $stderr.puts "Unknown workflow #{wf}"
@@ -87,13 +87,13 @@ module Percolate
           end
 
           exit
-        end
+        }
 
-        opts.on('-h', '--help', 'Display this help and exit') do
+        opts.on('-h', '--help', 'Display this help and exit') {
           $stderr.puts(opts)
           exit
-        end
-      end
+        }
+      }
 
       begin
         opts.parse(args)
@@ -146,21 +146,21 @@ module Percolate
     # directory.
     def initialize config = {}
       symbol_config = {}
-      config.each do |key, value|
+      config.each { |key, value|
         if value
           symbol_config[key.intern] = value
         end
-      end
+      }
 
       root_dir = File.expand_path('~/percolate')
       tmp_dir = File.join((ENV['TMPDIR'] || '/tmp'), ENV['USER'])
 
-      defaults = {:root_dir  => root_dir,
-                  :tmp_dir   => tmp_dir,
-                  :work_dir  => tmp_dir,
-                  :log_dir   => root_dir,
-                  :log_file  => 'percolate.log',
-                  :log_level => 'WARN'}
+      defaults = { :root_dir  => root_dir,
+                   :tmp_dir   => tmp_dir,
+                   :work_dir  => tmp_dir,
+                   :log_dir   => root_dir,
+                   :log_file  => 'percolate.log',
+                   :log_level => 'WARN' }
 
       opts = defaults.merge(symbol_config)
 
@@ -184,17 +184,17 @@ module Percolate
 
       if FileTest.directory?(opts[:log_file])
         raise ArgumentError,
-              ":log_file must be a file name, not a directory: " <<
+              ":log_file must be a file name, not a directory: " +
               "#{opts[:log_file]}"
       end
 
       begin
         [@tmp_dir, @lock_dir, @root_dir, @log_dir,
-         @run_dir, @pass_dir, @fail_dir].map do |dir|
+         @run_dir, @pass_dir, @fail_dir].map { |dir|
           if ! (File.exists?(dir) && File.directory?(dir))  # Dir.exists? dir
             Dir.mkdir(dir)
           end
-        end
+        }
       rescue SystemCallError => se
         raise PercolateError, "Failed to create Percolate directories: #{se}"
       end
@@ -220,16 +220,16 @@ module Percolate
     # Returns an array of workflow definition files that do not have a
     # corresponding run file.
     def find_new_definitions
-      defns = self.find_definitions.map do |file|
+      defns = self.find_definitions.map { |file|
         File.basename(file, @@def_suffix)
-      end
-      runs = self.find_run_files.map do |file|
+      }
+      runs = self.find_run_files.map { |file|
         File.basename(file, @@run_suffix)
-      end
+      }
 
-      (defns - runs).map do |basename|
+      (defns - runs).map { |basename|
         File.join(self.run_dir, basename + @@def_suffix)
-      end
+      }
     end
 
     # Returns an array of workflow class and workflow arguments for
@@ -273,14 +273,14 @@ module Percolate
                     when Array    ; workflow_args
                   else
                     raise ArgumentError,
-                          "Expected an argument string, but found " <<
+                          "Expected an argument string, but found " +
                           workflow_args.inspect
                 end
 
         mod = Object.const_get(workflow_module)
         klass = mod.const_get(workflow_class)
 
-        $log.info("Found workflow #{klass} with arguments " <<
+        $log.info("Found workflow #{klass} with arguments " +
                   "#{processed_args.inspect}")
 
         [klass, processed_args]
@@ -338,8 +338,12 @@ module Percolate
             # If we find a failed workflow, it means that it is being
             # restarted.
             if workflow.failed?
+              purge_async_memos
+
               $log.info("Restarting #{definition} [FAILED] from #{run_file}")
               workflow.restart
+            else
+              $log.info("Continuing #{definition} from #{run_file}")
             end
 
             result = if ! workflow.finished?
@@ -388,7 +392,7 @@ module Percolate
 
     # Percolates data through the currently active workflows.
     def percolate
-      self.find_definitions.each do |defn|
+      self.find_definitions.each { |defn|
         $log.info("Switched to workflow #{defn}")
 
         begin
@@ -398,7 +402,7 @@ module Percolate
           $log.error(msg)
           $stderr.puts(msg)
         end
-      end
+      }
     end
 
     def substitute_uris args
