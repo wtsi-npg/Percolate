@@ -32,7 +32,7 @@ module Percolate
   include Percolate::Memoize
   $log = Logger.new(STDERR)
 
-  VERSION = '0.3.2'
+  VERSION = '0.3.3'
 
   # An error raised by the Percolate system.
   class PercolateError < StandardError
@@ -234,7 +234,7 @@ module Percolate
   #   the memoization namespace.
   # - args: (Array): memoization key arguments.
   # - command (Proc): the Proc to memoize
-  # - having: (Proc):  pre-condition Proc, should evaluate true if
+  # - having: (Proc): pre-condition Proc, should evaluate true if
   #   pre-conditions of execution are satisfied
   #
   #  The 'having' Proc may accept no, some, or all the arguments that

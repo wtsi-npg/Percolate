@@ -119,22 +119,25 @@ module TestPercolate
         percolator.read_definition(data_path) # A directory, not a file
       end
 
-      # These print warnings to STDERR
-      old_stderr = $stderr
-      $stderr = StringIO.new
-      # $stderr.puts "[STDERR: "
-      assert_nil(percolator.read_definition(File.join(data_path,
-                                                      'bad_module_def.yml')))
-      assert_nil(percolator.read_definition(File.join(data_path,
-                                                      'bad_workflow_def.yml')))
-      assert_nil(percolator.read_definition(File.join(data_path,
-                                                      'no_module_def.yml')))
-      assert_nil(percolator.read_definition(File.join(data_path,
-                                                      'no_workflow_def.yml')))
-      # $stderr.puts "]\n"
-      # $stderr.rewind
-      # $stdout.puts $stderr.readlines
-      $stderr = old_stderr
+      assert_raise PercolateError do
+        percolator.read_definition(File.join(data_path,
+                                             'bad_module_def.yml'))
+      end
+
+      assert_raise PercolateError do
+        percolator.read_definition(File.join(data_path,
+                                             'bad_workflow_def.yml'))
+      end
+
+      assert_raise PercolateError do
+        percolator.read_definition(File.join(data_path,
+                                             'no_module_def.yml'))
+      end
+
+      assert_raise PercolateError do
+      percolator.read_definition(File.join(data_path,
+                                           'no_workflow_def.yml'))
+      end
     end
 
     def test_percolate_tasks_pass

@@ -285,14 +285,11 @@ module Percolate
 
         [klass, processed_args]
       rescue ArgumentError => ae
-        $stderr.puts("Error in workflow definiton '#{file}': #{ae}")
-        nil
+        raise PercolateError, "Error in workflow definiton '#{file}': #{ae}"
       rescue TypeError => te
-        $stderr.puts("Error in workflow definiton '#{file}': #{te}")
-        nil
+        raise PercolateError, "Error in workflow definiton '#{file}': #{te}"
       rescue NameError => ne
-        $stderr.puts("Error in workflow definiton '#{file}': #{ne}")
-        nil
+        raise PercolateError, "Error in workflow definiton '#{file}': #{ne}"
       end
     end
 
