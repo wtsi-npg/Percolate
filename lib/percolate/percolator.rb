@@ -34,7 +34,7 @@ module Percolate
           self[:config] = file
         }
 
-        opts.on('-l', '--load [LIBRARY]', 'Load a workflow library') { |lib|
+        opts.on('-l', '--load LIBRARY', 'Load a workflow library') { |lib|
           begin
             require lib
           rescue LoadError
@@ -46,7 +46,7 @@ module Percolate
         opts.on('-d', '--display [GROUP]',
                 'Display available workflows') { |group|
           begin
-            $stderr.puts(Percolate.find_workflows group)
+            $stderr.puts(Percolate.find_workflows(group))
           rescue ArgumentError => ae
             $stderr.puts("Unknown workflow group #{group}")
             exit 1

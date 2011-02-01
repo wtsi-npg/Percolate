@@ -1,0 +1,8 @@
+# Ensures that the message queue server restarts after a reboot. Uses
+# http://libslack.org/daemon/ to run beanstalkd as a daemon.
+
+DAEMON_LOG=/nfs/microarray/data/message_queue/daemon.log
+QUEUE_LOG=/nfs/microarray/data/message_queue/beanstalkd.log
+QUEUE_BINLOGDIR=/nfs/microarray/data/message_queue/
+
+@reboot /usr/bin/tcsh -c "prod ; daemon --name=beanstalk --errlog=$DAEMON_LOG --output=$QUEUE_LOG --attempts=3 --limit=2 --inherit --respawn -- beanstalkd -b $QUEUE_BINLOGDIR"
