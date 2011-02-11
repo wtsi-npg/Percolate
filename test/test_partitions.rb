@@ -73,9 +73,9 @@ module PercolateTest
     end
 
     def test_partition_parent
-      (0..100).each do |i|
+      (0..100).each { |i|
         assert('foo.txt' == partition_parent("foo.part.#{i}.txt"))
-      end
+      }
 
       assert_nil(partition_parent nil)
       assert_raise ArgumentError do

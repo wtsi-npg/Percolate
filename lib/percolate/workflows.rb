@@ -68,14 +68,14 @@ module Percolate
       if definition_file
         unless File.extname(definition_file) == DEFINITION_SUFFIX
           raise ArgumentError,
-                "Invalid definition file name '#{definition_file}'. " <<
+                "Invalid definition file name '#{definition_file}'. " +
                 "Suffix must be '#{DEFINITION_SUFFIX}'"
         end
 
         unless File.basename(definition_file,
                              File.extname(definition_file)).match(BASENAME_REGEXP)
           raise ArgumentError,
-                "Invalid definition file name '#{definition_file}'. " <<
+                "Invalid definition file name '#{definition_file}'. " +
                 "Basename must match '#{BASENAME_REGEXP.inspect}'"
         end
       end
@@ -173,7 +173,7 @@ module Percolate
         end
       rescue Exception => e
         raise PercolateError,
-              "Failed to archive workflow #{self} to '#{directory}': " <<
+              "Failed to archive workflow #{self} to '#{directory}': " +
               "#{e.message}"
       end
 
@@ -372,12 +372,12 @@ USAGE
               when Module   ; ancestor
             else
               raise ArgumentError,
-                    "Invalid ancestor argument. Expected a string or " <<
+                    "Invalid ancestor argument. Expected a string or " +
                     "constant, but was #{ancestor.inspect}"
             end
     rescue NameError => ne
       raise ArgumentError,
-            "Invalid ancestor argument. Expected a Ruby module, " <<
+            "Invalid ancestor argument. Expected a Ruby module, " +
             "but was #{ancestor.inspect}"
     end
 

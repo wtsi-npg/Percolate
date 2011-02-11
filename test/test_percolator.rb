@@ -48,13 +48,13 @@ module TestPercolate
     end
 
     def test_read_config
-      open(File.join data_path, 'percolate_config.yml') do |file|
+      open(File.join data_path, 'percolate_config.yml') { |file|
         config = YAML.load(file)
 
         assert_equal('test', config['root_dir'])
         assert_equal('test-percolate.log', config['log_filename'])
         assert_equal('INFO', config['log_level'])
-      end
+      }
     end
 
     def test_percolator_arguments
@@ -67,7 +67,11 @@ module TestPercolate
     end
 
     def test_new_percolator
-      percolator = Percolator.new({'root_dir' => data_path})
+      percolator = Percolator.new({ 'root_dir'  => data_path(),
+                                    'log_file'  => 'percolate-test.log',
+                                    'log_level' => 'DEBUG',
+                                    'msg_host'  => 'hgs3b',
+                                    'msg_port'  => 11301 })
       assert_equal(data_path, percolator.root_dir)
 
       assert_raise ArgumentError do
@@ -76,28 +80,47 @@ module TestPercolate
     end
 
     def test_find_definitions
-      percolator = Percolator.new({'root_dir' => data_path})
+      percolator = Percolator.new({ 'root_dir'  => data_path(),
+                                    'log_file'  => 'percolate-test.log',
+                                    'log_level' => 'DEBUG',
+                                    'msg_host'  => 'hgs3b',
+                                    'msg_port'  => 11301 })
       assert_equal(['test_def1.yml', 'test_def2.yml'],
                    percolator.find_definitions.sort.collect { |file|
-                     File.basename(file) } )
+                     File.basename(file)
+                   })
     end
 
     def test_find_run_files
-      percolator = Percolator.new({'root_dir' => data_path})
+      percolator = Percolator.new({ 'root_dir'  => data_path(),
+                                    'log_file'  => 'percolate-test.log',
+                                    'log_level' => 'DEBUG',
+                                    'msg_host'  => 'hgs3b',
+                                    'msg_port'  => 11301 })
       assert_equal(['test_def1.run'],
                    percolator.find_run_files.collect { |file|
-                     File.basename(file) } )
+                     File.basename(file)
+                   })
     end
 
     def test_find_new_definitions
-      percolator = Percolator.new({'root_dir' => data_path})
+      percolator = Percolator.new({ 'root_dir'  => data_path(),
+                                    'log_file'  => 'percolate-test.log',
+                                    'log_level' => 'DEBUG',
+                                    'msg_host'  => 'hgs3b',
+                                    'msg_port'  => 11301 })
       assert_equal(['test_def2.yml'],
                    percolator.find_new_definitions.collect { |file|
-                     File.basename(file) } )
+                     File.basename(file)
+                   })
     end
 
     def test_read_definition
-      percolator = Percolator.new({'root_dir' => data_path})
+      percolator = Percolator.new({ 'root_dir'  => data_path(),
+                                    'log_file'  => 'percolate-test.log',
+                                    'log_level' => 'DEBUG',
+                                    'msg_host'  => 'hgs3b',
+                                    'msg_port'  => 11301 })
       defn1 = percolator.read_definition(File.join(percolator.run_dir,
                                                    'test_def1.yml'))
       defn2 = percolator.read_definition(File.join(percolator.run_dir,
@@ -139,46 +162,58 @@ module TestPercolate
 
     def test_percolate_tasks_pass
       begin
-        percolator = Percolator.new({'root_dir' => data_path})
+        percolator = Percolator.new({ 'root_dir'  => data_path(),
+                                      'log_file'  => 'percolate-test.log',
+                                      'log_level' => 'DEBUG',
+                                      'msg_host'  => 'hgs3b',
+                                      'msg_port'  => 11301 })
         def_file = File.join(percolator.run_dir, 'test_def1_tmp.yml')
         run_file = File.join(percolator.run_dir, 'test_def1_tmp.run')
 
         FileUtils.cp(File.join(percolator.run_dir, 'test_def1.yml'), def_file)
         assert(percolator.percolate_tasks(def_file).passed?)
 
-        [def_file, run_file].each do |file|
+        [def_file, run_file].each { |file|
           assert(File.exists?(File.join(percolator.pass_dir,
                                         File.basename(file))))
-        end
+        }
       ensure
-        [def_file, run_file].each do |file|
+        [def_file, run_file].each { |file|
           File.delete(File.join(percolator.pass_dir, File.basename(file)))
-        end
+        }
       end
     end
 
     def test_percolate_tasks_fail
       begin
-        percolator = Percolator.new({'root_dir' => data_path})
+        percolator = Percolator.new({ 'root_dir'  => data_path(),
+                                      'log_file'  => 'percolate-test.log',
+                                      'log_level' => 'DEBUG',
+                                      'msg_host'  => 'hgs3b',
+                                      'msg_port'  => 11301 })
         def_file = File.join(percolator.run_dir, 'test_def2_tmp.yml')
         run_file = File.join(percolator.run_dir, 'test_def2_tmp.run')
 
         FileUtils.cp(File.join(percolator.run_dir, 'test_def2.yml'), def_file)
         assert(percolator.percolate_tasks(def_file).failed?)
 
-        [def_file, run_file].each do |file|
+        [def_file, run_file].each { |file|
           assert(File.exists?(File.join(percolator.fail_dir,
                                         File.basename(file))))
-        end
+        }
       ensure
-        [def_file, run_file].each do |file|
+        [def_file, run_file].each { |file|
           File.delete(File.join(percolator.fail_dir, File.basename(file)))
-        end
+        }
       end
     end
 
     def test_substitute_uris
-      percolator = Percolator.new({'root_dir' => data_path})
+      percolator = Percolator.new({ 'root_dir'  => data_path(),
+                                    'log_file'  => 'percolate-test.log',
+                                    'log_level' => 'DEBUG',
+                                    'msg_host'  => 'hgs3b',
+                                    'msg_port'  => 11301 })
       assert_equal([1, 1.0, 'foo'], percolator.substitute_uris([1, 1.0, 'foo']))
 
       assert(percolator.substitute_uris(['file:///foo']).first.is_a?(URI))

@@ -182,6 +182,10 @@ module Percolate
       msg_host = (opts[:msg_host] || Socket.gethostname)
       Asynchronous.message_host(msg_host)
 
+      if opts[:msg_port]
+        Asynchronous.message_port(opts[:msg_port])
+      end
+
       if FileTest.directory?(opts[:log_file])
         raise ArgumentError,
               ":log_file must be a file name, not a directory: " +
