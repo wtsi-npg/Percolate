@@ -81,6 +81,8 @@ system(command)
 
 exitstatus = if $?.exited?
                $?.exitstatus
+             elsif $?.signaled?
+               128 + $?.termsig
              else
                nil
              end
