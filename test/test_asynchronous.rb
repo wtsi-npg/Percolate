@@ -28,7 +28,7 @@ require 'percolate'
 module AsyncTest
   include Percolate
 
-  def async_sleep seconds, work_dir, log, env = {}
+  def async_sleep seconds, work_dir, log, env = { }
     command = "sleep #{seconds}"
 
     task_id = Percolate.task_identity(:async_sleep, [seconds, work_dir])
@@ -40,7 +40,7 @@ module AsyncTest
              :yielding => lambda { seconds })
   end
 
-  def p_async_sleep seconds, size, work_dir, log, env = {}
+  def p_async_sleep seconds, size, work_dir, log, env = { }
     args_arrays = size.times.collect { |i| [seconds + i, work_dir] }
     commands = size.times.collect { |i| "sleep #{seconds + i}" }
 
@@ -127,7 +127,8 @@ module PercolateTest
         percolator = Percolator.new({'root_dir'  => data_path,
                                      'log_file'  => 'percolate-test.log',
                                      'log_level' => 'DEBUG',
-                                     'msg_host'  => 'hgs3b'})
+                                     'msg_host'  => 'hgs3b',
+                                     'msg_port'  => 11301})
         lsf_log = File.join(data_path, 'minimal_async_workflow.log')
 
         wf = MinimalAsyncWorkflow.new(:dumm_def,
@@ -170,7 +171,8 @@ module PercolateTest
         percolator = Percolator.new({'root_dir'  => data_path,
                                      'log_file'  => 'percolate-test.log',
                                      'log_level' => 'DEBUG',
-                                     'msg_host'  => 'hgs3b'})
+                                     'msg_host'  => 'hgs3b',
+                                     'msg_port'  => 11301})
         lsf_log = File.join(data_path, 'minimal_p_async_workflow.log')
 
         wf = MinimalPAsyncWorkflow.new(:dummy_def, 
@@ -190,13 +192,14 @@ module PercolateTest
 
         Timeout.timeout(120) do
           until (! size.times.collect { |i|
-                   async_run_finished?(:p_async_sleep, [run_time + i, data_path])
+                   async_run_finished?(:p_async_sleep,
+                                       [run_time + i, data_path])
                  }.include?(false)) do
-            update_async_memos
-            sleep(run_time)
-            print('#')
+              update_async_memos
+              sleep(run_time)
+              print('#')
+            end
           end
-        end
 
         # Pick up result
         x = wf.run(run_time, size, data_path, lsf_log)

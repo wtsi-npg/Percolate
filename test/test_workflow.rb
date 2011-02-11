@@ -36,7 +36,7 @@ module PercolateTest
     include Percolate
 
     # A task which is permanently unready and can never be run.
-    def unready_task work_dir = '.', env = {}
+    def unready_task work_dir = '.', env = { }
       task(:unready_task, [work_dir], Percolate.cd(work_dir, 'true'), env,
            :having   => lambda { false },
            :confirm  => lambda { true },
@@ -54,7 +54,7 @@ module PercolateTest
     include Percolate
 
     # A task which may be run, but which never finishes.
-    def unfinished_task work_dir = '.', env = {}
+    def unfinished_task work_dir = '.', env = { }
       task(:unfinished_task, [work_dir], Percolate.cd(work_dir, 'true'), env,
            :having   => lambda { true },
            :confirm  => lambda { false },
@@ -70,7 +70,7 @@ module PercolateTest
   class BooleanWorkflow < Workflow
     include Percolate
 
-    def boolean_task work_dir = '.', env = {}
+    def boolean_task work_dir = '.', env = { }
       program = $BOOLEAN_WORKFLOW ? 'true' : 'false'
 
       task(:boolean_task, [work_dir], Percolate.cd(work_dir, program), env,
@@ -98,7 +98,10 @@ module PercolateTest
     end
 
     def make_empty_workflow
-      percolator = Percolator.new({'root_dir' => data_path})
+      percolator = Percolator.new({ 'root_dir'  => data_path(),
+                                    'log_level' => 'DEBUG',
+                                    'msg_host'  => 'hgs3b',
+                                    'msg_port'  => 11301 })
       def_file = File.join(percolator.run_dir, 'test_def1_tmp.yml')
       run_file = File.join(percolator.run_dir, 'test_def1_tmp.run')
 
@@ -121,7 +124,7 @@ module PercolateTest
     end
 
     def test_task_args
-      def bad_arg_task work_dir = '.', env = {}
+      def bad_arg_task work_dir = '.', env = { }
           task(:bad_arg_task, [work_dir], Percolate.cd(work_dir, 'true'), env,
                :having   => :not_a_proc,
                :confirm  => lambda { false },
@@ -186,7 +189,10 @@ module PercolateTest
     end
 
     def test_make_workflow
-      percolator = Percolator.new({'root_dir' => data_path})
+      percolator = Percolator.new({ 'root_dir'  => data_path(),
+                                    'log_level' => 'DEBUG',
+                                    'msg_host'  => 'hgs3b',
+                                    'msg_port'  => 11301 })
       def_file = File.join(percolator.run_dir, 'test_def1.yml')
       run_file = File.join(percolator.run_dir, 'test_def1.run')
       assert(percolator.read_definition(def_file))
@@ -302,7 +308,10 @@ module PercolateTest
     def test_fail_then_pass_workflow
       $BOOLEAN_WORKFLOW = false
 
-      percolator = Percolator.new({'root_dir' => data_path})
+      percolator = Percolator.new({ 'root_dir'  => data_path(),
+                                    'log_level' => 'DEBUG',
+                                    'msg_host'  => 'hgs3b',
+                                    'msg_port'  => 11301 })
       def_file = File.join(percolator.run_dir, 'test_def1_tmp.yml')
       run_file = File.join(percolator.run_dir, 'test_def1_tmp.run')
 
@@ -339,7 +348,10 @@ module PercolateTest
     end
 
     def test_unready_workflow
-      percolator = Percolator.new({'root_dir' => data_path})
+      percolator = Percolator.new({ 'root_dir'  => data_path(),
+                                    'log_level' => 'DEBUG',
+                                    'msg_host'  => 'hgs3b',
+                                    'msg_port'  => 11301 })
       def_file = File.join(percolator.run_dir, 'test_def1.yml')
       run_file = File.join(percolator.run_dir, 'test_def1.run')
 
@@ -350,7 +362,11 @@ module PercolateTest
     end
 
     def test_unfinished_workflow
-      percolator = Percolator.new({'root_dir' => data_path})
+      percolator = Percolator.new({ 'root_dir'  => data_path(),
+                                    'log_file'  => 'percolate-test.log',
+                                    'log_level' => 'DEBUG',
+                                    'msg_host'  => 'hgs3b',
+                                    'msg_port'  => 11301 })
       def_file = File.join(percolator.run_dir, 'test_def1.yml')
       run_file = File.join(percolator.run_dir, 'test_def1.run')
 

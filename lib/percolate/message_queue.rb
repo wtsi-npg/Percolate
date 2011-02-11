@@ -28,12 +28,18 @@ module Percolate
 
     def Asynchronous.message_host host = nil
       if host
+        $log.debug("Setting message host to #{host}")
         @@message_host = host
       end
       @@message_host
     end
 
-    def Asynchronous.message_port
+    def Asynchronous.message_port port = nil
+      if port
+        $log.debug("Setting message port to #{port}")
+        @@message_port = port
+      end
+
       @@message_port
     end
 
