@@ -1,0 +1,16 @@
+
+To install and run Percolate:
+
+1. Build the Percolate Ruby gem.
+
+ rake gem
+
+2. Install the gem.
+
+ gem install pkg/percolate-<version>.gem
+
+3. Download the Beanstalk message queue server from
+   http://kr.github.com/beanstalkd/ and install it as described in the
+   documentation.
+
+4. Start the beanstalkd message queue.
