@@ -179,13 +179,6 @@ module Percolate
       @pass_dir = (opts[:pass_dir] || File.join(@root_dir, 'pass'))
       @fail_dir = (opts[:fail_dir] || File.join(@root_dir, 'fail'))
 
-      msg_host = (opts[:msg_host] || Socket.gethostname)
-      Asynchronous.message_host(msg_host)
-
-      if opts[:msg_port]
-        Asynchronous.message_port(opts[:msg_port])
-      end
-
       if FileTest.directory?(opts[:log_file])
         raise ArgumentError,
               ":log_file must be a file name, not a directory: " +
@@ -207,6 +200,13 @@ module Percolate
       @log_file = File.join(@log_dir, opts[:log_file])
       $log = Logger.new(@log_file)
       $log.level = log_level
+
+      msg_host = (opts[:msg_host] || Socket.gethostname)
+      Asynchronous.message_host(msg_host)
+
+      if opts[:msg_port]
+        Asynchronous.message_port(opts[:msg_port])
+      end
 
       self
     end
