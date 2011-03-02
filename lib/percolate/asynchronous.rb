@@ -133,17 +133,18 @@ module Percolate
     # post-conditions.
     def lsf_task fname, args, command, env, procs = {}
       having, confirm, yielding = ensure_procs(procs)
-      memos = get_async_memos(fname)
+      memos = Percolate.memoizer.async_method_memos(fname)
       result = memos[args]
       submitted = result && result.submitted?
 
-      Percolate.log.debug("Entering task #{fname}")
+      log = Percolate.log
+      log.debug("Entering task #{fname}")
 
       if submitted # LSF job was submitted
-        Percolate.log.debug("#{fname} LSF job '#{command}' is already submitted")
+        log.debug("#{fname} LSF job '#{command}' is already submitted")
 
         if result.value? # if submitted, result is not nil, see above
-          Percolate.log.debug("Returning memoized #{fname} result: #{result}")
+          log.debug("Returning memoized #{fname} result: #{result}")
         else
           begin
             if result.failed?
@@ -152,25 +153,25 @@ module Percolate
             elsif result.finished? &&
             confirm.call(*args.take(confirm.arity.abs))
               result.finished!(yielding.call(*args.take(yielding.arity.abs)))
-              Percolate.log.debug("Postconditions for #{fname} satsified; " +
-                                  "returning #{result}")
+              log.debug("Postconditions for #{fname} satsified; " +
+                        "returning #{result}")
             else
-              Percolate.log.debug("Postconditions for #{fname} not satsified; " +
-                                  "returning nil")
+              log.debug("Postconditions for #{fname} not satsified; " +
+                        "returning nil")
             end
           rescue PercolateAsyncTaskError => pate
             # Any of the having, confirm or yielding procs may throw this
-            Percolate.log.error("#{fname} requires attention: #{pate.message}")
+            log.error("#{fname} requires attention: #{pate.message}")
             raise pate
           end
         end
       else # Can we submit the LSF job?
         if !having.call(*args.take(having.arity.abs))
-          Percolate.log.debug("Preconditions for #{fname} not satisfied; " +
-                              "returning nil")
+          log.debug("Preconditions for #{fname} not satisfied; " +
+                    "returning nil")
         else
-          Percolate.log.debug("Preconditions for #{fname} satisfied; " +
-                              "submitting '#{command}'")
+          log.debug("Preconditions for #{fname} satisfied; " +
+                    "submitting '#{command}'")
 
           if submit_async(fname, command)
             task_id = Percolate.task_identity(fname, args)
@@ -185,24 +186,26 @@ module Percolate
 
     def lsf_task_array fname, args_arrays, commands, command, env, procs = {}
       having, confirm, yielding = ensure_procs(procs)
-      memos = get_async_memos(fname)
+      memos = Percolate.memoizer.async_method_memos(fname)
 
       # If first in array was submitted, all were submitted
       submitted = memos.has_key?(args_arrays.first) &&
       memos[args_arrays.first].submitted?
 
-      Percolate.log.debug("Entering task #{fname}")
+      log = Percolate.log
+      log.debug("Entering task #{fname}")
+
       results = Array.new(args_arrays.size)
 
       if submitted
         args_arrays.each_with_index do |args, i|
           result = memos[args]
           results[i] = result
-          Percolate.log.debug("Checking #{fname}[#{i}] args: #{args.inspect}, " +
-                              "result: #{result}")
+          log.debug("Checking #{fname}[#{i}] args: #{args.inspect}, " +
+                    "result: #{result}")
 
           if result.value?
-            Percolate.log.debug("Returning memoized #{fname} result: #{result}")
+            log.debug("Returning memoized #{fname} result: #{result}")
           else
             begin
               if result.failed?
@@ -211,15 +214,15 @@ module Percolate
               elsif result.finished? &&
               confirm.call(*args.take(confirm.arity.abs))
                 result.finished!(yielding.call(*args.take(yielding.arity.abs)))
-                Percolate.log.debug("Postconditions for #{fname} satsified; " +
-                                    "collecting #{result}")
+                log.debug("Postconditions for #{fname} satsified; " +
+                          "collecting #{result}")
               else
-                Percolate.log.debug("Postconditions for #{fname} not satsified; " +
-                                    "collecting nil")
+                log.debug("Postconditions for #{fname} not satsified; " +
+                          "collecting nil")
               end
             rescue PercolateAsyncTaskError => pate
               # Any of the having, confirm or yielding procs may throw this
-              Percolate.log.error("#{fname}[#{i}] requires attention: #{pate.message}")
+              log.error("#{fname}[#{i}] requires attention: #{pate.message}")
               raise pate
             end
           end
@@ -227,27 +230,27 @@ module Percolate
       else
         # Can't submit any members of a job array until all their
         # preconditions are met
-        pre = args_arrays.collect do |args|
+        pre = args_arrays.collect { |args|
           having.call(*args.take(having.arity.abs))
-        end
+        }
 
         if pre.include?(false)
-          Percolate.log.debug("Preconditions for #{fname} not satisfied; " +
-                              "returning nil")
+          log.debug("Preconditions for #{fname} not satisfied; " +
+                    "returning nil")
         else
           array_task_id = Percolate.task_identity(fname, args_arrays)
-          Percolate.log.debug("Preconditions for #{fname} are satisfied; " +
-                              "submitting '#{command}' with env #{env}")
+          log.debug("Preconditions for #{fname} are satisfied; " +
+                    "submitting '#{command}' with env #{env}")
 
           if submit_async(fname, command)
             submission_time = Time.now
-            args_arrays.each_with_index do |args, i|
+            args_arrays.each_with_index { |args, i|
               task_id = Percolate.task_identity(fname, args)
               result = Result.new(fname, task_id, submission_time)
               memos[args] = result
-              Percolate.log.debug("Submitted #{fname}[#{i}] args: #{args.inspect}, " +
-                                  "result #{result}")
-            end
+              log.debug("Submitted #{fname}[#{i}] args: #{args.inspect}, " +
+                        "result #{result}")
+            }
           end
         end
       end
@@ -256,35 +259,35 @@ module Percolate
     end
 
     def write_array_commands file, fname, args_array, commands
-      File.open(file, 'w') do |f|
-        args_array.zip(commands).each do |args, cmd|
+      File.open(file, 'w') { |f|
+        args_array.zip(commands).each { |args, cmd|
           task_id = Percolate.task_identity(fname, args)
           f.puts("#{task_id}\t#{fname}\t#{args.inspect}\t#{cmd}")
-        end
-      end
+        }
+      }
     end
 
     def read_array_command file, lineno
       task_id = nil
       command = nil
 
-      File.open(file, 'r') do |f|
-        f.each_line do |line|
+      File.open(file, 'r') { |f|
+        f.each_line { |line|
           if f.lineno == lineno
             fields = line.chomp.split("\t")
             task_id = fields[0]
             command = fields[3]
             break
           end
-        end
-      end
+        }
+      }
 
       if task_id.nil?
-        raise PercolateError, "No such command line #{index} in #{file}"
+        raise PercolateError, "No such command line #{lineno} in #{file}"
       elsif task_id.empty?
-        raise PercolateError, "Empty task_id at line #{index} in #{file}"
+        raise PercolateError, "Empty task_id at line #{lineno} in #{file}"
       elsif command.empty?
-        raise PercolateError, "Empty command at line #{index} in #{file}"
+        raise PercolateError, "Empty command at line #{lineno} in #{file}"
       else
         [task_id, command]
       end

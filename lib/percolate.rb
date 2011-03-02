@@ -16,6 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+require 'digest'
 require 'fileutils'
 require 'logger'
 require 'uri'
@@ -29,12 +30,11 @@ require 'percolate/percolator'
 require 'percolate/partitions'
 
 module Percolate
-  include Percolate::Memoize
 
   VERSION = '0.3.6'
 
   @log = Logger.new(STDERR)
-
+  @memoizer = Percolate::Memoizer.new
 
   # An error raised by the Percolate system.
   class PercolateError < StandardError
@@ -50,8 +50,8 @@ module Percolate
 
   class << self
     attr_accessor :log
+    attr_accessor :memoizer
   end
-
 
   # Returns a task identity string for a call to function named fname
   # with arguments Array args.
@@ -70,10 +70,10 @@ module Percolate
   #
   class Result
     # The name of task responsible for the result
-    attr_reader   :task
+    attr_reader :task
     # The unique identity of the task instance responsible for the
     # result
-    attr_reader   :task_identity
+    attr_reader :task_identity
 
     # The submission time, if available
     attr_accessor :submission_time
@@ -92,61 +92,61 @@ module Percolate
     attr_accessor :stderr
 
     def initialize task, task_identity, submission_time, start_time = nil,
-                   finish_time = nil, value = nil, stdout = nil, stderr = nil
-      @task            = task
-      @task_identity   = task_identity
+    finish_time = nil, value = nil, stdout = nil, stderr = nil
+      @task = task
+      @task_identity = task_identity
       @submission_time = submission_time
-      @start_time      = start_time
-      @finish_time     = finish_time
-      @value           = value
-      @stdout          = stdout
-      @stderr          = stderr
+      @start_time = start_time
+      @finish_time = finish_time
+      @value = value
+      @stdout = stdout
+      @stderr = stderr
     end
 
     # Sets the Result on completion of a task.
     def finished! value, finish_time = Time.now, exit_code = 0
       self.finish_time = finish_time
-      self.exit_code   = exit_code
-      self.value       = value
+      self.exit_code = exit_code
+      self.value = value
     end
 
     # Sets the time at which the task started. Tasks may be restarted,
     # in which case the finish time, value, stdout and stderr are set
     # to nil
     def started! start_time = Time.now
-      self.start_time  = start_time
+      self.start_time = start_time
       self.finish_time = nil
-      self.value       = nil
-      self.stdout      = nil
-      self.stderr      = nil
+      self.value = nil
+      self.stdout = nil
+      self.stderr = nil
     end
 
     # Returns true if the task that will generate the Result's value
     # has been submitted.
     def submitted?
-      ! self.submission_time.nil?
+      !self.submission_time.nil?
     end
 
     # Returns true if the task that will generate the Result's value
     # has been started.
     def started?
-      ! self.start_time.nil?
+      !self.start_time.nil?
     end
 
     # Returns true if the task that will generate the Result's value
     # has finished.
     def finished?
-      ! self.finish_time.nil?
+      !self.finish_time.nil?
     end
 
     # Return true if the task that will generate the Result's value
     # has returned something i.e. the value is not nil.
     def value?
-      ! self.value.nil?
+      !self.value.nil?
     end
 
     def failed?
-      self.finished? && ! self.exit_code.zero?
+      self.finished? && !self.exit_code.zero?
     end
 
     def runtime
@@ -190,10 +190,10 @@ module Percolate
   #
   # Returns:
   # - Return value of the :yielding Proc, or nil.
-  def task fname, args, command, env, procs = { }
+  def task fname, args, command, env, procs = {}
     having, confirm, yielding = ensure_procs(procs)
 
-    memos = get_memos(fname)
+    memos = Percolate.memoizer.method_memos(fname)
     result = memos[args]
 
     Percolate.log.debug("Entering task #{fname}")
@@ -201,7 +201,7 @@ module Percolate
     if result && result.value?
       Percolate.log.debug("Returning memoized result: #{result}")
       result
-    elsif ! having.call(*args.take(having.arity.abs))
+    elsif !having.call(*args.take(having.arity.abs))
       Percolate.log.debug("Preconditions not satisfied, returning nil")
       nil
     else
@@ -216,7 +216,7 @@ module Percolate
         when status.signaled?
           raise PercolateTaskError,
                 "Uncaught signal #{status.termsig} from '#{command}'"
-        when ! success
+        when !success
           raise PercolateTaskError,
                 "Non-zero exit #{status.exitstatus} from '#{command}'"
         when success && confirm.call(*args.take(confirm.arity.abs))
@@ -255,7 +255,7 @@ module Percolate
     ensure_proc('command', command)
     ensure_proc('having', having)
 
-    memos = get_memos(fname)
+    memos = Percolate.memoizer.method_memos(fname)
     result = memos[args]
 
     Percolate.log.debug("Entering task #{fname}")
@@ -263,7 +263,7 @@ module Percolate
     if result
       Percolate.log.debug("Returning memoized result: #{result}")
       result
-    elsif ! having.call(*args.take(having.arity.abs))
+    elsif !having.call(*args.take(having.arity.abs))
       Percolate.log.debug("Preconditions not satisfied, returning nil")
       nil
     else

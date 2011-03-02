@@ -17,54 +17,45 @@
 #
 
 module Percolate
-  module Memoize
-    # Memoization Hash for synchronous tasks
-    @@memos = {}
-    # Memoization Hash for asynchronous tasks
-    @@async_memos = {}
+  class Memoizer
+    attr_accessor :memos
+    attr_accessor :async_memos
 
-    # Returns a Hash of memoization data for synchronous tasks. Keys
-    # are function name symbols, values are Hashes mapping task
-    # argument Arrays to Result objects.
-    def all_memos
-      @@memos
-    end
-
-    # Returns a Hash of memoization data for asynchronous tasks. Keys
-    # are function name symbols, values are Hashes mapping task
-    # argument Arrays to Result objects.
-    def all_async_memos
-      @@async_memos
+    def initialize
+      @memos = {}
+      @async_memos = {}
     end
 
     def clear_memos
-      @@memos.clear
-      @@async_memos.clear
+      self.memos.clear
+      self.async_memos.clear
     end
 
-    # Stores the memoization data to file filename.
-    def store_memos filename, state
-      File.open(filename, 'w') { |file|
-        Marshal.dump([state, @@memos, @@async_memos], file)
+    def store_memos place, state
+      File.open(place, 'w') { |file|
+        Marshal.dump({:percolate_version => Percolate::VERSION,
+                      :workflow_state => state,
+                      :memos => self.memos,
+                      :async_memos => self.async_memos}, file)
       }
     end
 
-    # Restores the memoization data to file filename.
-    def restore_memos filename
-      state = nil
-      File.open(filename, 'r') { |file|
-        state, @@memos, @@async_memos = Marshal.load(file)
+    def restore_memos place
+      restored = File.open(place, 'r') { |file|
+        ensure_valid_memos(place, Marshal.load(file))
       }
+
+      self.memos = restored[:memos]
+      self.async_memos = restored[:async_memos]
+      restored[:workflow_state]
     end
 
-    # Returns the memoization data for function fname.
-    def get_memos fname
-      ensure_memos(@@memos, fname)
+    def method_memos key
+      ensure_memos(self.memos, key)
     end
 
-    # Returns the memoization data for function fname.
-    def get_async_memos fname
-      ensure_memos(@@async_memos, fname)
+    def async_method_memos key
+      ensure_memos(self.async_memos, key)
     end
 
     # Updates memoization results for asynchronous tasks by polling a
@@ -72,9 +63,10 @@ module Percolate
     # received, or false otherwise.
     def update_async_memos
       client = Asynchronous.message_client
+      log = Percolate.log
       updates = Hash.new
 
-      Percolate.log.debug("Started fetching messages from #{client.inspect}")
+      log.debug("Started fetching messages from #{client.inspect}")
 
       loop do
         msg = client.get_message
@@ -89,16 +81,16 @@ module Percolate
         end
       end
 
-      Percolate.log.debug("Fetched #{updates.size} messages from " +
-                          "#{Asynchronous.message_queue}")
+      log.debug("Fetched #{updates.size} messages from " +
+                "#{Asynchronous.message_queue}")
       updates.each_value { |msgs|
-        msgs.each { |msg| Percolate.log.debug("Received #{msg.inspect}") }
+        msgs.each { |msg| log.debug("Received #{msg.inspect}") }
       }
 
-      @@async_memos.each { |fname, memos|
+      self.async_memos.each { |fname, memos|
         memos.each { |fn_args, result|
           unless result.finished?
-            Percolate.log.debug("Checking messages for updates to #{result.inspect}")
+            log.debug("Checking messages for updates to #{result.inspect}")
 
             task_id = result.task_identity
             if updates.has_key?(task_id)
@@ -107,13 +99,13 @@ module Percolate
                 case msg.state
                   when :started
                     if result.started? || result.finished?
-                      Percolate.log.warn("#{task_id} has been restarted")
+                      log.warn("#{task_id} has been restarted")
                     else
-                      Percolate.log.debug("#{task_id} has started")
+                      log.debug("#{task_id} has started")
                     end
                     result.started!(msg.time)
                   when :finished
-                    Percolate.log.debug("#{task_id} has finished")
+                    log.debug("#{task_id} has finished")
                     result.finished!(nil, msg.time, msg.exit_code)
                   else
                     raise PercolateError, "Invalid message: " + msg.inspect
@@ -126,25 +118,44 @@ module Percolate
 
       client.close
 
-      return (updates.size > 0)
+      updates.size > 0
     end
 
-    protected
-    def async_run_finished? fname, args
-      result = get_async_memos(fname)[args]
+    def async_run_finished? key, args
+      result = self.async_method_memos(key)[args]
       result && result.finished?
     end
 
     # Returns true if the outcome of one or more asynchronous tasks
     # that have been started is still unknown.
     def dirty_async?
-      dirty = @@async_memos.keys.select { |fname| dirty_async_memos?(fname) }
-
+      dirty = self.async_memos.keys.select { |key| self.dirty_async_memos?(key) }
       !dirty.empty?
     end
 
-    def dirty_async_memos? fname
-      memos = get_async_memos(fname)
+    protected
+    # Removes memoized values for failed asynchronous tasks so that
+    # they may be run again
+    def purge_async_memos
+      log = Percolate.log
+      log.debug("Purging failed asynchronous tasks")
+      log.debug("Before purging: #{self.async_memos.inspect}")
+
+      purged = Hash.new
+
+      self.async_memos.each_pair { |key, memos|
+        purged[key] = memos.reject { |fn_args, result|
+          result && result.failed?
+        }
+
+        log.debug("After purging: #{purged.inspect}")
+      }
+
+      self.async_memos = purged
+    end
+
+    def dirty_async_memos? key
+      memos = self.async_method_memos(key)
       dirty = memos.reject { |fn_args, result|
         result && result.submitted? && result.finished?
       }
@@ -152,26 +163,32 @@ module Percolate
       !dirty.keys.empty?
     end
 
-    # Removes memoized values for failed asynchronous tasks so that
-    # they may be run again
-    def purge_async_memos
-      Percolate.log.debug("Purging failed asynchronous tasks")
-      Percolate.log.debug("Before purging: #{@@async_memos.inspect}")
+    private
+    def ensure_valid_memos place, memos
+      msg = "Memoization data restored from '#{place}' is invalid"
 
-      purged = Hash.new
+      case
+        when !memos.is_a?(Hash)
+          raise PercolateError, msg + ": not a Hash"
+        when !memos.key?(:percolate_version)
+          raise PercolateError, msg + ": no Percolate version was stored"
+        when !memos[:percolate_version] == Percolate::VERSION
+          raise PercolateError, msg +
+          ": Percolate version of memos #{memos[:percolate_version]} " +
+          "does not match current the version #{Percolate.VERSION}"
+        when !memos.key?(:workflow_state)
+          raise PercolateError, msg + ": no Workflow state was stored"
+        when !Percolate::Workflow::STATES.include?(memos[:workflow_state])
+          raise PercolateError, msg + ": workflow state was " +
+          "#{memos[:workflow_state]}, expected one of " +
+          "#{Percolate::Workflow::STATES}"
+        when !memos.key?(:memos) || !memos.key?(:async_memos)
+          raise PercolateError, ": memoization data was missing"
+      end
 
-      @@async_memos.each_pair { |fname, memos|
-        purged[fname] = memos.reject { |fn_args, result|
-          result && result.failed?
-        }
-
-        Percolate.log.debug("Purged #{}: #{purged.inspect}")
-      }
-
-      @@async_memos = purged
+      memos
     end
 
-    private
     def ensure_memos hash, key # :nodoc
       if hash.has_key?(key)
         hash[key]

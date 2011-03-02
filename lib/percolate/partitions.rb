@@ -60,7 +60,7 @@ module Percolate
 
   # Returns true is filename is a partition.
   def partition? filename
-    ! parse_partition(filename).nil?
+    !parse_partition(filename).nil?
   end
 
   # Returns the index of filename if it is a partition, or raises an
@@ -88,7 +88,7 @@ module Percolate
       raise ArgumentError, "#{filename} is not a partition"
     end
   end
-  
+
   # Returns the template of filename if it is a partition, or raises
   # an ArgumentError if it is not.
   def partition_template filename, placeholder = '%d'
@@ -103,7 +103,7 @@ module Percolate
   # distinct and share the same parent i.e. are partitions of the same
   # file.
   def sibling_partitions? filenames
-    if (! filenames.empty? && filenames.all? && duplicates(filenames).empty?)
+    if (!filenames.empty? && filenames.all? && duplicates(filenames).empty?)
       parents = filenames.collect { |f| partition_parent(f) }
       parents.count(parents.first) == filenames.size
     end
@@ -115,7 +115,7 @@ module Percolate
   def complete_partitions? filenames
     range = 0...filenames.size
     sibling_partitions?(filenames) &&
-      filenames.select { |f| ! range.include?(partition_index(f)) }.empty?
+    filenames.select { |f| !range.include?(partition_index(f)) }.empty?
   end
 
   private
@@ -141,6 +141,6 @@ module Percolate
       end
     end
 
-    duplicates.select {|key, value| value > 1}
+    duplicates.select { |key, value| value > 1 }
   end
 end

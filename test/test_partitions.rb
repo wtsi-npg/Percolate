@@ -53,14 +53,14 @@ module PercolateTest
       assert(partition? '999.part.0.txt')
       assert(partition? '999.part.0.999')
 
-      assert(! partition?(nil))
-      assert(! partition?('foo.part.0x.txt'))
-      assert(! partition?('foo.part.x0.txt'))
-      assert(! partition?('foo.part.x.txt'))
-      assert(! partition?('foo.part.0.'))
-      assert(! partition?('foo.part.0'))
-      assert(! partition?('foo.part.'))
-      assert(! partition?('foo.0.txt'))
+      assert(!partition?(nil))
+      assert(!partition?('foo.part.0x.txt'))
+      assert(!partition?('foo.part.x0.txt'))
+      assert(!partition?('foo.part.x.txt'))
+      assert(!partition?('foo.part.0.'))
+      assert(!partition?('foo.part.0'))
+      assert(!partition?('foo.part.'))
+      assert(!partition?('foo.0.txt'))
     end
 
     def test_partition_index
@@ -100,22 +100,22 @@ module PercolateTest
     def test_sibling_partitions?
       parts = (0...10).collect { |i| "foo.part.#{i}.txt" }
       assert(sibling_partitions?(parts))
-      assert(! sibling_partitions?([]))
-      assert(! sibling_partitions?([nil]))
-      assert(! sibling_partitions?([nil, *parts]))
-      assert(! sibling_partitions?(['foo.part.0.txt', *parts]))
-      assert(! sibling_partitions?(['bar.part.0.txt', *parts]))
+      assert(!sibling_partitions?([]))
+      assert(!sibling_partitions?([nil]))
+      assert(!sibling_partitions?([nil, *parts]))
+      assert(!sibling_partitions?(['foo.part.0.txt', *parts]))
+      assert(!sibling_partitions?(['bar.part.0.txt', *parts]))
     end
 
     def test_complete_partitions?
       parts = (0...10).collect { |i| "foo.part.#{i}.txt" }
       assert(complete_partitions?(parts))
-      assert(! complete_partitions?([]))
-      assert(! complete_partitions?([nil]))
-      assert(! complete_partitions?([nil, *parts]))
-      assert(! complete_partitions?(['foo.part.0.txt', *parts]))
-      assert(! complete_partitions?(['bar.part.0.txt', *parts]))
-      assert(! complete_partitions?(parts[1...10]))
+      assert(!complete_partitions?([]))
+      assert(!complete_partitions?([nil]))
+      assert(!complete_partitions?([nil, *parts]))
+      assert(!complete_partitions?(['foo.part.0.txt', *parts]))
+      assert(!complete_partitions?(['bar.part.0.txt', *parts]))
+      assert(!complete_partitions?(parts[1...10]))
 
       shuffled = parts
       until shuffled != parts

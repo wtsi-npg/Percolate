@@ -28,19 +28,19 @@ require 'percolate'
 module AsyncTest
   include Percolate
 
-  def async_sleep seconds, work_dir, log, env = { }
+  def async_sleep seconds, work_dir, log, env = {}
     command = "sleep #{seconds}"
 
     task_id = Percolate.task_identity(:async_sleep, [seconds, work_dir])
     lsf_task(:async_sleep, [seconds, work_dir],
              lsf(task_id, command, work_dir, log, :queue => :small),
              env,
-             :having   => lambda { work_dir },
-             :confirm  => lambda { true },
+             :having => lambda { work_dir },
+             :confirm => lambda { true },
              :yielding => lambda { seconds })
   end
 
-  def p_async_sleep seconds, size, work_dir, log, env = { }
+  def p_async_sleep seconds, size, work_dir, log, env = {}
     args_arrays = size.times.collect { |i| [seconds + i, work_dir] }
     commands = size.times.collect { |i| "sleep #{seconds + i}" }
 
@@ -54,8 +54,8 @@ module AsyncTest
                    lsf(task_id, nil, work_dir, log, :array_file => array_file,
                        :queue => :small),
                    env,
-                   :having   => lambda { work_dir },
-                   :confirm  => lambda { true },
+                   :having => lambda { work_dir },
+                   :confirm => lambda { true },
                    :yielding => lambda { |sec, dir| sec })
   end
 end
@@ -63,7 +63,6 @@ end
 module PercolateTest
   class TestWorkflow < Test::Unit::TestCase
     include Percolate
-    include Percolate::Memoize
 
     $LSF_PRESENT = system('which bsub >/dev/null 2>&1')
 
@@ -121,14 +120,14 @@ module PercolateTest
     end
 
     def test_minimal_async_workflow
-       batch_wrapper(File.join(bin_path, 'percolate-wrap'))
+      batch_wrapper(File.join(bin_path, 'percolate-wrap'))
 
       if $LSF_PRESENT
-        percolator = Percolator.new({'root_dir'  => data_path,
-                                     'log_file'  => 'percolate-test.log',
+        percolator = Percolator.new({'root_dir' => data_path,
+                                     'log_file' => 'percolate-test.log',
                                      'log_level' => 'DEBUG',
-                                     'msg_host'  => 'hgs3b',
-                                     'msg_port'  => 11301})
+                                     'msg_host' => 'hgs3b',
+                                     'msg_port' => 11301})
         lsf_log = File.join(data_path, 'minimal_async_workflow.log')
 
         wf = MinimalAsyncWorkflow.new(:dumm_def,
@@ -137,74 +136,80 @@ module PercolateTest
                                       percolator.fail_dir)
         Asynchronous.message_queue(wf.message_queue)
 
-        assert(! dirty_async?)
+        memoizer = Percolate.memoizer
+        assert(!Percolate.memoizer.dirty_async?)
         run_time = 10
 
         # Initially nil from async task
         assert_nil(wf.run(run_time, '.', lsf_log))
-        assert(dirty_async?)
+        assert(memoizer.dirty_async?)
 
         Timeout.timeout(120) do
-          until (async_run_finished?(:async_sleep, [run_time, '.'])) do
-              update_async_memos
-              sleep(10)
-              print('#')
-            end
+          until (memoizer.async_run_finished?(:async_sleep, [run_time, '.'])) do
+            memoizer.update_async_memos
+            sleep(10)
+            print('#')
           end
+        end
 
-          # Pick up result
-          x = wf.run(run_time, '.', lsf_log)
+        # Pick up result
+        x = wf.run(run_time, '.', lsf_log)
 
-          assert(! dirty_async?)
-          assert(x.is_a?(Result))
-          assert(x.started?)
-          assert(x.finished?)
-          assert_equal(:async_sleep, x.task)
-          assert_equal(run_time, x.value)
+        assert(!memoizer.dirty_async?)
+        assert(x.is_a?(Result))
+        assert(x.started?)
+        assert(x.finished?)
+        assert_equal(:async_sleep, x.task)
+        assert_equal(run_time, x.value)
       end
     end
 
     def test_minimal_p_async_workflow
-       batch_wrapper(File.join(bin_path, 'percolate-wrap'))
+      batch_wrapper(File.join(bin_path, 'percolate-wrap'))
 
       if $LSF_PRESENT
-        percolator = Percolator.new({'root_dir'  => data_path,
-                                     'log_file'  => 'percolate-test.log',
+        percolator = Percolator.new({'root_dir' => data_path,
+                                     'log_file' => 'percolate-test.log',
                                      'log_level' => 'DEBUG',
-                                     'msg_host'  => 'hgs3b',
-                                     'msg_port'  => 11301})
+                                     'msg_host' => 'hgs3b',
+                                     'msg_port' => 11301})
         lsf_log = File.join(data_path, 'minimal_p_async_workflow.log')
 
-        wf = MinimalPAsyncWorkflow.new(:dummy_def, 
+        wf = MinimalPAsyncWorkflow.new(:dummy_def,
                                        'dummy_def.yml', 'dummy_run.run',
                                        percolator.pass_dir,
                                        percolator.fail_dir)
         Asynchronous.message_queue(wf.message_queue)
 
-        assert(! dirty_async?)
+        memoizer = Percolate.memoize
+        assert(!memoizer.dirty_async?)
         run_time = 10
         size = 5
 
         # Initially nil from async task
         assert_equal([nil, nil, nil, nil, nil],
                      wf.run(run_time, size, data_path, lsf_log))
-        assert(dirty_async?)
+        assert(memoizer.dirty_async?)
 
         Timeout.timeout(120) do
-          until (! size.times.collect { |i|
-                   async_run_finished?(:p_async_sleep,
-                                       [run_time + i, data_path])
-                 }.include?(false)) do
-              update_async_memos
-              sleep(run_time)
-              print('#')
-            end
+          runs = []
+
+          until runs.size == size && !runs.include?(false) do
+            runs = size.times.collect { |i|
+              memoizer.async_run_finished?(:p_async_sleep,
+                                           [run_time + i, data_path])
+            }
+
+            memoizer.update_async_memos
+            sleep(run_time)
+            print('#')
           end
+        end
 
         # Pick up result
         x = wf.run(run_time, size, data_path, lsf_log)
 
-        assert(! dirty_async?)
+        assert(!dirty_async?)
         assert(x.is_a?(Array))
         assert(x.all? { |elt| elt.is_a?(Result) })
         assert(x.all? { |elt| elt.started? })

@@ -16,7 +16,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-
 require 'optparse'
 require 'logger'
 require 'socket'
@@ -112,12 +111,11 @@ module Percolate
   # the directories where it expects to find workflow definitions and
   # run files.
   class Percolator
-    include Percolate::Memoize
 
     URI_REGEXP = URI.regexp(['file', 'urn'])
 
-    @@def_suffix = Workflow::DEFINITION_SUFFIX
-    @@run_suffix = Workflow::RUN_SUFFIX
+    @@def_suffix = Percolate::Workflow::DEFINITION_SUFFIX
+    @@run_suffix = Percolate::Workflow::RUN_SUFFIX
 
     # The root of all the Percolate runtime directories. Defaults to
     # $HOME/percolate
@@ -196,10 +194,9 @@ module Percolate
         raise PercolateError, "Failed to create Percolate directories: #{se}"
       end
 
-      log_level = Object.const_get('Logger').const_get(opts[:log_level])
       @log_file = File.join(@log_dir, opts[:log_file])
       Percolate.log = Logger.new(@log_file)
-      Percolate.log.level = log_level
+      Percolate.log.level = Object.const_get('Logger').const_get(opts[:log_level])
 
       msg_host = (opts[:msg_host] || Socket.gethostname)
       Asynchronous.message_host(msg_host)
@@ -318,7 +315,10 @@ module Percolate
       begin
         if lock.flock(File::LOCK_EX | File::LOCK_NB)
           begin
-            Percolate.log.debug("Successfully obtained lock #{lock} for #{definition}")
+            memoizer = Percolate.memoizer
+            log = Percolate.log
+
+            log.debug("Successfully obtained lock #{lock} for #{definition}")
             workflow_class, workflow_args = read_definition(def_file)
             workflow = workflow_class.new(File.basename(def_file, '.yml'),
                                           def_file, run_file,
@@ -328,28 +328,28 @@ module Percolate
             # data share the same namespace in the table. Without
             # clearing between workflows, workflow state would leak
             # from one workflow to another.
-            Percolate.log.debug("Emptying memo table")
-            clear_memos
+            log.debug("Emptying memo table")
+            memoizer.clear_memos
 
             if File.exists?(run_file)
-              Percolate.log.info("Restoring state of #{definition} from #{run_file}")
+              log.info("Restoring state of #{definition} from #{run_file}")
               workflow.restore
             end
 
             Asynchronous.message_queue(workflow.message_queue)
-            if dirty_async?
-              update_async_memos
+            if memoizer.dirty_async?
+              memoizer.update_async_memos
             end
 
             # If we find a failed workflow, it means that it is being
             # restarted.
             if workflow.failed?
-              purge_async_memos
+              memoizer.purge_async_memos
 
-              Percolate.log.info("Restarting #{definition} [FAILED] from #{run_file}")
+              log.info("Restarting #{definition} [FAILED] from #{run_file}")
               workflow.restart
             else
-              Percolate.log.info("Continuing #{definition} from #{run_file}")
+              log.info("Continuing #{definition} from #{run_file}")
             end
 
             result = if !workflow.finished?
@@ -359,25 +359,25 @@ module Percolate
                        nil
                      end
 
-            Percolate.log.debug("Workflow run result is #{result.inspect}")
+            log.debug("Workflow run result is #{result.inspect}")
 
             if result
-              Percolate.log.info("Workflow #{definition} passed")
+              log.info("Workflow #{definition} passed")
               workflow.declare_passed # Stores in pass directory
             else
-              Percolate.log.info("Workflow #{definition} not passed; storing")
+              log.info("Workflow #{definition} not passed; storing")
               workflow.store
             end
           rescue => e
-            Percolate.log.error("Workflow #{definition} failed: #{e}")
-            Percolate.log.error(e.backtrace.join("\n"))
+            log.error("Workflow #{definition} failed: #{e}")
+            log.error(e.backtrace.join("\n"))
 
             if workflow
               workflow.declare_failed # Stores in fail directory
             end
           end
         else
-          Percolate.log.debug("Busy lock #{lock} for #{definition}, skipping")
+          log.debug("Busy lock #{lock} for #{definition}, skipping")
         end
       ensure
         if lock.flock(File::LOCK_UN).nonzero?
@@ -389,7 +389,7 @@ module Percolate
       # Don't bother to remove the lock file if the workflow has not
       # finished.
       if workflow && (workflow.passed? || workflow.failed?)
-        Percolate.log.debug("Deleting lock #{lock} for #{definition}")
+        log.debug("Deleting lock #{lock} for #{definition}")
         File.delete(lock.path)
       end
 

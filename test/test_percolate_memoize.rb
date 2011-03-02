@@ -27,11 +27,10 @@ require 'percolate'
 module PercolateTest
   class TestPercolateSystem < Test::Unit::TestCase
     include Percolate
-    include Percolate::Memoize
 
     def setup
       super
-      clear_memos
+      Percolate.memoizer.clear_memos
     end
 
     def teardown
@@ -39,49 +38,49 @@ module PercolateTest
     end
 
     def test_get_memos
-      memos = get_memos(:test_fn)
+      memos = Percolate.memoizer.method_memos(:test_fn)
 
       assert(memos.is_a?(Hash))
       assert_equal(0, memos.size)
-      assert(all_memos.has_key?(:test_fn))
+      assert(Percolate.memoizer.memos.has_key?(:test_fn))
     end
 
     def test_get_async_memos
-      memos = get_async_memos(:test_async_fn)
+      memos = Percolate.memoizer.async_method_memos(:test_async_fn)
 
       assert(memos.is_a?(Hash))
       assert_equal(0, memos.size)
-      assert(all_async_memos.has_key?(:test_async_fn))
+      assert(Percolate.memoizer.async_memos.has_key?(:test_async_fn))
     end
 
     def test_store_restore_memos
       Dir.mktmpdir('percolate') { |dir|
         file = File.join dir, 'store_restore_memos.dat'
-        state = :passed
-        store_memos(file, state)
-        data = restore_memos(file)
+        Percolate.memoizer.store_memos(file, :passed)
+        state = Percolate.memoizer.restore_memos(file)
 
-        assert_equal([state, all_memos, all_async_memos], data)
+        assert_equal(:passed, state)
       }
     end
 
     def test_native_task
       def test_add_task *args
-        having = lambda { |numbers| ! numbers.nil? }
+        having = lambda { |numbers| !numbers.nil? }
         command = lambda { |*numbers| numbers.inject(0) { |n, sum| n + sum } }
 
         native_task(:test_add_task, args, command, having)
       end
 
-      assert(! all_memos.has_key?(:test_add_task))
+      memoizer = Percolate.memoizer
+      assert(!memoizer.memos.has_key?(:test_add_task))
 
       result = test_add_task(1, 2, 3)
       assert_equal(:test_add_task, result.task)
       assert_equal(6, result.value)
 
-      memos = get_memos(:test_add_task)
+      memos = memoizer.method_memos(:test_add_task)
       assert(memos.is_a?(Hash))
-      assert(all_memos.has_key?(:test_add_task))
+      assert(memoizer.memos.has_key?(:test_add_task))
     end
   end
 end

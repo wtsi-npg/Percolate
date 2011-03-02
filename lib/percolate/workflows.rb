@@ -16,18 +16,18 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-require 'digest/md5'
+require 'digest'
 
 module Percolate
   # All workflows must be subclassed from Workflow which provides the
   # basic workflow management methods.
   class Workflow
     include Percolate
-    include Percolate::Memoize
 
     DEFINITION_SUFFIX = '.yml'
     RUN_SUFFIX = '.run'
     BASENAME_REGEXP = /^[A-Za-z0-9_-]+$/
+    STATES = [:passed, :failed, nil]
 
     # Metaclass which holds a different set of help strings for each
     # subclass.
@@ -122,7 +122,8 @@ module Percolate
     def restore
       check_transient(:restore)
       if File.exists?(self.run_file)
-        state, memo, async_memo = restore_memos(self.run_file)
+        # state, memos, async_memos = Percolate.memoizer.restore_memos(self.run_file)
+        state = Percolate.memoizer.restore_memos(self.run_file)
 
         Percolate.log.debug("Restored #{self} with state #{state}")
 
@@ -157,7 +158,7 @@ module Percolate
               end
 
       Percolate.log.debug("Storing workflow in #{self.run_file}, state: #{state}")
-      store_memos(self.run_file, state)
+      Percolate.memoizer.store_memos(self.run_file, state)
       self
     end
 
