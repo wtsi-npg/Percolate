@@ -22,16 +22,16 @@ module Percolate
   # A task which succeeds.
   def true_task work_dir = '.', env = {}
     task(:true_task, [work_dir], Percolate.cd(work_dir, 'true'), env,
-         :having   => lambda { work_dir },
-         :confirm  => lambda { true },
+         :having => lambda { work_dir },
+         :confirm => lambda { true },
          :yielding => lambda { true })
   end
 
   # A task which always fails.
   def false_task work_dir = '.', env = {}
     task(:false_task, [work_dir], Percolate.cd(work_dir, 'false'), env,
-         :having   => lambda { true },
-         :confirm  => lambda { true },
+         :having => lambda { true },
+         :confirm => lambda { true },
          :yielding => lambda { false })
   end
 end

@@ -155,27 +155,27 @@ module Percolate
       root_dir = File.expand_path('~/percolate')
       tmp_dir = File.join((ENV['TMPDIR'] || '/tmp'), ENV['USER'])
 
-      defaults = { :root_dir  => root_dir,
-                   :tmp_dir   => tmp_dir,
-                   :work_dir  => tmp_dir,
-                   :log_dir   => root_dir,
-                   :log_file  => 'percolate.log',
-                   :log_level => 'WARN' }
+      defaults = {:root_dir => root_dir,
+                  :tmp_dir => tmp_dir,
+                  :work_dir => tmp_dir,
+                  :log_dir => root_dir,
+                  :log_file => 'percolate.log',
+                  :log_level => 'WARN'}
 
       opts = defaults.merge(symbol_config)
 
       # If the user has moved the root dir, but not defined a log dir,
       # move the log_dir too
-      if symbol_config[:root_dir] && ! symbol_config[:log_dir]
+      if symbol_config[:root_dir] && !symbol_config[:log_dir]
         opts[:log_dir] = opts[:root_dir]
       end
 
       @root_dir = File.expand_path(opts[:root_dir])
-      @tmp_dir  = File.expand_path(opts[:tmp_dir])
+      @tmp_dir = File.expand_path(opts[:tmp_dir])
       @work_dir = File.expand_path(opts[:work_dir])
-      @log_dir  = File.expand_path(opts[:log_dir]) || @root_dir
+      @log_dir = File.expand_path(opts[:log_dir]) || @root_dir
       @lock_dir = (opts[:lock_dir] || File.join(@tmp_dir, 'locks'))
-      @run_dir  = (opts[:run_dir]  || File.join(@root_dir, 'in'))
+      @run_dir = (opts[:run_dir] || File.join(@root_dir, 'in'))
       @pass_dir = (opts[:pass_dir] || File.join(@root_dir, 'pass'))
       @fail_dir = (opts[:fail_dir] || File.join(@root_dir, 'fail'))
 
@@ -188,7 +188,7 @@ module Percolate
       begin
         [@tmp_dir, @lock_dir, @root_dir, @log_dir,
          @run_dir, @pass_dir, @fail_dir].map { |dir|
-          if ! (File.exists?(dir) && File.directory?(dir))  # Dir.exists? dir
+          if !(File.exists?(dir) && File.directory?(dir)) # Dir.exists? dir
             Dir.mkdir(dir)
           end
         }
@@ -198,8 +198,8 @@ module Percolate
 
       log_level = Object.const_get('Logger').const_get(opts[:log_level])
       @log_file = File.join(@log_dir, opts[:log_file])
-      $log = Logger.new(@log_file)
-      $log.level = log_level
+      Percolate.log = Logger.new(@log_file)
+      Percolate.log.level = log_level
 
       msg_host = (opts[:msg_host] || Socket.gethostname)
       Asynchronous.message_host(msg_host)
@@ -239,18 +239,18 @@ module Percolate
     # Returns an array of workflow class and workflow arguments for
     # workflow definition in file.
     def read_definition file
-      if ! File.exists?(file)
+      if !File.exists?(file)
         raise PercolateError, "Workflow definition '#{file}' does not exist"
       end
-      if ! File.file?(file)
+      if !File.file?(file)
         raise PercolateError, "Workflow definition '#{file}' is not a file"
       end
-      if ! File.readable?(file)
+      if !File.readable?(file)
         raise PercolateError, "Workflow definition '#{file}' is not readable"
       end
 
       begin
-        $log.info("Loading workflow definition #{file} with #{self}")
+        Percolate.log.info("Loading workflow definition #{file} with #{self}")
 
         defn = YAML.load_file(file)
         lib = defn['library']
@@ -270,22 +270,24 @@ module Percolate
                 "Could not determine workflow from definition '#{file}'"
         end
 
-        processed_args =
-                case workflow_args
-                    when NilClass ; []
-                    when String   ; workflow_args.split
-                    when Array    ; workflow_args
-                  else
-                    raise ArgumentError,
-                          "Expected an argument string, but found " +
-                          workflow_args.inspect
-                end
+        processed_args = case workflow_args
+                           when NilClass;
+                             []
+                           when String;
+                             workflow_args.split
+                           when Array;
+                             workflow_args
+                           else
+                             raise ArgumentError,
+                                   "Expected an argument string, but found " +
+                                   workflow_args.inspect
+                         end
 
         mod = Object.const_get(workflow_module)
         klass = mod.const_get(workflow_class)
 
-        $log.info("Found workflow #{klass} with arguments " +
-                  "#{processed_args.inspect}")
+        Percolate.log.info("Found workflow #{klass} with arguments " +
+                           "#{processed_args.inspect}")
 
         [klass, processed_args]
       rescue ArgumentError => ae
@@ -316,7 +318,7 @@ module Percolate
       begin
         if lock.flock(File::LOCK_EX | File::LOCK_NB)
           begin
-            $log.debug("Successfully obtained lock #{lock} for #{definition}")
+            Percolate.log.debug("Successfully obtained lock #{lock} for #{definition}")
             workflow_class, workflow_args = read_definition(def_file)
             workflow = workflow_class.new(File.basename(def_file, '.yml'),
                                           def_file, run_file,
@@ -326,11 +328,11 @@ module Percolate
             # data share the same namespace in the table. Without
             # clearing between workflows, workflow state would leak
             # from one workflow to another.
-            $log.debug("Emptying memo table")
+            Percolate.log.debug("Emptying memo table")
             clear_memos
 
             if File.exists?(run_file)
-              $log.info("Restoring state of #{definition} from #{run_file}")
+              Percolate.log.info("Restoring state of #{definition} from #{run_file}")
               workflow.restore
             end
 
@@ -344,50 +346,50 @@ module Percolate
             if workflow.failed?
               purge_async_memos
 
-              $log.info("Restarting #{definition} [FAILED] from #{run_file}")
+              Percolate.log.info("Restarting #{definition} [FAILED] from #{run_file}")
               workflow.restart
             else
-              $log.info("Continuing #{definition} from #{run_file}")
+              Percolate.log.info("Continuing #{definition} from #{run_file}")
             end
 
-            result = if ! workflow.finished?
+            result = if !workflow.finished?
                        workflow.run(*substitute_uris(workflow_args))
-                       # workflow.run(*workflow_args)
+              # workflow.run(*workflow_args)
                      else
                        nil
                      end
 
-            $log.debug("Workflow run result is #{result.inspect}")
+            Percolate.log.debug("Workflow run result is #{result.inspect}")
 
             if result
-              $log.info("Workflow #{definition} passed")
+              Percolate.log.info("Workflow #{definition} passed")
               workflow.declare_passed # Stores in pass directory
             else
-              $log.info("Workflow #{definition} not passed; storing")
+              Percolate.log.info("Workflow #{definition} not passed; storing")
               workflow.store
             end
           rescue => e
-            $log.error("Workflow #{definition} failed: #{e}")
-            $log.error(e.backtrace.join("\n"))
+            Percolate.log.error("Workflow #{definition} failed: #{e}")
+            Percolate.log.error(e.backtrace.join("\n"))
 
             if workflow
               workflow.declare_failed # Stores in fail directory
             end
           end
         else
-          $log.debug("Busy lock #{lock} for #{definition}, skipping")
+          Percolate.log.debug("Busy lock #{lock} for #{definition}, skipping")
         end
       ensure
         if lock.flock(File::LOCK_UN).nonzero?
           raise PercolateError
-                "Failed to release lock #{lock} for #{definition}"
+          "Failed to release lock #{lock} for #{definition}"
         end
       end
 
       # Don't bother to remove the lock file if the workflow has not
       # finished.
       if workflow && (workflow.passed? || workflow.failed?)
-        $log.debug("Deleting lock #{lock} for #{definition}")
+        Percolate.log.debug("Deleting lock #{lock} for #{definition}")
         File.delete(lock.path)
       end
 
@@ -397,13 +399,13 @@ module Percolate
     # Percolates data through the currently active workflows.
     def percolate
       self.find_definitions.each { |defn|
-        $log.info("Switched to workflow #{defn}")
+        Percolate.log.info("Switched to workflow #{defn}")
 
         begin
           self.percolate_tasks(defn)
         rescue PercolateError => pe
           msg = "Skipping task: #{pe}"
-          $log.error(msg)
+          Percolate.log.error(msg)
           $stderr.puts(msg)
         end
       }

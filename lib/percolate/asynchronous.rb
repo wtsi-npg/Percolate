@@ -62,18 +62,18 @@ module Percolate
     #
     # - String
     #
-    def lsf task_id, command, work_dir, log, args = { }
-      defaults = { :queue      => :normal,
-                   :memory     => 1900,
-                   :cpus       => 1,
-                   :depend     => nil,
-                   :select     => nil,
-                   :reserve    => nil,
-                   :array_file => nil}
+    def lsf task_id, command, work_dir, log, args = {}
+      defaults = {:queue => :normal,
+                  :memory => 1900,
+                  :cpus => 1,
+                  :depend => nil,
+                  :select => nil,
+                  :reserve => nil,
+                  :array_file => nil}
       args = defaults.merge(args)
 
       queue, mem, cpus, depend, select, reserve, uid =
-        args[:queue], args[:memory], args[:cpus], '', '', '', $$
+      args[:queue], args[:memory], args[:cpus], '', '', '', $$
 
       unless batch_queues.include?(queue)
         raise ArgumentError, ":queue must be one of #{batch_queues.inspect}"
@@ -105,9 +105,9 @@ module Percolate
       end
 
       cmd_str = "#{batch_wrapper} --host #{Asynchronous.message_host} " +
-                "--port #{Asynchronous.message_port} " +
-                "--queue #{Asynchronous.message_queue} " +
-                "--task #{task_id}"
+      "--port #{Asynchronous.message_port} " +
+      "--queue #{Asynchronous.message_queue} " +
+      "--task #{task_id}"
 
       job_name = "#{task_id}.#{uid}"
       if args[:array_file]
@@ -131,46 +131,46 @@ module Percolate
 
     # Run or update a memoized batch command having pre- and
     # post-conditions.
-    def lsf_task fname, args, command, env, procs = { }
+    def lsf_task fname, args, command, env, procs = {}
       having, confirm, yielding = ensure_procs(procs)
       memos = get_async_memos(fname)
       result = memos[args]
       submitted = result && result.submitted?
 
-      $log.debug("Entering task #{fname}")
+      Percolate.log.debug("Entering task #{fname}")
 
       if submitted # LSF job was submitted
-        $log.debug("#{fname} LSF job '#{command}' is already submitted")
+        Percolate.log.debug("#{fname} LSF job '#{command}' is already submitted")
 
         if result.value? # if submitted, result is not nil, see above
-          $log.debug("Returning memoized #{fname} result: #{result}")
+          Percolate.log.debug("Returning memoized #{fname} result: #{result}")
         else
           begin
             if result.failed?
               raise PercolateAsyncTaskError,
                     "#{fname} args: #{args.inspect} failed"
             elsif result.finished? &&
-                confirm.call(*args.take(confirm.arity.abs))
+            confirm.call(*args.take(confirm.arity.abs))
               result.finished!(yielding.call(*args.take(yielding.arity.abs)))
-              $log.debug("Postconditions for #{fname} satsified; " +
-                         "returning #{result}")
+              Percolate.log.debug("Postconditions for #{fname} satsified; " +
+                                  "returning #{result}")
             else
-              $log.debug("Postconditions for #{fname} not satsified; " +
-                         "returning nil")
+              Percolate.log.debug("Postconditions for #{fname} not satsified; " +
+                                  "returning nil")
             end
           rescue PercolateAsyncTaskError => pate
             # Any of the having, confirm or yielding procs may throw this
-            $log.error("#{fname} requires attention: #{pate.message}")
+            Percolate.log.error("#{fname} requires attention: #{pate.message}")
             raise pate
           end
         end
       else # Can we submit the LSF job?
-        if ! having.call(*args.take(having.arity.abs))
-          $log.debug("Preconditions for #{fname} not satisfied; " +
-                     "returning nil")
+        if !having.call(*args.take(having.arity.abs))
+          Percolate.log.debug("Preconditions for #{fname} not satisfied; " +
+                              "returning nil")
         else
-          $log.debug("Preconditions for #{fname} satisfied; " +
-                     "submitting '#{command}'")
+          Percolate.log.debug("Preconditions for #{fname} satisfied; " +
+                              "submitting '#{command}'")
 
           if submit_async(fname, command)
             task_id = Percolate.task_identity(fname, args)
@@ -183,43 +183,43 @@ module Percolate
       result
     end
 
-    def lsf_task_array fname, args_arrays, commands, command, env, procs = { }
+    def lsf_task_array fname, args_arrays, commands, command, env, procs = {}
       having, confirm, yielding = ensure_procs(procs)
       memos = get_async_memos(fname)
 
       # If first in array was submitted, all were submitted
       submitted = memos.has_key?(args_arrays.first) &&
-        memos[args_arrays.first].submitted?
+      memos[args_arrays.first].submitted?
 
-      $log.debug("Entering task #{fname}")
+      Percolate.log.debug("Entering task #{fname}")
       results = Array.new(args_arrays.size)
 
       if submitted
         args_arrays.each_with_index do |args, i|
           result = memos[args]
           results[i] = result
-          $log.debug("Checking #{fname}[#{i}] args: #{args.inspect}, " +
-                     "result: #{result}")
+          Percolate.log.debug("Checking #{fname}[#{i}] args: #{args.inspect}, " +
+                              "result: #{result}")
 
           if result.value?
-            $log.debug("Returning memoized #{fname} result: #{result}")
+            Percolate.log.debug("Returning memoized #{fname} result: #{result}")
           else
             begin
               if result.failed?
                 raise PercolateAsyncTaskError,
-                     "#{fname}[#{i}] args: #{args.inspect} failed"
+                      "#{fname}[#{i}] args: #{args.inspect} failed"
               elsif result.finished? &&
-                  confirm.call(*args.take(confirm.arity.abs))
+              confirm.call(*args.take(confirm.arity.abs))
                 result.finished!(yielding.call(*args.take(yielding.arity.abs)))
-                $log.debug("Postconditions for #{fname} satsified; " +
-                           "collecting #{result}")
+                Percolate.log.debug("Postconditions for #{fname} satsified; " +
+                                    "collecting #{result}")
               else
-                $log.debug("Postconditions for #{fname} not satsified; " +
-                           "collecting nil")
+                Percolate.log.debug("Postconditions for #{fname} not satsified; " +
+                                    "collecting nil")
               end
             rescue PercolateAsyncTaskError => pate
               # Any of the having, confirm or yielding procs may throw this
-              $log.error("#{fname}[#{i}] requires attention: #{pate.message}")
+              Percolate.log.error("#{fname}[#{i}] requires attention: #{pate.message}")
               raise pate
             end
           end
@@ -232,12 +232,12 @@ module Percolate
         end
 
         if pre.include?(false)
-          $log.debug("Preconditions for #{fname} not satisfied; " +
-                     "returning nil")
+          Percolate.log.debug("Preconditions for #{fname} not satisfied; " +
+                              "returning nil")
         else
           array_task_id = Percolate.task_identity(fname, args_arrays)
-          $log.debug("Preconditions for #{fname} are satisfied; " +
-                     "submitting '#{command}' with env #{env}")
+          Percolate.log.debug("Preconditions for #{fname} are satisfied; " +
+                              "submitting '#{command}' with env #{env}")
 
           if submit_async(fname, command)
             submission_time = Time.now
@@ -245,8 +245,8 @@ module Percolate
               task_id = Percolate.task_identity(fname, args)
               result = Result.new(fname, task_id, submission_time)
               memos[args] = result
-              $log.debug("Submitted #{fname}[#{i}] args: #{args.inspect}, " +
-                         "result #{result}")
+              Percolate.log.debug("Submitted #{fname}[#{i}] args: #{args.inspect}, " +
+                                  "result #{result}")
             end
           end
         end
@@ -256,7 +256,7 @@ module Percolate
     end
 
     def write_array_commands file, fname, args_array, commands
-       File.open(file, 'w') do |f|
+      File.open(file, 'w') do |f|
         args_array.zip(commands).each do |args, cmd|
           task_id = Percolate.task_identity(fname, args)
           f.puts("#{task_id}\t#{fname}\t#{args.inspect}\t#{cmd}")
@@ -308,18 +308,18 @@ module Percolate
       status, stdout = system_command(command)
       success = command_success?(status)
 
-      $log.info("submission reported #{stdout} for #{fname}")
+      Percolate.log.info("submission reported #{stdout} for #{fname}")
 
       case
         when status.signaled?
           raise PercolateAsyncTaskError,
                 "Uncaught signal #{status.termsig} from '#{command}'"
-        when ! success
+        when !success
           raise PercolateAsyncTaskError,
                 "Non-zero exit #{status.exitstatus} from '#{command}'"
-      else
-        $log.debug("#{fname} async job '#{command}' is submitted, " +
-                   "meanwhile returning nil")
+        else
+          Percolate.log.debug("#{fname} async job '#{command}' is submitted, " +
+                              "meanwhile returning nil")
       end
 
       success

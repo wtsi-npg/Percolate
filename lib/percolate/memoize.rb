@@ -19,9 +19,9 @@
 module Percolate
   module Memoize
     # Memoization Hash for synchronous tasks
-    @@memos = { }
+    @@memos = {}
     # Memoization Hash for asynchronous tasks
-    @@async_memos = { }
+    @@async_memos = {}
 
     # Returns a Hash of memoization data for synchronous tasks. Keys
     # are function name symbols, values are Hashes mapping task
@@ -74,7 +74,7 @@ module Percolate
       client = Asynchronous.message_client
       updates = Hash.new
 
-      $log.debug("Started fetching messages from #{client.inspect}")
+      Percolate.log.debug("Started fetching messages from #{client.inspect}")
 
       loop do
         msg = client.get_message
@@ -89,16 +89,16 @@ module Percolate
         end
       end
 
-      $log.debug("Fetched #{updates.size} messages from " +
-                 "#{Asynchronous.message_queue}")
+      Percolate.log.debug("Fetched #{updates.size} messages from " +
+                          "#{Asynchronous.message_queue}")
       updates.each_value { |msgs|
-        msgs.each { |msg| $log.debug("Received #{msg.inspect}") }
+        msgs.each { |msg| Percolate.log.debug("Received #{msg.inspect}") }
       }
 
       @@async_memos.each { |fname, memos|
         memos.each { |fn_args, result|
           unless result.finished?
-            $log.debug("Checking messages for updates to #{result.inspect}")
+            Percolate.log.debug("Checking messages for updates to #{result.inspect}")
 
             task_id = result.task_identity
             if updates.has_key?(task_id)
@@ -107,16 +107,16 @@ module Percolate
                 case msg.state
                   when :started
                     if result.started? || result.finished?
-                      $log.warn("#{task_id} has been restarted")
+                      Percolate.log.warn("#{task_id} has been restarted")
                     else
-                      $log.debug("#{task_id} has started")
+                      Percolate.log.debug("#{task_id} has started")
                     end
                     result.started!(msg.time)
                   when :finished
-                    $log.debug("#{task_id} has finished")
+                    Percolate.log.debug("#{task_id} has finished")
                     result.finished!(nil, msg.time, msg.exit_code)
-                else
-                  raise PercolateError, "Invalid message: " + msg.inspect
+                  else
+                    raise PercolateError, "Invalid message: " + msg.inspect
                 end
               }
             end
@@ -140,7 +140,7 @@ module Percolate
     def dirty_async?
       dirty = @@async_memos.keys.select { |fname| dirty_async_memos?(fname) }
 
-      ! dirty.empty?
+      !dirty.empty?
     end
 
     def dirty_async_memos? fname
@@ -149,14 +149,14 @@ module Percolate
         result && result.submitted? && result.finished?
       }
 
-      ! dirty.keys.empty?
+      !dirty.keys.empty?
     end
 
     # Removes memoized values for failed asynchronous tasks so that
     # they may be run again
     def purge_async_memos
-      $log.debug("Purging failed asynchronous tasks")
-      $log.debug("Before purging: #{@@async_memos.inspect}")
+      Percolate.log.debug("Purging failed asynchronous tasks")
+      Percolate.log.debug("Before purging: #{@@async_memos.inspect}")
 
       purged = Hash.new
 
@@ -165,7 +165,7 @@ module Percolate
           result && result.failed?
         }
 
-        $log.debug("Purged #{}: #{purged.inspect}")
+        Percolate.log.debug("Purged #{}: #{purged.inspect}")
       }
 
       @@async_memos = purged

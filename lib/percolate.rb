@@ -30,9 +30,11 @@ require 'percolate/partitions'
 
 module Percolate
   include Percolate::Memoize
-  $log = Logger.new(STDERR)
 
   VERSION = '0.3.6'
+
+  @log = Logger.new(STDERR)
+
 
   # An error raised by the Percolate system.
   class PercolateError < StandardError
@@ -45,6 +47,11 @@ module Percolate
   # An error raised by an asynchronous Percolate task.
   class PercolateAsyncTaskError < PercolateTaskError
   end
+
+  class << self
+    attr_accessor :log
+  end
+
 
   # Returns a task identity string for a call to function named fname
   # with arguments Array args.
@@ -189,16 +196,16 @@ module Percolate
     memos = get_memos(fname)
     result = memos[args]
 
-    $log.debug("Entering task #{fname}")
+    Percolate.log.debug("Entering task #{fname}")
 
     if result && result.value?
-      $log.debug("Returning memoized result: #{result}")
+      Percolate.log.debug("Returning memoized result: #{result}")
       result
     elsif ! having.call(*args.take(having.arity.abs))
-      $log.debug("Preconditions not satisfied, returning nil")
+      Percolate.log.debug("Preconditions not satisfied, returning nil")
       nil
     else
-      $log.debug("Preconditions satisfied; running '#{command}'")
+      Percolate.log.debug("Preconditions satisfied; running '#{command}'")
 
       submission_time = start_time = Time.now
       status, stdout = system_command(command)
@@ -217,10 +224,10 @@ module Percolate
           task_id = Percolate.task_identity(fname, args)
           result = Result.new(fname, task_id, submission_time, start_time,
                               finish_time, yielded, status.exitstatus, stdout)
-          $log.debug("Postconditions satsified; returning #{result}")
+          Percolate.log.debug("Postconditions satsified; returning #{result}")
           memos[args] = result
         else
-          $log.debug("Postconditions not satsified; returning nil")
+          Percolate.log.debug("Postconditions not satsified; returning nil")
           nil
       end
     end
@@ -251,16 +258,16 @@ module Percolate
     memos = get_memos(fname)
     result = memos[args]
 
-    $log.debug("Entering task #{fname}")
+    Percolate.log.debug("Entering task #{fname}")
 
     if result
-      $log.debug("Returning memoized result: #{result}")
+      Percolate.log.debug("Returning memoized result: #{result}")
       result
     elsif ! having.call(*args.take(having.arity.abs))
-      $log.debug("Preconditions not satisfied, returning nil")
+      Percolate.log.debug("Preconditions not satisfied, returning nil")
       nil
     else
-      $log.debug("Preconditions are satisfied; calling '#{command}'")
+      Percolate.log.debug("Preconditions are satisfied; calling '#{command}'")
 
       submission_time = start_time = Time.now
       task_id = Percolate.task_identity(fname, args)
@@ -269,7 +276,7 @@ module Percolate
 
       result = Result.new(fname, task_id, submission_time, start_time,
                           finish_time, value, nil, nil)
-      $log.debug("#{fname} called; returning #{result}")
+      Percolate.log.debug("#{fname} called; returning #{result}")
       memos[args] = result
     end
   end

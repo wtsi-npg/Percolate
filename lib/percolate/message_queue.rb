@@ -28,7 +28,7 @@ module Percolate
 
     def Asynchronous.message_host host = nil
       if host
-        $log.debug("Setting message host to #{host}")
+        Percolate.log.debug("Setting message host to #{host}")
         @@message_host = host
       end
       @@message_host
@@ -36,7 +36,7 @@ module Percolate
 
     def Asynchronous.message_port port = nil
       if port
-        $log.debug("Setting message port to #{port}")
+        Percolate.log.debug("Setting message port to #{port}")
         @@message_port = port
       end
 
@@ -45,7 +45,7 @@ module Percolate
 
     def Asynchronous.message_queue name = nil
       if name
-        $log.debug("Setting message queue to #{name}")
+        Percolate.log.debug("Setting message queue to #{name}")
         @@message_queue = name
       end
 
@@ -53,8 +53,8 @@ module Percolate
     end
 
     def Asynchronous.message_client
-      $log.debug("Connecting to message host #{self.message_host} " +
-                 "port #{self.message_port}")
+      Percolate.log.debug("Connecting to message host #{self.message_host} " +
+                          "port #{self.message_port}")
       MessageClient.new(self.message_queue, self.message_host,
                         self.message_port)
     end
@@ -101,7 +101,7 @@ module Percolate
       attr_reader :task_identity, :command, :state, :exit_code, :time
 
       def initialize task_identity, command, state, exit_code = nil,
-                     time = Time.now
+      time = Time.now
         unless TASK_STATES.include?(state)
           raise ArgumentError,
                 "Invalid state argument #{state}, must be one of " +
@@ -109,7 +109,7 @@ module Percolate
         end
 
         @task_identity, @command, @state, @exit_code, @time =
-          task_identity, command, state, exit_code, time
+        task_identity, command, state, exit_code, time
       end
     end
   end

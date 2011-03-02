@@ -36,10 +36,12 @@ module Percolate
       def description str = '<no description available>'
         @description ||= str
       end
+
       # The usage string for online user help
       def usage str = '<no usage information available>'
         @usage ||= str
       end
+
       # The version string for online user help
       def version str = '<no version information available>'
         @version ||= str
@@ -58,7 +60,7 @@ module Percolate
     attr_reader :fail_dir
 
     def initialize identity, definition_file = nil, run_file = nil,
-                   pass_dir = nil, fail_dir = nil
+    pass_dir = nil, fail_dir = nil
       unless identity.is_a?(String) || identity.is_a?(Symbol)
         raise ArgumentError,
               "Invalid identity '#{identity.inspect}'. " <<
@@ -95,9 +97,9 @@ module Percolate
     end
 
     # The usage string for online user help
-     def usage
-       self.class.usage
-     end
+    def usage
+      self.class.usage
+    end
 
     # The version string for online user help
     def version
@@ -122,15 +124,18 @@ module Percolate
       if File.exists?(self.run_file)
         state, memo, async_memo = restore_memos(self.run_file)
 
-        $log.debug("Restored #{self} with state #{state}")
+        Percolate.log.debug("Restored #{self} with state #{state}")
 
         case state
-          when :passed ; @passed = true
-          when :failed ; @failed = true
-          when nil     ; nil
+          when :passed;
+            @passed = true
+          when :failed;
+            @failed = true
+          when nil;
+            nil
           else
-             raise PercolateError,
-                   "Bad state #{state} in #{self.run_file} for #{self}"
+            raise PercolateError,
+                  "Bad state #{state} in #{self.run_file} for #{self}"
         end
       else
         raise PercolateError,
@@ -151,7 +156,7 @@ module Percolate
                 nil
               end
 
-      $log.debug("Storing workflow in #{self.run_file}, state: #{state}")
+      Percolate.log.debug("Storing workflow in #{self.run_file}, state: #{state}")
       store_memos(self.run_file, state)
       self
     end
@@ -163,12 +168,12 @@ module Percolate
         self.store
 
         if File.exists?(self.run_file)
-          $log.debug("Archiving #{self.run_file} to #{directory}")
+          Percolate.log.debug("Archiving #{self.run_file} to #{directory}")
           FileUtils.mv(self.run_file, directory)
         end
 
         if File.exists?(self.definition_file)
-          $log.debug("Archiving #{self.definition_file} to #{directory}")
+          Percolate.log.debug("Archiving #{self.definition_file} to #{directory}")
           FileUtils.mv(self.definition_file, directory)
         end
       rescue Exception => e
@@ -195,7 +200,7 @@ module Percolate
               "Cannot pass #{self} because it has already passed"
       end
 
-      $log.debug("Workflow #{self} passed")
+      Percolate.log.debug("Workflow #{self} passed")
       @passed = true
       self.archive(self.pass_dir)
     end
@@ -214,7 +219,7 @@ module Percolate
               "Cannot fail #{self} because it has already failed"
       end
 
-      $log.debug("Workflow #{self} failed")
+      Percolate.log.debug("Workflow #{self} failed")
       @failed = true
       self.archive(self.fail_dir)
     end
@@ -241,10 +246,10 @@ module Percolate
       end
 
       if self.passed?
-        $log.debug("Restarting passed workflow #{self}")
+        Percolate.log.debug("Restarting passed workflow #{self}")
         @passed = false
       elsif self.failed?
-        $log.debug("Restarting failed workflow #{self}")
+        Percolate.log.debug("Restarting failed workflow #{self}")
         @failed = false
       end
 
@@ -290,17 +295,18 @@ module Percolate
               end
 
       result = if self.passed?
-                ' passed'
-              elsif self.failed?
-                ' failed'
-              else
-                nil
-              end
+                 ' passed'
+               elsif self.failed?
+                 ' failed'
+               else
+                 nil
+               end
 
       "#<#{self.class} #{self.definition_file}#{state}#{result}>"
     end
 
     :private
+
     def check_transient operation
       if self.transient?
         raise PercolateError,
@@ -314,7 +320,7 @@ module Percolate
   class EmptyWorkflow < Workflow
     description <<-DESC
 The empty workflow. This returns a true value when run and does nothing else.
-DESC
+    DESC
 
     usage <<-USAGE
 EmptyWorkflow *args
@@ -326,9 +332,9 @@ Arguments:
 Returns:
 
 - true
-USAGE
+    USAGE
 
-   version '0.0.1'
+    version '0.0.1'
 
     def run *args
       true_task(*args)
@@ -340,7 +346,7 @@ USAGE
   class FailingWorkflow < Workflow
     description <<-DESC
 The failing workflow. This fails by running the Unix 'false' command.
-DESC
+    DESC
 
     usage <<-USAGE
 FailingWorkflow *args
@@ -352,7 +358,7 @@ Arguments:
 Returns:
 
 - true
-USAGE
+    USAGE
 
     version '0.0.1'
 
@@ -367,13 +373,16 @@ USAGE
   def Percolate.find_workflows ancestor = Percolate
     begin
       mod = case ancestor
-              when NilClass ; Percolate
-              when String   ; Object.const_get ancestor
-              when Module   ; ancestor
-            else
-              raise ArgumentError,
-                    "Invalid ancestor argument. Expected a string or " +
-                    "constant, but was #{ancestor.inspect}"
+              when NilClass;
+                Percolate
+              when String;
+                Object.const_get ancestor
+              when Module;
+                ancestor
+              else
+                raise ArgumentError,
+                      "Invalid ancestor argument. Expected a string or " +
+                      "constant, but was #{ancestor.inspect}"
             end
     rescue NameError => ne
       raise ArgumentError,
@@ -381,7 +390,7 @@ USAGE
             "but was #{ancestor.inspect}"
     end
 
-    ObjectSpace.each_object(Class).select {|c| c.ancestors.include?(Workflow) &&
-                                               c.ancestors.include?(mod) }
+    ObjectSpace.each_object(Class).select { |c| c.ancestors.include?(Workflow) &&
+    c.ancestors.include?(mod) }
   end
 end
