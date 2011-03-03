@@ -27,6 +27,7 @@ module Percolate
     end
 
     def clear_memos
+      log.debug("Emptying memo tables")
       self.memos.clear
       self.async_memos.clear
     end

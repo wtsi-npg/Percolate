@@ -328,7 +328,6 @@ module Percolate
             # data share the same namespace in the table. Without
             # clearing between workflows, workflow state would leak
             # from one workflow to another.
-            log.debug("Emptying memo table")
             memoizer.clear_memos
 
             if File.exists?(run_file)
