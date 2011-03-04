@@ -25,7 +25,7 @@ $:.unshift(libpath) unless $:.include?(libpath)
 require 'percolate'
 
 module PercolateTest
-  class TestPercolateSystem < Test::Unit::TestCase
+  class TestPercolateMemoize < Test::Unit::TestCase
     include Percolate
 
     def setup

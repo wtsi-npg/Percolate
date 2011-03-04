@@ -66,6 +66,9 @@ module PercolateTest
 
     $LSF_PRESENT = system('which bsub >/dev/null 2>&1')
 
+    @msg_host = 'localhost'
+    @msg_port = 11300
+
     def bin_path
       File.expand_path(File.join(File.dirname(__FILE__), '..', 'bin'))
     end
@@ -126,11 +129,11 @@ module PercolateTest
         percolator = Percolator.new({'root_dir' => data_path,
                                      'log_file' => 'percolate-test.log',
                                      'log_level' => 'DEBUG',
-                                     'msg_host' => 'hgs3b',
-                                     'msg_port' => 11301})
+                                     'msg_host' => @msg_host,
+                                     'msg_port' => @msg_port})
         lsf_log = File.join(data_path, 'minimal_async_workflow.log')
 
-        wf = MinimalAsyncWorkflow.new(:dumm_def,
+        wf = MinimalAsyncWorkflow.new(:dummy_def,
                                       'dummy_def.yml', 'dummy_run.run',
                                       percolator.pass_dir,
                                       percolator.fail_dir)
@@ -145,7 +148,7 @@ module PercolateTest
         assert(memoizer.dirty_async?)
 
         Timeout.timeout(120) do
-          until (memoizer.async_run_finished?(:async_sleep, [run_time, '.'])) do
+          until (memoizer.async_finished?(:async_sleep, [run_time, '.'])) do
             memoizer.update_async_memos
             sleep(10)
             print('#')
@@ -171,8 +174,8 @@ module PercolateTest
         percolator = Percolator.new({'root_dir' => data_path,
                                      'log_file' => 'percolate-test.log',
                                      'log_level' => 'DEBUG',
-                                     'msg_host' => 'hgs3b',
-                                     'msg_port' => 11301})
+                                     'msg_host' => @msg_host,
+                                     'msg_port' => @msg_port})
         lsf_log = File.join(data_path, 'minimal_p_async_workflow.log')
 
         wf = MinimalPAsyncWorkflow.new(:dummy_def,
@@ -181,7 +184,7 @@ module PercolateTest
                                        percolator.fail_dir)
         Asynchronous.message_queue(wf.message_queue)
 
-        memoizer = Percolate.memoize
+        memoizer = Percolate.memoizer
         assert(!memoizer.dirty_async?)
         run_time = 10
         size = 5
@@ -196,8 +199,8 @@ module PercolateTest
 
           until runs.size == size && !runs.include?(false) do
             runs = size.times.collect { |i|
-              memoizer.async_run_finished?(:p_async_sleep,
-                                           [run_time + i, data_path])
+              memoizer.async_finished?(:p_async_sleep,
+                                       [run_time + i, data_path])
             }
 
             memoizer.update_async_memos

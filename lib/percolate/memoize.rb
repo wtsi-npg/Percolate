@@ -27,7 +27,7 @@ module Percolate
     end
 
     def clear_memos
-      log.debug("Emptying memo tables")
+      Percolate.log.debug("Emptying memo tables")
       self.memos.clear
       self.async_memos.clear
     end
@@ -65,10 +65,9 @@ module Percolate
     def update_async_memos
       client = Asynchronous.message_client
       log = Percolate.log
-      updates = Hash.new
-
       log.debug("Started fetching messages from #{client.inspect}")
 
+      updates = Hash.new
       loop do
         msg = client.get_message
         if msg
@@ -88,8 +87,8 @@ module Percolate
         msgs.each { |msg| log.debug("Received #{msg.inspect}") }
       }
 
-      self.async_memos.each { |fname, memos|
-        memos.each { |fn_args, result|
+      self.async_memos.each { |key, memos|
+        memos.each { |method_args, result|
           unless result.finished?
             log.debug("Checking messages for updates to #{result.inspect}")
 
@@ -122,7 +121,7 @@ module Percolate
       updates.size > 0
     end
 
-    def async_run_finished? key, args
+    def async_finished? key, args
       result = self.async_method_memos(key)[args]
       result && result.finished?
     end
@@ -145,11 +144,11 @@ module Percolate
       purged = Hash.new
 
       self.async_memos.each_pair { |key, memos|
-        purged[key] = memos.reject { |fn_args, result|
+        purged[key] = memos.reject { |method_args, result|
           result && result.failed?
         }
 
-        log.debug("After purging: #{purged.inspect}")
+        log.debug("After purging #{key}: #{purged.inspect}")
       }
 
       self.async_memos = purged
@@ -157,7 +156,7 @@ module Percolate
 
     def dirty_async_memos? key
       memos = self.async_method_memos(key)
-      dirty = memos.reject { |fn_args, result|
+      dirty = memos.reject { |method_args, result|
         result && result.submitted? && result.finished?
       }
 
@@ -173,10 +172,10 @@ module Percolate
           raise PercolateError, msg + ": not a Hash"
         when !memos.key?(:percolate_version)
           raise PercolateError, msg + ": no Percolate version was stored"
-        when !memos[:percolate_version] == Percolate::VERSION
+        when memos[:percolate_version] != Percolate::VERSION
           raise PercolateError, msg +
           ": Percolate version of memos #{memos[:percolate_version]} " +
-          "does not match current the version #{Percolate.VERSION}"
+          "does not match current the version #{Percolate::VERSION}"
         when !memos.key?(:workflow_state)
           raise PercolateError, msg + ": no Workflow state was stored"
         when !Percolate::Workflow::STATES.include?(memos[:workflow_state])

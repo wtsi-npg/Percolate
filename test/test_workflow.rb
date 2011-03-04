@@ -87,6 +87,9 @@ module PercolateTest
   class TestWorkflow < Test::Unit::TestCase
     include Percolate
 
+    @msg_host = 'localhost'
+    @msg_port = 11300
+
     def setup
       super
       Percolate.memoizer.clear_memos
@@ -99,8 +102,8 @@ module PercolateTest
     def make_empty_workflow
       percolator = Percolator.new({'root_dir' => data_path(),
                                    'log_level' => 'DEBUG',
-                                   'msg_host' => 'hgs3b',
-                                   'msg_port' => 11301})
+                                   'msg_host' => @msg_host,
+                                   'msg_port' => @msg_port})
       def_file = File.join(percolator.run_dir, 'test_def1_tmp.yml')
       run_file = File.join(percolator.run_dir, 'test_def1_tmp.run')
 
@@ -190,8 +193,8 @@ module PercolateTest
     def test_make_workflow
       percolator = Percolator.new({'root_dir' => data_path(),
                                    'log_level' => 'DEBUG',
-                                   'msg_host' => 'hgs3b',
-                                   'msg_port' => 11301})
+                                   'msg_host' => @msg_host,
+                                   'msg_port' => @msg_port})
       def_file = File.join(percolator.run_dir, 'test_def1.yml')
       run_file = File.join(percolator.run_dir, 'test_def1.run')
       assert(percolator.read_definition(def_file))
@@ -310,8 +313,8 @@ module PercolateTest
 
       percolator = Percolator.new({'root_dir' => data_path(),
                                    'log_level' => 'DEBUG',
-                                   'msg_host' => 'hgs3b',
-                                   'msg_port' => 11301})
+                                   'msg_host' => @msg_host,
+                                   'msg_port' => @msg_port})
       def_file = File.join(percolator.run_dir, 'test_def1_tmp.yml')
       run_file = File.join(percolator.run_dir, 'test_def1_tmp.run')
 
@@ -350,8 +353,8 @@ module PercolateTest
     def test_unready_workflow
       percolator = Percolator.new({'root_dir' => data_path(),
                                    'log_level' => 'DEBUG',
-                                   'msg_host' => 'hgs3b',
-                                   'msg_port' => 11301})
+                                   'msg_host' => @msg_host,
+                                   'msg_port' => @msg_port})
       def_file = File.join(percolator.run_dir, 'test_def1.yml')
       run_file = File.join(percolator.run_dir, 'test_def1.run')
 
@@ -365,8 +368,8 @@ module PercolateTest
       percolator = Percolator.new({'root_dir' => data_path(),
                                    'log_file' => 'percolate-test.log',
                                    'log_level' => 'DEBUG',
-                                   'msg_host' => 'hgs3b',
-                                   'msg_port' => 11301})
+                                   'msg_host' => @msg_host,
+                                   'msg_port' => @msg_port})
       def_file = File.join(percolator.run_dir, 'test_def1.yml')
       run_file = File.join(percolator.run_dir, 'test_def1.run')
 
