@@ -37,6 +37,13 @@ module PercolateTest
       super
     end
 
+    def add_task *args
+      having = lambda { |numbers| !numbers.nil? }
+      command = lambda { |*numbers| numbers.inject(0) { |n, sum| n + sum } }
+
+      native_task(:test_add_task, args, command, having)
+    end
+
     def test_get_memos
       memos = Percolate.memoizer.method_memos(:test_fn)
 
@@ -53,6 +60,15 @@ module PercolateTest
       assert(Percolate.memoizer.async_memos.has_key?(:test_async_fn))
     end
 
+    def test_memo_count
+      memoizer = Percolate.memoizer
+      assert(memoizer.memo_count.zero?)
+      assert(add_task(1, 2, 3))
+      assert_equal(1, memoizer.memo_count)
+      assert(add_task(1, 2, 4))
+      assert_equal(2, memoizer.memo_count)
+    end
+
     def test_store_restore_memos
       Dir.mktmpdir('percolate') { |dir|
         file = File.join dir, 'store_restore_memos.dat'
@@ -64,17 +80,10 @@ module PercolateTest
     end
 
     def test_native_task
-      def test_add_task *args
-        having = lambda { |numbers| !numbers.nil? }
-        command = lambda { |*numbers| numbers.inject(0) { |n, sum| n + sum } }
-
-        native_task(:test_add_task, args, command, having)
-      end
-
       memoizer = Percolate.memoizer
       assert(!memoizer.memos.has_key?(:test_add_task))
 
-      result = test_add_task(1, 2, 3)
+      result = add_task(1, 2, 3)
       assert_equal(:test_add_task, result.task)
       assert_equal(6, result.value)
 

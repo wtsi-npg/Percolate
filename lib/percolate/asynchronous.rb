@@ -17,30 +17,129 @@
 #
 
 module Percolate
-  module Asynchronous
-    @@batch_submitter = 'bsub'
-    @@batch_wrapper = 'percolate-wrap'
-    @@batch_queues = [:yesterday, :small, :normal, :long, :basement]
+  class Asynchronizer
+    attr_accessor :async_wrapper
 
-    def batch_submitter
-      @@batch_submitter
+    def initialize
+      @async_wrapper = 'percolate-wrap'
     end
 
-    def batch_wrapper wrapper = nil
-      if wrapper
-        @@batch_wrapper = wrapper
-      end
-      @@batch_wrapper
+    def async_command task_id, command, work_dir, log, args = {}
     end
 
-    def batch_queues queues = nil
-      if queues
-        unless queues.is_a?(Array)
-          raise ArgumentError, "the queues argument must be an Array"
+    def async_task name, args, command, env, procs = {}
+    end
+
+    def async_queues
+      # TODO: remove this
+      []
+    end
+  end
+
+  class SystemAsynchronizer < Asynchronizer
+    include Percolate
+
+    def async_command task_id, command, work_dir, log, args = {}
+      cmd_str = "#{self.async_wrapper} --host #{Asynchronous.message_host} " +
+      "--port #{Asynchronous.message_port} " +
+      "--queue #{Asynchronous.message_queue} " +
+      "--task #{task_id}"
+
+      Percolate.cd(work_dir, "#{cmd_str} -- #{command}")
+    end
+
+    def async_task fname, args, command, env, procs = {}
+      having, confirm, yielding = ensure_procs(procs)
+      memos = Percolate.memoizer.async_method_memos(fname)
+      result = memos[args]
+      submitted = result && result.submitted?
+
+      log = Percolate.log
+      log.debug("Entering task #{fname}")
+
+      if submitted # Job was submitted
+        log.debug("#{fname} system job '#{command}' is already queued")
+
+        if result.value? # if queued, result is not nil, see above
+          log.debug("Returning memoized #{fname} result: #{result}")
+        else
+          begin
+            if result.failed?
+              raise PercolateAsyncTaskError,
+                    "#{fname} args: #{args.inspect} failed"
+            elsif result.finished? &&
+            confirm.call(*args.take(confirm.arity.abs))
+              result.finished!(yielding.call(*args.take(yielding.arity.abs)))
+              log.debug("Postconditions for #{fname} satsified; " +
+                        "returning #{result}")
+            else
+              log.debug("Postconditions for #{fname} not satsified; " +
+                        "returning nil")
+            end
+          rescue PercolateAsyncTaskError => pate
+            # Any of the having, confirm or yielding procs may throw this
+            log.error("#{fname} requires attention: #{pate.message}")
+            raise pate
+          end
         end
-        @@batch_queues = queues
+      else # Can we submit the system job?
+        if !having.call(*args.take(having.arity.abs))
+          log.debug("Preconditions for #{fname} not satisfied; " +
+                    "returning nil")
+        else
+          log.debug("Preconditions for #{fname} satisfied; " +
+                    "submitting '#{command}'")
+
+          if submit_async(fname, command)
+            task_id = Percolate.task_identity(fname, args)
+            submission_time = Time.now
+            memos[args] = Result.new(fname, task_id, submission_time)
+          end
+        end
       end
-      @@batch_queues
+
+      result
+    end
+
+    def submit_async fname, command
+      # Check that the message queue has been set
+      unless Asynchronous.message_queue
+        raise PercolateError, "No message queue has been provided"
+      end
+
+      # Jump through hoops because bsub insists on polluting our stdout
+      # TODO: pass environment variables from env
+      status, stdout = system_command("#{command} &")
+      success = command_success?(status)
+
+      Percolate.log.info("submission reported #{stdout} for #{fname}")
+
+      case
+        when status.signaled?
+          raise PercolateAsyncTaskError,
+                "Uncaught signal #{status.termsig} from '#{command}'"
+        when !success
+          raise PercolateAsyncTaskError,
+                "Non-zero exit #{status.exitstatus} from '#{command}'"
+        else
+          Percolate.log.debug("#{fname} async job '#{command}' is submitted, " +
+                              "meanwhile returning nil")
+      end
+
+      success
+       end
+  end
+
+  class LSFAsynchronizer < Asynchronizer
+    include Percolate
+
+    attr_reader :async_submitter
+    attr_accessor :async_queues
+
+    def initialize async_queues = [:yesterday, :small, :normal, :long, :basement]
+      super()
+      @async_queues = async_queues
+      @async_submitter = 'bsub'
     end
 
     # Wraps a command String in an LSF job submission command.
@@ -62,7 +161,7 @@ module Percolate
     #
     # - String
     #
-    def lsf task_id, command, work_dir, log, args = {}
+    def async_command task_id, command, work_dir, log, args = {}
       defaults = {:queue => :normal,
                   :memory => 1900,
                   :cpus => 1,
@@ -75,8 +174,8 @@ module Percolate
       queue, mem, cpus, depend, select, reserve, uid =
       args[:queue], args[:memory], args[:cpus], '', '', '', $$
 
-      unless batch_queues.include?(queue)
-        raise ArgumentError, ":queue must be one of #{batch_queues.inspect}"
+      unless @async_queues.include?(queue)
+        raise ArgumentError, ":queue must be one of #{@async_queues.inspect}"
       end
       unless mem.is_a?(Fixnum) && mem > 0
         raise ArgumentError, ":memory must be a positive Fixnum"
@@ -104,7 +203,7 @@ module Percolate
         cpu_str = "-n #{args[:cpus]} -R 'span[hosts=1]'"
       end
 
-      cmd_str = "#{batch_wrapper} --host #{Asynchronous.message_host} " +
+      cmd_str = "#{self.async_wrapper} --host #{Asynchronous.message_host} " +
       "--port #{Asynchronous.message_port} " +
       "--queue #{Asynchronous.message_queue} " +
       "--task #{task_id}"
@@ -122,7 +221,7 @@ module Percolate
       end
 
       Percolate.cd(work_dir,
-                   "#{batch_submitter} -J '#{job_name}' -q #{queue} " +
+                   "#{self.async_submitter} -J '#{job_name}' -q #{queue} " +
                    "-R 'select[mem>#{mem}#{select}] " +
                    "rusage[mem=#{mem}#{reserve}]'#{depend} " +
                    "#{cpu_str} " +
@@ -131,7 +230,7 @@ module Percolate
 
     # Run or update a memoized batch command having pre- and
     # post-conditions.
-    def lsf_task fname, args, command, env, procs = {}
+    def async_task fname, args, command, env, procs = {}
       having, confirm, yielding = ensure_procs(procs)
       memos = Percolate.memoizer.async_method_memos(fname)
       result = memos[args]
@@ -184,7 +283,8 @@ module Percolate
       result
     end
 
-    def lsf_task_array fname, args_arrays, commands, command, env, procs = {}
+    def async_task_array fname, args_arrays, commands, array_file, command, env,
+                         procs = {}
       having, confirm, yielding = ensure_procs(procs)
       memos = Percolate.memoizer.async_method_memos(fname)
 
@@ -198,7 +298,7 @@ module Percolate
       results = Array.new(args_arrays.size)
 
       if submitted
-        args_arrays.each_with_index do |args, i|
+        args_arrays.each_with_index { |args, i|
           result = memos[args]
           results[i] = result
           log.debug("Checking #{fname}[#{i}] args: #{args.inspect}, " +
@@ -226,7 +326,7 @@ module Percolate
               raise pate
             end
           end
-        end
+        }
       else
         # Can't submit any members of a job array until all their
         # preconditions are met
@@ -241,6 +341,8 @@ module Percolate
           array_task_id = Percolate.task_identity(fname, args_arrays)
           log.debug("Preconditions for #{fname} are satisfied; " +
                     "submitting '#{command}' with env #{env}")
+          log.debug("Writing #{commands.size} commands to #{array_file}")
+          write_array_commands(array_file, fname, args_arrays, commands)
 
           if submit_async(fname, command)
             submission_time = Time.now
@@ -267,16 +369,15 @@ module Percolate
       }
     end
 
+    private
     def read_array_command file, lineno
-      task_id = nil
-      command = nil
+      task_id = command = nil
 
       File.open(file, 'r') { |f|
         f.each_line { |line|
           if f.lineno == lineno
             fields = line.chomp.split("\t")
-            task_id = fields[0]
-            command = fields[3]
+            task_id, command = fields[0], fields[3]
             break
           end
         }
@@ -305,8 +406,7 @@ module Percolate
         raise PercolateError, "No message queue has been provided"
       end
 
-      # Jump through hoops because bsub insists on polluting our
-      # stdout
+      # Jump through hoops because bsub insists on polluting our stdout
       # TODO: pass environment variables from env
       status, stdout = system_command(command)
       success = command_success?(status)

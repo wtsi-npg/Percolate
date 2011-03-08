@@ -18,6 +18,8 @@
 
 require 'test/unit'
 
+require 'parallel'
+
 libpath = File.expand_path('../lib')
 $:.unshift(libpath) unless $:.include?(libpath)
 

@@ -241,10 +241,11 @@ module PercolateTest
         wf.run
         wf.store
 
-        Percolate.memoizer.clear_memos
+        memoizer = Percolate.memoizer
+        memoizer.clear_memos
 
         assert(wf.restore)
-        memos = Percolate.memoizer.method_memos(:true_task)
+        memos = memoizer.method_memos(:true_task)
 
         assert(memos.has_key? ['.'])
         assert(memos[['.']].is_a?(Result))

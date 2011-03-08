@@ -35,6 +35,7 @@ module Percolate
 
   @log = Logger.new(STDERR)
   @memoizer = Percolate::Memoizer.new
+  @asynchronizer = Percolate::LSFAsynchronizer.new
 
   # An error raised by the Percolate system.
   class PercolateError < StandardError
@@ -51,6 +52,7 @@ module Percolate
   class << self
     attr_accessor :log
     attr_accessor :memoizer
+    attr_accessor :asynchronizer
   end
 
   # Returns a task identity string for a call to function named fname
@@ -279,6 +281,22 @@ module Percolate
       log.debug("#{fname} called; returning #{result}")
       memos[args] = result
     end
+  end
+
+  def async_task *args
+    Percolate.asynchronizer.async_task(*args)
+  end
+
+  def async_task_array *args
+    Percolate.asynchronizer.async_task_array(*args)
+  end
+
+  def async_command *args
+    Percolate.asynchronizer.async_command(*args)
+  end
+
+  def async_queues
+    Percolate.asynchronizer.async_queues
   end
 
   private

@@ -20,10 +20,12 @@ module Percolate
   class Memoizer
     attr_accessor :memos
     attr_accessor :async_memos
+    attr_accessor :max_processes
 
     def initialize
       @memos = {}
       @async_memos = {}
+      @max_processes = 4
     end
 
     def clear_memos
@@ -133,6 +135,14 @@ module Percolate
       !dirty.empty?
     end
 
+    def result_count &result
+      count_results(self.memos, &result)
+    end
+
+    def async_result_count &result
+      count_results(self.async_memos, &result)
+    end
+
     protected
     # Removes memoized values for failed asynchronous tasks so that
     # they may be run again
@@ -164,6 +174,17 @@ module Percolate
     end
 
     private
+    def count_results memos, &block
+      memos.values.collect { |method_memos|
+        results = method_memos.values.compact
+        if block
+          results.select { |result| yield(result) }.size
+        else
+          results.size
+        end
+      }.inject(0) { |n, m| n + m }
+    end
+
     def ensure_valid_memos place, memos
       msg = "Memoization data restored from '#{place}' is invalid"
 
