@@ -58,7 +58,8 @@ module AsyncTest
     array_file = File.join(work_dir, "#{task_id}.txt")
 
     async_task_array(:p_async_sleep, args_arrays, commands, array_file,
-                     async_command(task_id, nil, work_dir, log, :array_file => array_file,
+                     async_command(task_id, nil, work_dir, log,
+                                   :array_size => commands.size,
                                    :queue => :small),
                      env,
                      :having => lambda { work_dir },
@@ -152,7 +153,7 @@ module PercolateTest
       memoizer.clear_memos
       assert(memoizer.async_result_count.zero?)
       assert(!Percolate.memoizer.dirty_async?)
-      run_time = 10
+      run_time = 5
 
       # Initially nil from async task
       assert_nil(wf.run(run_time, '.', lsf_log))
@@ -164,10 +165,10 @@ module PercolateTest
       assert(memoizer.async_result_count { |result| result.finished? }.zero?)
       assert(memoizer.dirty_async?)
 
-      Timeout.timeout(120) do
+      Timeout.timeout(60) do
         until (memoizer.async_finished?(:async_sleep, [run_time, '.'])) do
           memoizer.update_async_memos
-          sleep(10)
+          sleep(5)
           print('#')
         end
       end
@@ -211,7 +212,7 @@ module PercolateTest
         memoizer.clear_memos
         assert(memoizer.async_result_count.zero?)
         assert(!memoizer.dirty_async?)
-        run_time = 10
+        run_time = 5
         size = 5
 
         # Initially nil from async task
@@ -225,7 +226,7 @@ module PercolateTest
         assert(memoizer.async_result_count { |result| result.finished? }.zero?)
         assert(memoizer.dirty_async?)
 
-        Timeout.timeout(120) do
+        Timeout.timeout(60) do
           runs = []
 
           until runs.size == size && !runs.include?(false) do
@@ -254,7 +255,7 @@ module PercolateTest
         assert(x.all? { |elt| elt.started? })
         assert(x.all? { |elt| elt.finished? })
         assert_equal([:p_async_sleep], x.collect { |elt| elt.task }.uniq)
-        assert_equal([10, 11, 12, 13, 14], x.collect { |elt| elt.value })
+        assert_equal([5, 6, 7, 8, 9], x.collect { |elt| elt.value })
       end
     end
   end

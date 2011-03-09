@@ -284,7 +284,7 @@ module Percolate
   end
 
   def async_task *args
-    Percolate.asynchronizer.async_task(*args)
+    Percolate.asynchronizer.run_async_task(*args)
   end
 
   def async_task_array *args
@@ -293,10 +293,6 @@ module Percolate
 
   def async_command *args
     Percolate.asynchronizer.async_command(*args)
-  end
-
-  def async_queues
-    Percolate.asynchronizer.async_queues
   end
 
   private

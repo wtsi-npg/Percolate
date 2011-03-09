@@ -24,31 +24,7 @@ module Percolate
       @async_wrapper = 'percolate-wrap'
     end
 
-    def async_command task_id, command, work_dir, log, args = {}
-    end
-
-    def async_task name, args, command, env, procs = {}
-    end
-
-    def async_queues
-      # TODO: remove this
-      []
-    end
-  end
-
-  class SystemAsynchronizer < Asynchronizer
-    include Percolate
-
-    def async_command task_id, command, work_dir, log, args = {}
-      cmd_str = "#{self.async_wrapper} --host #{Asynchronous.message_host} " +
-      "--port #{Asynchronous.message_port} " +
-      "--queue #{Asynchronous.message_queue} " +
-      "--task #{task_id}"
-
-      Percolate.cd(work_dir, "#{cmd_str} -- #{command}")
-    end
-
-    def async_task fname, args, command, env, procs = {}
+    def run_async_task fname, args, command, env, procs = {}
       having, confirm, yielding = ensure_procs(procs)
       memos = Percolate.memoizer.async_method_memos(fname)
       result = memos[args]
@@ -58,31 +34,9 @@ module Percolate
       log.debug("Entering task #{fname}")
 
       if submitted # Job was submitted
-        log.debug("#{fname} system job '#{command}' is already queued")
-
-        if result.value? # if queued, result is not nil, see above
-          log.debug("Returning memoized #{fname} result: #{result}")
-        else
-          begin
-            if result.failed?
-              raise PercolateAsyncTaskError,
-                    "#{fname} args: #{args.inspect} failed"
-            elsif result.finished? &&
-            confirm.call(*args.take(confirm.arity.abs))
-              result.finished!(yielding.call(*args.take(yielding.arity.abs)))
-              log.debug("Postconditions for #{fname} satsified; " +
-                        "returning #{result}")
-            else
-              log.debug("Postconditions for #{fname} not satsified; " +
-                        "returning nil")
-            end
-          rescue PercolateAsyncTaskError => pate
-            # Any of the having, confirm or yielding procs may throw this
-            log.error("#{fname} requires attention: #{pate.message}")
-            raise pate
-          end
-        end
-      else # Can we submit the system job?
+        log.debug("#{fname} job '#{command}' is already submitted")
+        update_result(fname, args, confirm, yielding, result, log)
+      else # Can we submit the job?
         if !having.call(*args.take(having.arity.abs))
           log.debug("Preconditions for #{fname} not satisfied; " +
                     "returning nil")
@@ -101,15 +55,15 @@ module Percolate
       result
     end
 
+    protected
     def submit_async fname, command
-      # Check that the message queue has been set
       unless Asynchronous.message_queue
         raise PercolateError, "No message queue has been provided"
       end
 
       # Jump through hoops because bsub insists on polluting our stdout
       # TODO: pass environment variables from env
-      status, stdout = system_command("#{command} &")
+      status, stdout = system_command(command)
       success = command_success?(status)
 
       Percolate.log.info("submission reported #{stdout} for #{fname}")
@@ -127,7 +81,47 @@ module Percolate
       end
 
       success
-       end
+    end
+
+    def update_result fname, args, confirm, yielding, result, log
+      if result.value?
+        log.debug("Returning memoized #{fname} result: #{result}")
+      else
+        begin
+          if result.failed?
+            raise PercolateAsyncTaskError,
+                  "#{fname} args: #{args.inspect} failed"
+          elsif result.finished? &&
+          confirm.call(*args.take(confirm.arity.abs))
+            result.finished!(yielding.call(*args.take(yielding.arity.abs)))
+            log.debug("Postconditions for #{fname} satsified; " +
+                      "returning #{result}")
+          else
+            log.debug("Postconditions for #{fname} not satsified; " +
+                      "returning nil")
+          end
+        rescue PercolateAsyncTaskError => pate
+          # Any of the having, confirm or yielding procs may throw this
+          log.error("#{fname} requires attention: #{pate.message}")
+          raise pate
+        end
+      end
+
+      result
+    end
+  end
+
+  class SystemAsynchronizer < Asynchronizer
+    include Percolate
+
+    def async_command task_id, command, work_dir, log, args = {}
+      cmd_str = "#{self.async_wrapper} --host #{Asynchronous.message_host} " +
+      "--port #{Asynchronous.message_port} " +
+      "--queue #{Asynchronous.message_queue} " +
+      "--task #{task_id}"
+
+      Percolate.cd(work_dir, "#{cmd_str} -- #{command} &")
+    end
   end
 
   class LSFAsynchronizer < Asynchronizer
@@ -168,14 +162,15 @@ module Percolate
                   :depend => nil,
                   :select => nil,
                   :reserve => nil,
-                  :array_file => nil}
+                  :array_size => nil}
       args = defaults.merge(args)
 
-      queue, mem, cpus, depend, select, reserve, uid =
-      args[:queue], args[:memory], args[:cpus], '', '', '', $$
+      queue, mem, cpus = args[:queue], args[:memory], args[:cpus]
+      size, uid = args[:array_size], $$
+      depend = select = reserve = ''
 
-      unless @async_queues.include?(queue)
-        raise ArgumentError, ":queue must be one of #{@async_queues.inspect}"
+      unless self.async_queues.include?(queue)
+        raise ArgumentError, ":queue must be one of #{self.async_queues.inspect}"
       end
       unless mem.is_a?(Fixnum) && mem > 0
         raise ArgumentError, ":memory must be a positive Fixnum"
@@ -183,9 +178,9 @@ module Percolate
       unless cpus.is_a?(Fixnum) && cpus > 0
         raise ArgumentError, ":cpus must be a positive Fixnum"
       end
-      if command && args[:array_file]
+      if command && size
         raise ArgumentError,
-              "Both a single command and a command array file were supplied"
+              "Both a single command and a command array size were supplied"
       end
 
       if args[:select]
@@ -209,10 +204,9 @@ module Percolate
       "--task #{task_id}"
 
       job_name = "#{task_id}.#{uid}"
-      if args[:array_file]
-        # In a job array the actual command is pulled from the job's
-        # command array file using the LSF job index
-        size = count_lines(args[:array_file])
+      if size
+        # In a job array the actual command is pulled from the job's command
+        # array file using the LSF job index
         job_name << "[1-#{size}]"
         cmd_str << ' --index'
       else
@@ -226,61 +220,6 @@ module Percolate
                    "rusage[mem=#{mem}#{reserve}]'#{depend} " +
                    "#{cpu_str} " +
                    "-M #{mem * 1000} -oo #{log} #{cmd_str}")
-    end
-
-    # Run or update a memoized batch command having pre- and
-    # post-conditions.
-    def async_task fname, args, command, env, procs = {}
-      having, confirm, yielding = ensure_procs(procs)
-      memos = Percolate.memoizer.async_method_memos(fname)
-      result = memos[args]
-      submitted = result && result.submitted?
-
-      log = Percolate.log
-      log.debug("Entering task #{fname}")
-
-      if submitted # LSF job was submitted
-        log.debug("#{fname} LSF job '#{command}' is already submitted")
-
-        if result.value? # if submitted, result is not nil, see above
-          log.debug("Returning memoized #{fname} result: #{result}")
-        else
-          begin
-            if result.failed?
-              raise PercolateAsyncTaskError,
-                    "#{fname} args: #{args.inspect} failed"
-            elsif result.finished? &&
-            confirm.call(*args.take(confirm.arity.abs))
-              result.finished!(yielding.call(*args.take(yielding.arity.abs)))
-              log.debug("Postconditions for #{fname} satsified; " +
-                        "returning #{result}")
-            else
-              log.debug("Postconditions for #{fname} not satsified; " +
-                        "returning nil")
-            end
-          rescue PercolateAsyncTaskError => pate
-            # Any of the having, confirm or yielding procs may throw this
-            log.error("#{fname} requires attention: #{pate.message}")
-            raise pate
-          end
-        end
-      else # Can we submit the LSF job?
-        if !having.call(*args.take(having.arity.abs))
-          log.debug("Preconditions for #{fname} not satisfied; " +
-                    "returning nil")
-        else
-          log.debug("Preconditions for #{fname} satisfied; " +
-                    "submitting '#{command}'")
-
-          if submit_async(fname, command)
-            task_id = Percolate.task_identity(fname, args)
-            submission_time = Time.now
-            memos[args] = Result.new(fname, task_id, submission_time)
-          end
-        end
-      end
-
-      result
     end
 
     def async_task_array fname, args_arrays, commands, array_file, command, env,
@@ -398,34 +337,6 @@ module Percolate
       count = 0
       open(file).each { |line| count = count + 1 }
       count
-    end
-
-    def submit_async fname, command
-      # Check that the message queue has been set
-      unless Asynchronous.message_queue
-        raise PercolateError, "No message queue has been provided"
-      end
-
-      # Jump through hoops because bsub insists on polluting our stdout
-      # TODO: pass environment variables from env
-      status, stdout = system_command(command)
-      success = command_success?(status)
-
-      Percolate.log.info("submission reported #{stdout} for #{fname}")
-
-      case
-        when status.signaled?
-          raise PercolateAsyncTaskError,
-                "Uncaught signal #{status.termsig} from '#{command}'"
-        when !success
-          raise PercolateAsyncTaskError,
-                "Non-zero exit #{status.exitstatus} from '#{command}'"
-        else
-          Percolate.log.debug("#{fname} async job '#{command}' is submitted, " +
-                              "meanwhile returning nil")
-      end
-
-      success
     end
   end
 end

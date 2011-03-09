@@ -60,13 +60,20 @@ module PercolateTest
       assert(Percolate.memoizer.async_memos.has_key?(:test_async_fn))
     end
 
-    def test_memo_count
+    def test_result_count
       memoizer = Percolate.memoizer
-      assert(memoizer.memo_count.zero?)
+      assert(memoizer.result_count.zero?)
       assert(add_task(1, 2, 3))
-      assert_equal(1, memoizer.memo_count)
+      assert_equal(1, memoizer.result_count)
+      assert_equal(1, memoizer.result_count { |result| result.submitted? })
+      assert_equal(1, memoizer.result_count { |result| result.started? })
+      assert_equal(1, memoizer.result_count { |result| result.finished? })
+
       assert(add_task(1, 2, 4))
-      assert_equal(2, memoizer.memo_count)
+      assert_equal(2, memoizer.result_count)
+      assert_equal(2, memoizer.result_count { |result| result.submitted? })
+      assert_equal(2, memoizer.result_count { |result| result.started? })
+      assert_equal(2, memoizer.result_count { |result| result.finished? })
     end
 
     def test_store_restore_memos
