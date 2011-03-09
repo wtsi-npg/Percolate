@@ -101,7 +101,7 @@ module PercolateTest
 
     def make_empty_workflow
       percolator = Percolator.new({'root_dir' => data_path(),
-                                   'log_level' => 'DEBUG',
+                                   'log_level' => 'INFO',
                                    'msg_host' => @msg_host,
                                    'msg_port' => @msg_port})
       def_file = File.join(percolator.run_dir, 'test_def1_tmp.yml')
@@ -192,7 +192,7 @@ module PercolateTest
 
     def test_make_workflow
       percolator = Percolator.new({'root_dir' => data_path(),
-                                   'log_level' => 'DEBUG',
+                                   'log_level' => 'INFO',
                                    'msg_host' => @msg_host,
                                    'msg_port' => @msg_port})
       def_file = File.join(percolator.run_dir, 'test_def1.yml')
@@ -313,7 +313,7 @@ module PercolateTest
       $BOOLEAN_WORKFLOW = false
 
       percolator = Percolator.new({'root_dir' => data_path(),
-                                   'log_level' => 'DEBUG',
+                                   'log_level' => 'INFO',
                                    'msg_host' => @msg_host,
                                    'msg_port' => @msg_port})
       def_file = File.join(percolator.run_dir, 'test_def1_tmp.yml')
@@ -353,7 +353,7 @@ module PercolateTest
 
     def test_unready_workflow
       percolator = Percolator.new({'root_dir' => data_path(),
-                                   'log_level' => 'DEBUG',
+                                   'log_level' => 'INFO',
                                    'msg_host' => @msg_host,
                                    'msg_port' => @msg_port})
       def_file = File.join(percolator.run_dir, 'test_def1.yml')
@@ -368,7 +368,7 @@ module PercolateTest
     def test_unfinished_workflow
       percolator = Percolator.new({'root_dir' => data_path(),
                                    'log_file' => 'percolate-test.log',
-                                   'log_level' => 'DEBUG',
+                                   'log_level' => 'INFO',
                                    'msg_host' => @msg_host,
                                    'msg_port' => @msg_port})
       def_file = File.join(percolator.run_dir, 'test_def1.yml')

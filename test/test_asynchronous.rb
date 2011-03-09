@@ -58,8 +58,7 @@ module AsyncTest
     array_file = File.join(work_dir, "#{task_id}.txt")
 
     async_task_array(:p_async_sleep, args_arrays, commands, array_file,
-                     async_command(task_id, nil, work_dir, log,
-                                   :array_size => commands.size,
+                     async_command(task_id, commands, work_dir, log,
                                    :queue => :small),
                      env,
                      :having => lambda { work_dir },
@@ -126,10 +125,6 @@ module PercolateTest
       assert_raise ArgumentError do
         async_command(task_id, command, data_path, log, :memory => nil)
       end
-
-      assert_raise ArgumentError do
-        async_command(task_id, command, data_path, log, :array_file => array_file)
-      end
     end
 
     def test_minimal_async_workflow
@@ -138,7 +133,7 @@ module PercolateTest
 
       percolator = Percolator.new({'root_dir' => data_path,
                                    'log_file' => 'percolate-test.log',
-                                   'log_level' => 'DEBUG',
+                                   'log_level' => 'INFO',
                                    'msg_host' => @msg_host,
                                    'msg_port' => @msg_port})
       lsf_log = File.join(data_path, 'minimal_async_workflow.log')
@@ -197,7 +192,7 @@ module PercolateTest
       if $LSF_PRESENT
         percolator = Percolator.new({'root_dir' => data_path,
                                      'log_file' => 'percolate-test.log',
-                                     'log_level' => 'DEBUG',
+                                     'log_level' => 'INFO',
                                      'msg_host' => @msg_host,
                                      'msg_port' => @msg_port})
         lsf_log = File.join(data_path, 'minimal_p_async_workflow.log')

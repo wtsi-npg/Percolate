@@ -141,7 +141,9 @@ module Percolate
     # Arguments:
     #
     # - task_id (String): a task identifier.
-    # - command (String): The command to be executed on the batch queue.
+    # - command (String or Array): The command or Array of commands to be
+    #   executed on the batch queue.
+    # - work-dir (String): The working directory
     # - log (String): The path of the LSF log file to be created.
     # - args (Hash): Various arguments to LSF:
     #   - :queue     => LSF queue (Symbol) e.g. :normal, :long
@@ -149,7 +151,6 @@ module Percolate
     #   - :depend    => LSF job dependency (String)
     #   - :select    => LSF resource select options (String)
     #   - :reserve   => LSF resource rusage options (String)
-    #   - :size      => LSF job array size (Fixnum)
     #
     # Returns:
     #
@@ -161,12 +162,11 @@ module Percolate
                   :cpus => 1,
                   :depend => nil,
                   :select => nil,
-                  :reserve => nil,
-                  :array_size => nil}
+                  :reserve => nil}
       args = defaults.merge(args)
 
       queue, mem, cpus = args[:queue], args[:memory], args[:cpus]
-      size, uid = args[:array_size], $$
+      uid = $$
       depend = select = reserve = ''
 
       unless self.async_queues.include?(queue)
@@ -177,10 +177,6 @@ module Percolate
       end
       unless cpus.is_a?(Fixnum) && cpus > 0
         raise ArgumentError, ":cpus must be a positive Fixnum"
-      end
-      if command && size
-        raise ArgumentError,
-              "Both a single command and a command array size were supplied"
       end
 
       if args[:select]
@@ -204,10 +200,11 @@ module Percolate
       "--task #{task_id}"
 
       job_name = "#{task_id}.#{uid}"
-      if size
+
+      if command.is_a?(Array)
         # In a job array the actual command is pulled from the job's command
         # array file using the LSF job index
-        job_name << "[1-#{size}]"
+        job_name << "[1-#{command.size}]"
         cmd_str << ' --index'
       else
         # Otherwise the command is run directly

@@ -72,7 +72,7 @@ module TestPercolate
     def test_new_percolator
       percolator = Percolator.new({'root_dir' => data_path(),
                                    'log_file' => 'percolate-test.log',
-                                   'log_level' => 'DEBUG',
+                                   'log_level' => 'INFO',
                                    'msg_host' => @msg_host,
                                    'msg_port' => @msg_port})
       assert_equal(data_path, percolator.root_dir)
@@ -85,7 +85,7 @@ module TestPercolate
     def test_find_definitions
       percolator = Percolator.new({'root_dir' => data_path(),
                                    'log_file' => 'percolate-test.log',
-                                   'log_level' => 'DEBUG',
+                                   'log_level' => 'INFO',
                                    'msg_host' => @msg_host,
                                    'msg_port' => @msg_port})
       assert_equal(['test_def1.yml', 'test_def2.yml'],
@@ -97,7 +97,7 @@ module TestPercolate
     def test_find_run_files
       percolator = Percolator.new({'root_dir' => data_path(),
                                    'log_file' => 'percolate-test.log',
-                                   'log_level' => 'DEBUG',
+                                   'log_level' => 'INFO',
                                    'msg_host' => @msg_host,
                                    'msg_port' => @msg_port})
       assert_equal(['test_def1.run'],
@@ -109,7 +109,7 @@ module TestPercolate
     def test_find_new_definitions
       percolator = Percolator.new({'root_dir' => data_path(),
                                    'log_file' => 'percolate-test.log',
-                                   'log_level' => 'DEBUG',
+                                   'log_level' => 'INFO',
                                    'msg_host' => @msg_host,
                                    'msg_port' => @msg_port})
       assert_equal(['test_def2.yml'],
@@ -121,7 +121,7 @@ module TestPercolate
     def test_read_definition
       percolator = Percolator.new({'root_dir' => data_path(),
                                    'log_file' => 'percolate-test.log',
-                                   'log_level' => 'DEBUG',
+                                   'log_level' => 'INFO',
                                    'msg_host' => @msg_host,
                                    'msg_port' => @msg_port})
       defn1 = percolator.read_definition(File.join(percolator.run_dir,
@@ -167,7 +167,7 @@ module TestPercolate
       begin
         percolator = Percolator.new({'root_dir' => data_path(),
                                      'log_file' => 'percolate-test.log',
-                                     'log_level' => 'DEBUG',
+                                     'log_level' => 'INFO',
                                      'msg_host' => @msg_host,
                                      'msg_port' => @msg_port})
         def_file = File.join(percolator.run_dir, 'test_def1_tmp.yml')
@@ -191,7 +191,7 @@ module TestPercolate
       begin
         percolator = Percolator.new({'root_dir' => data_path(),
                                      'log_file' => 'percolate-test.log',
-                                     'log_level' => 'DEBUG',
+                                     'log_level' => 'INFO',
                                      'msg_host' => @msg_host,
                                      'msg_port' => @msg_port})
         def_file = File.join(percolator.run_dir, 'test_def2_tmp.yml')
@@ -214,7 +214,7 @@ module TestPercolate
     def test_substitute_uris
       percolator = Percolator.new({'root_dir' => data_path(),
                                    'log_file' => 'percolate-test.log',
-                                   'log_level' => 'DEBUG',
+                                   'log_level' => 'INFO',
                                    'msg_host' => @msg_host,
                                    'msg_port' => @msg_port})
       assert_equal([1, 1.0, 'foo'], percolator.substitute_uris([1, 1.0, 'foo']))
