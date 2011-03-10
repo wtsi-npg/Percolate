@@ -210,17 +210,5 @@ module TestPercolate
         }
       end
     end
-
-    def test_substitute_uris
-      percolator = Percolator.new({'root_dir' => data_path(),
-                                   'log_file' => 'percolate-test.log',
-                                   'log_level' => 'INFO',
-                                   'msg_host' => @msg_host,
-                                   'msg_port' => @msg_port})
-      assert_equal([1, 1.0, 'foo'], percolator.substitute_uris([1, 1.0, 'foo']))
-
-      assert(percolator.substitute_uris(['file:///foo']).first.is_a?(URI))
-      assert(percolator.substitute_uris(['urn:foo:bar']).first.is_a?(URI))
-    end
   end
 end

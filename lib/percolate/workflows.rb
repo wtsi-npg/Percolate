@@ -63,7 +63,7 @@ module Percolate
     pass_dir = nil, fail_dir = nil
       unless identity.is_a?(String) || identity.is_a?(Symbol)
         raise ArgumentError,
-              "Invalid identity '#{identity.inspect}'. " <<
+              "Invalid identity '#{identity.inspect}'. " +
               "Must be a String or Symbol."
       end
 

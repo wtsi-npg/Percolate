@@ -137,26 +137,31 @@ module Percolate
       success
     end
 
-    def update_result fname, args, confirm, yielding, result, log
+    def update_result fname, args, confirm, yielding, result, log, index = nil
+      ix = ''
+      if index
+        ix = "[#{index}]"
+      end
+
       if result.value?
         log.debug("Returning memoized #{fname} result: #{result}")
       else
         begin
           if result.failed?
             raise PercolateAsyncTaskError,
-                  "#{fname} args: #{args.inspect} failed"
+                  "#{fname}#{ix} args: #{args.inspect} failed"
           elsif result.finished? &&
           confirm.call(*args.take(confirm.arity.abs))
             result.finished!(yielding.call(*args.take(yielding.arity.abs)))
-            log.debug("Postconditions for #{fname} satsified; " +
+            log.debug("Postconditions for #{fname}#{ix} satsified; " +
                       "returning #{result}")
           else
-            log.debug("Postconditions for #{fname} not satsified; " +
+            log.debug("Postconditions for #{fname}#{ix} not satsified; " +
                       "returning nil")
           end
         rescue PercolateAsyncTaskError => pate
           # Any of the having, confirm or yielding procs may throw this
-          log.error("#{fname} requires attention: #{pate.message}")
+          log.error("#{fname}#{ix} requires attention: #{pate.message}")
           raise pate
         end
       end
@@ -286,28 +291,7 @@ module Percolate
           log.debug("Checking #{fname}[#{i}] args: #{args.inspect}, " +
                     "result: #{result}")
 
-          if result.value?
-            log.debug("Returning memoized #{fname} result: #{result}")
-          else
-            begin
-              if result.failed?
-                raise PercolateAsyncTaskError,
-                      "#{fname}[#{i}] args: #{args.inspect} failed"
-              elsif result.finished? &&
-              confirm.call(*args.take(confirm.arity.abs))
-                result.finished!(yielding.call(*args.take(yielding.arity.abs)))
-                log.debug("Postconditions for #{fname} satsified; " +
-                          "collecting #{result}")
-              else
-                log.debug("Postconditions for #{fname} not satsified; " +
-                          "collecting nil")
-              end
-            rescue PercolateAsyncTaskError => pate
-              # Any of the having, confirm or yielding procs may throw this
-              log.error("#{fname}[#{i}] requires attention: #{pate.message}")
-              raise pate
-            end
-          end
+          update_result(fname, args, confirm, yielding, result, log, i)
         }
       else
         # Can't submit any members of a job array until all their

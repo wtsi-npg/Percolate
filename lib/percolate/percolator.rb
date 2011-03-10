@@ -114,9 +114,6 @@ module Percolate
 
     URI_REGEXP = URI.regexp(['file', 'urn'])
 
-    @@def_suffix = Percolate::Workflow::DEFINITION_SUFFIX
-    @@run_suffix = Percolate::Workflow::RUN_SUFFIX
-
     # The root of all the Percolate runtime directories. Defaults to
     # $HOME/percolate
     attr_reader :root_dir
@@ -138,6 +135,9 @@ module Percolate
     attr_reader :log_dir
     # The name of the Percolate log file
     attr_reader :log_file
+
+    attr_reader :def_suffix
+    attr_reader :run_suffix
 
     # The config hash will normally be supplied via a YAML file on the
     # command line or a YAML .percolate file in the user's home
@@ -205,31 +205,34 @@ module Percolate
         Percolate.asynchronizer.message_port = opts[:msg_port]
       end
 
+      @def_suffix = Percolate::Workflow::DEFINITION_SUFFIX
+      @run_suffix = Percolate::Workflow::RUN_SUFFIX
+
       self
     end
 
     # Returns an array of workflow definition files.
     def find_definitions
-      Dir[self.run_dir + '/*' + @@def_suffix].sort
+      Dir[self.run_dir + '/*' + self.def_suffix].sort
     end
 
     # Returns an array of workflow run files.
     def find_run_files
-      Dir[self.run_dir + '/*' + @@run_suffix].sort
+      Dir[self.run_dir + '/*' + self.run_suffix].sort
     end
 
     # Returns an array of workflow definition files that do not have a
     # corresponding run file.
     def find_new_definitions
       defns = self.find_definitions.map { |file|
-        File.basename(file, @@def_suffix)
+        File.basename(file, self.def_suffix)
       }
       runs = self.find_run_files.map { |file|
-        File.basename(file, @@run_suffix)
+        File.basename(file, self.run_suffix)
       }
 
       (defns - runs).map { |basename|
-        File.join(self.run_dir, basename + @@def_suffix)
+        File.join(self.run_dir, basename + self.def_suffix)
       }
     end
 
@@ -294,17 +297,34 @@ module Percolate
         $stderr.puts("Error in workflow definiton '#{file}': #{te}")
         nil
       rescue NameError => ne
-        $stderr.puts("Error in workflow definiton '#{file}': #{ne}")
+        $stderr.puts("Error in workflow definiton '#{file}': " +
+                     "does workflow #{workflow_class} in #{workflow_module} " +
+                     "really exist?")
         nil
       end
+    end
+
+    # Percolates data through the currently active workflows.
+    def percolate
+      self.find_definitions.each { |defn|
+        Percolate.log.info("Switched to workflow #{defn}")
+
+        begin
+          self.percolate_tasks(defn)
+        rescue PercolateError => pe
+          msg = "Skipping task: #{pe}"
+          Percolate.log.error(msg)
+          $stderr.puts(msg)
+        end
+      }
     end
 
     # Percolates data through the workflow described by definition.
     def percolate_tasks definition
       def_file = File.expand_path(definition, self.run_dir)
       run_file = def_file.gsub(Regexp.new(File.extname(def_file) + '$'),
-                               @@run_suffix)
-      lock_file = File.expand_path(File.basename(definition, @@def_suffix),
+                               self.run_suffix)
+      lock_file = File.expand_path(File.basename(definition, self.def_suffix),
                                    self.lock_dir)
 
       # Prevent multiple processes working on the same workflow
@@ -395,21 +415,7 @@ module Percolate
       workflow
     end
 
-    # Percolates data through the currently active workflows.
-    def percolate
-      self.find_definitions.each { |defn|
-        Percolate.log.info("Switched to workflow #{defn}")
-
-        begin
-          self.percolate_tasks(defn)
-        rescue PercolateError => pe
-          msg = "Skipping task: #{pe}"
-          Percolate.log.error(msg)
-          $stderr.puts(msg)
-        end
-      }
-    end
-
+    private
     def substitute_uris args
       args.collect { |arg|
         if arg.is_a?(String) && URI_REGEXP.match(arg)
