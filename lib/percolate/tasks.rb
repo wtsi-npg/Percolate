@@ -17,8 +17,6 @@
 #
 
 module Percolate
-  include Percolate::Asynchronous
-
   # A task which succeeds.
   def true_task work_dir = '.', env = {}
     task(:true_task, [work_dir], Percolate.cd(work_dir, 'true'), env,

@@ -5,7 +5,8 @@ require 'optparse'
 
 require 'percolate'
 
-include Percolate::Asynchronous
+include Percolate
+include Percolate::CommandFileIO
 
 class WrapClientArguments < Hash
   def initialize args
@@ -20,7 +21,7 @@ class WrapClientArguments < Hash
         opts.on(short, long, doc) { |opt| self[key] = opt }
       end
 
-      opts.on('-p', '--port [PORT]', 'Percolate queue port') do |port|
+      opts.on('-p', '--port PORT', 'Percolate queue port') do |port|
         begin
           self[:port] = Integer(port)
         rescue ArgumentError => ae
@@ -43,7 +44,7 @@ class WrapClientArguments < Hash
 
       [:task_id, :queue, :host, :port].each do |arg|
         if ! self.has_key?(arg)
-          raise ArgumentError, "a --#{arg} argument must be provided"
+          # raise ArgumentError, "a --#{arg} argument must be provided"
         end
       end
     rescue Exception => e

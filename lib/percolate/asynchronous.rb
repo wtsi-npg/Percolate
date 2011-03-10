@@ -17,11 +17,58 @@
 #
 
 module Percolate
+  module CommandFileIO
+    def write_array_commands file, fname, args_array, commands
+      File.open(file, 'w') { |f|
+        args_array.zip(commands).each { |args, cmd|
+          task_id = Percolate.task_identity(fname, args)
+          f.puts("#{task_id}\t#{fname}\t#{args.inspect}\t#{cmd}")
+        }
+      }
+    end
+
+    def read_array_command file, lineno
+      task_id = command = nil
+
+      File.open(file, 'r') { |f|
+        f.each_line { |line|
+          if f.lineno == lineno
+            fields = line.chomp.split("\t")
+            task_id, command = fields[0], fields[3]
+            break
+          end
+        }
+      }
+
+      if task_id.nil?
+        raise PercolateError, "No such command line #{lineno} in #{file}"
+      elsif task_id.empty?
+        raise PercolateError, "Empty task_id at line #{lineno} in #{file}"
+      elsif command.empty?
+        raise PercolateError, "Empty command at line #{lineno} in #{file}"
+      else
+        [task_id, command]
+      end
+    end
+  end
+
   class Asynchronizer
+    include CommandFileIO
+    attr_accessor :message_host
+    attr_accessor :message_port
+    attr_accessor :message_queue
     attr_accessor :async_wrapper
 
     def initialize
+      @message_host = 'localhost'
+      @message_port = 11300
       @async_wrapper = 'percolate-wrap'
+    end
+
+    def message_client
+      Percolate.log.debug("Connecting to message host #{self.message_host} " +
+                          "port #{self.message_port}")
+      MessageClient.new(self.message_queue, self.message_host, self.message_port)
     end
 
     def run_async_task fname, args, command, env, procs = {}
@@ -56,8 +103,15 @@ module Percolate
     end
 
     protected
+    def command_string task_id
+      "#{self.async_wrapper} --host #{self.message_host} " +
+      "--port #{self.message_port} " +
+      "--queue #{self.message_queue} " +
+      "--task #{task_id}"
+    end
+
     def submit_async fname, command
-      unless Asynchronous.message_queue
+      unless self.message_queue
         raise PercolateError, "No message queue has been provided"
       end
 
@@ -115,11 +169,7 @@ module Percolate
     include Percolate
 
     def async_command task_id, command, work_dir, log, args = {}
-      cmd_str = "#{self.async_wrapper} --host #{Asynchronous.message_host} " +
-      "--port #{Asynchronous.message_port} " +
-      "--queue #{Asynchronous.message_queue} " +
-      "--task #{task_id}"
-
+      cmd_str = command_string(task_id)
       Percolate.cd(work_dir, "#{cmd_str} -- #{command} &")
     end
   end
@@ -194,11 +244,7 @@ module Percolate
         cpu_str = "-n #{args[:cpus]} -R 'span[hosts=1]'"
       end
 
-      cmd_str = "#{self.async_wrapper} --host #{Asynchronous.message_host} " +
-      "--port #{Asynchronous.message_port} " +
-      "--queue #{Asynchronous.message_queue} " +
-      "--task #{task_id}"
-
+      cmd_str = command_string(task_id)
       job_name = "#{task_id}.#{uid}"
 
       if command.is_a?(Array)
@@ -296,40 +342,7 @@ module Percolate
       results
     end
 
-    def write_array_commands file, fname, args_array, commands
-      File.open(file, 'w') { |f|
-        args_array.zip(commands).each { |args, cmd|
-          task_id = Percolate.task_identity(fname, args)
-          f.puts("#{task_id}\t#{fname}\t#{args.inspect}\t#{cmd}")
-        }
-      }
-    end
-
     private
-    def read_array_command file, lineno
-      task_id = command = nil
-
-      File.open(file, 'r') { |f|
-        f.each_line { |line|
-          if f.lineno == lineno
-            fields = line.chomp.split("\t")
-            task_id, command = fields[0], fields[3]
-            break
-          end
-        }
-      }
-
-      if task_id.nil?
-        raise PercolateError, "No such command line #{lineno} in #{file}"
-      elsif task_id.empty?
-        raise PercolateError, "Empty task_id at line #{lineno} in #{file}"
-      elsif command.empty?
-        raise PercolateError, "Empty command at line #{lineno} in #{file}"
-      else
-        [task_id, command]
-      end
-    end
-
     def count_lines file
       count = 0
       open(file).each { |line| count = count + 1 }

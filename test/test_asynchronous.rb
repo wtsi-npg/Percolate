@@ -142,7 +142,7 @@ module PercolateTest
                                     'dummy_def.yml', 'dummy_run.run',
                                     percolator.pass_dir,
                                     percolator.fail_dir)
-      Asynchronous.message_queue(wf.message_queue)
+      Percolate.asynchronizer.message_queue = wf.message_queue
 
       memoizer = Percolate.memoizer
       memoizer.clear_memos
@@ -201,7 +201,7 @@ module PercolateTest
                                        'dummy_def.yml', 'dummy_run.run',
                                        percolator.pass_dir,
                                        percolator.fail_dir)
-        Asynchronous.message_queue(wf.message_queue)
+        Percolate.asynchronizer.message_queue = wf.message_queue
 
         memoizer = Percolate.memoizer
         memoizer.clear_memos

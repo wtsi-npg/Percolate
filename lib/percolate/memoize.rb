@@ -65,7 +65,7 @@ module Percolate
     # the current message queue. Returns true if any messages were
     # received, or false otherwise.
     def update_async_memos
-      client = Asynchronous.message_client
+      client = Percolate.asynchronizer.message_client
       log = Percolate.log
       log.debug("Started fetching messages from #{client.inspect}")
 
@@ -84,7 +84,7 @@ module Percolate
       end
 
       log.debug("Fetched #{updates.size} messages from " +
-                "#{Asynchronous.message_queue}")
+                "#{Percolate.asynchronizer.message_queue}")
       updates.each_value { |msgs|
         msgs.each { |msg| log.debug("Received #{msg.inspect}") }
       }

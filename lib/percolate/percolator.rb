@@ -199,10 +199,10 @@ module Percolate
       Percolate.log.level = Object.const_get('Logger').const_get(opts[:log_level])
 
       msg_host = (opts[:msg_host] || Socket.gethostname)
-      Asynchronous.message_host(msg_host)
+      Percolate.asynchronizer.message_host = msg_host
 
       if opts[:msg_port]
-        Asynchronous.message_port(opts[:msg_port])
+        Percolate.asynchronizer.message_port = opts[:msg_port]
       end
 
       self
@@ -210,12 +210,12 @@ module Percolate
 
     # Returns an array of workflow definition files.
     def find_definitions
-      Dir[self.run_dir + '/*' + @@def_suffix]
+      Dir[self.run_dir + '/*' + @@def_suffix].sort
     end
 
     # Returns an array of workflow run files.
     def find_run_files
-      Dir[self.run_dir + '/*' + @@run_suffix]
+      Dir[self.run_dir + '/*' + @@run_suffix].sort
     end
 
     # Returns an array of workflow definition files that do not have a
@@ -335,7 +335,7 @@ module Percolate
               workflow.restore
             end
 
-            Asynchronous.message_queue(workflow.message_queue)
+            Percolate.asynchronizer.message_queue = workflow.message_queue
             if memoizer.dirty_async?
               memoizer.update_async_memos
             end

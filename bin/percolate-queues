@@ -9,40 +9,44 @@ class QueueClientArguments < Hash
   def initialize args
     super
 
-    opts = OptionParser.new do |opts|
-      opts.banner = "Usage: #$0 [options]"
-      h = [:host,  '-h', '--host HOSTNAME', 'Percolate queue host']
-      d = [:drain, '-d', '--drain QUEUE',   'Drain queue' ]
-      [h, d].each do |key, short, long, doc|
-        opts.on(short, long, doc) { |opt| self[key] = opt }
-      end
+    self[:host] = 'localhost'
+    self[:port] = 11300
 
-      opts.on('-p', '--port [PORT]', 'Percolate queue port') do |port|
-        begin 
-          self[:port] = Integer(port)
+    opts = OptionParser.new { |opts|
+      opts.banner = "Usage: #$0 [options]"
+
+      opts.on('-h', '--host [HOSTNAME]',
+              'Percolate queue host, default localhost') { |host|
+        self[:host] = host
+      }
+
+      opts.on('-p', '--port [PORT]',
+              'Percolate queue port, default 11300') { |port|
+        begin
+          if port
+            self[:port] = Integer(port)
+          end
         rescue ArgumentError => ae
           raise OptionParser::ParseError, ae.to_s
         end
-      end
+      }
 
-      opts.on('-?', '--help', 'Display this help and exit') do
+      opts.on('-d', '--drain QUEUE', 'Drain queue') { |drain|
+        self[:drain] = drain
+      }
+
+      opts.on('-?', '--help', 'Display this help and exit') {
         $stderr.puts(opts)
         exit
-      end
-    end
+      }
+    }
 
     begin
       opts.parse!(args)
-
-      [:host, :port].each do |arg|
-        if ! self.has_key?(arg)
-          raise ArgumentError, "a --#{arg} argument must be provided"
-        end
-      end
     rescue Exception => e
       $stderr.puts(opts)
       $stderr.puts("\nCommand line error: #{e.message}")
-      exit(1)
+      exit(10)
     end
 
     self
@@ -60,12 +64,12 @@ def queue_stats client
 
   # puts "Queues: #{queues.inspect}"
 
-  queues.keys.each do |key|
-    queues[key].each do |queue|
+  queues.keys.each { |key|
+    queues[key].each { |queue|
       puts("Queue: #{queue.inspect}")
       puts("Client stats: #{client.stats_tube(queue).inspect}\n\n")
-    end
-  end
+    }
+  }
 end
 
 def drain_queue client, host_id, queue
@@ -105,7 +109,7 @@ begin
   end
 rescue Exception => e
   $stderr.puts("Error: #{e}")
-  exit(1)
+  exit(10)
 ensure
   client.close
 end
