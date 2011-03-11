@@ -29,10 +29,17 @@ module Percolate
 
     def initialize queue, host = DEFAULT_HOST, port = DEFAULT_PORT
       @host, @port = host, port
-      @pool = Beanstalk::Pool.new(self.host_id)
-      pool.watch(queue)
-      pool.use(queue)
-      pool.ignore('default')
+
+      begin
+        @pool = Beanstalk::Pool.new(self.host_id)
+        pool.watch(queue)
+        pool.use(queue)
+        pool.ignore('default')
+      rescue Beanstalk::NotConnected => nc
+        raise PercolateError,
+              "Failed to connect to message queue server at #{self.host_id} : " +
+              "#{nc.message}"
+      end
     end
 
     def host_id

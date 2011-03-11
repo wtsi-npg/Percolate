@@ -271,7 +271,7 @@ module Percolate
     end
 
     def async_task_array fname, args_arrays, commands, array_file, command, env,
-                         procs = {}
+    procs = {}
       having, confirm, yielding = ensure_procs(procs)
       memos = Percolate.memoizer.async_method_memos(fname)
 

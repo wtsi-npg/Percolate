@@ -165,12 +165,9 @@ module Percolate
     end
 
     def dirty_async_memos? key
-      memos = self.async_method_memos(key)
-      dirty = memos.reject { |method_args, result|
-        result && result.submitted? && result.finished?
-      }
-
-      !dirty.keys.empty?
+      ! self.async_method_memos(key).values.compact.select { |result|
+        result.submitted? && !result.finished?
+      }.empty?
     end
 
     private

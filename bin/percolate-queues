@@ -62,8 +62,6 @@ def queue_stats client
   puts("Current-connections: #{client.stats['current-connections']}\n\n")
   queues = client.list_tubes
 
-  # puts "Queues: #{queues.inspect}"
-
   queues.keys.each { |key|
     queues[key].each { |queue|
       puts("Queue: #{queue.inspect}")

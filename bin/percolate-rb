@@ -4,9 +4,6 @@ require 'rubygems'
 require 'yaml'
 require 'optparse'
 
-# libpath = File.expand_path('./lib')
-# $:.unshift(libpath) unless $:.include?(libpath)
-
 require 'percolate'
 
 include Percolate

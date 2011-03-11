@@ -21,36 +21,36 @@ class WrapClientArguments < Hash
         opts.on(short, long, doc) { |opt| self[key] = opt }
       end
 
-      opts.on('-p', '--port PORT', 'Percolate queue port') do |port|
+      opts.on('-p', '--port PORT', 'Percolate queue port') { |port|
         begin
           self[:port] = Integer(port)
         rescue ArgumentError => ae
           raise OptionParser::ParseError, ae.to_s
         end
-      end
+      }
 
-      opts.on('-i', '--index', 'Percolate indexed task') do
+      opts.on('-i', '--index', 'Percolate indexed task') {
         self[:index] = true
-      end
+      }
 
-      opts.on('-?', '--help', 'Display this help and exit') do
+      opts.on('-?', '--help', 'Display this help and exit') {
         $stderr.puts(opts)
         exit
-      end
+      }
     end
 
     begin
       opts.parse!(args)
 
-      [:task_id, :queue, :host, :port].each do |arg|
+      [:task_id, :queue, :host, :port].each { |arg|
         if ! self.has_key?(arg)
-          # raise ArgumentError, "a --#{arg} argument must be provided"
+          raise ArgumentError, "a --#{arg} argument must be provided"
         end
-      end
+      }
     rescue Exception => e
       $stderr.puts(opts)
       $stderr.puts("\nCommand line error: #{e.message}")
-      exit(1)
+      exit(10)
     end
 
     self
@@ -61,6 +61,7 @@ args = WrapClientArguments.new(ARGV)
 
 task_id = nil
 command = nil
+exitstatus = nil
 
 if args.has_key?(:index)
   file = args[:task_id] + '.txt'
@@ -75,21 +76,18 @@ else
   command = ARGV.join(' ')
 end
 
-client = MessageClient.new(args[:queue], args[:host], args[:port])
-
+host, port, queue = args[:host], args[:port], args[:queue]
+client = MessageClient.new(queue, host, port)
 client.send_message(TaskMessage.new(task_id, command, :started))
-system(command)
 
+system(command)
 exitstatus = if $?.exited?
                $?.exitstatus
              elsif $?.signaled?
                128 + $?.termsig
-             else
-               nil
              end
 
 client.send_message(TaskMessage.new(task_id, command, :finished, exitstatus))
 
 exitstatus ||= 1
-
 exit(exitstatus)
