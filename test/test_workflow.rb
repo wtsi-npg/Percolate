@@ -33,11 +33,9 @@ module PercolateTest
   # The unready workflow. Can never be run because its preconditions
   # are not satisfied.
   class UnreadyWorkflow < Workflow
-    include Percolate
-
     # A task which is permanently unready and can never be run.
-    def unready_task work_dir = '.', env = {}
-      task(:unready_task, [work_dir], Percolate.cd(work_dir, 'true'), env,
+    def unready_task work_dir = '.'
+      task([work_dir], cd(work_dir, 'true'),
            :having => lambda { false },
            :confirm => lambda { true },
            :yielding => lambda { true })
@@ -51,11 +49,9 @@ module PercolateTest
   # The unfinished workflow. Can never finish because its
   # postconditions are not satisfied.
   class UnfinishedWorkflow < Workflow
-    include Percolate
-
     # A task which may be run, but which never finishes.
-    def unfinished_task work_dir = '.', env = {}
-      task(:unfinished_task, [work_dir], Percolate.cd(work_dir, 'true'), env,
+    def unfinished_task work_dir = '.'
+      task([work_dir], cd(work_dir, 'true'),
            :having => lambda { true },
            :confirm => lambda { false },
            :yielding => lambda { true })
@@ -68,12 +64,10 @@ module PercolateTest
 
   # Switchable workflow to that may be set to pass or fail.
   class BooleanWorkflow < Workflow
-    include Percolate
-
-    def boolean_task work_dir = '.', env = {}
+    def boolean_task work_dir = '.'
       program = $BOOLEAN_WORKFLOW ? 'true' : 'false'
 
-      task(:boolean_task, [work_dir], Percolate.cd(work_dir, program), env,
+      task([work_dir], cd(work_dir, program),
            :having => lambda { true },
            :confirm => lambda { true },
            :yielding => lambda { $BOOLEAN_WORKFLOW })
@@ -85,8 +79,6 @@ module PercolateTest
   end
 
   class TestWorkflow < Test::Unit::TestCase
-    include Percolate
-
     @msg_host = 'localhost'
     @msg_port = 11300
 
@@ -127,7 +119,7 @@ module PercolateTest
 
     def test_task_args
       def bad_arg_task work_dir = '.', env = {}
-        task(:bad_arg_task, [work_dir], Percolate.cd(work_dir, 'true'), env,
+        task([work_dir], cd(work_dir, 'true'), env,
              :having => :not_a_proc,
              :confirm => lambda { false },
              :yielding => lambda { true })

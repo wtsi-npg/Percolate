@@ -21,9 +21,9 @@ require 'fileutils'
 require 'logger'
 require 'uri'
 
-require 'percolate/memoize'
-require 'percolate/message_queue'
-require 'percolate/asynchronous'
+require 'percolate/memoizer'
+require 'percolate/message_client'
+require 'percolate/asynchronizer'
 require 'percolate/tasks'
 require 'percolate/workflows'
 require 'percolate/percolator'
@@ -63,7 +63,7 @@ module Percolate
 
   # Returns a copy of String command with a change directory operation
   # prepended.
-  def self.cd path, command
+  def cd path, command
     "cd #{path} \; #{command}"
   end
 
@@ -158,14 +158,43 @@ module Percolate
     end
 
     def to_s
-      "#<#{self.class} task_id: #{self.task_identity} " <<
-      "sub: #{self.submission_time.inspect} " <<
-      "start: #{self.start_time.inspect} " <<
+      "#<#{self.class} task_id: #{self.task_identity} " +
+      "sub: #{self.submission_time.inspect} " +
+      "start: #{self.start_time.inspect} " +
       "finish: #{self.finish_time.inspect} value: #{self.value.inspect}>"
     end
   end
 
-  # Run a memoized system command having pre- and post-conditions.
+  def task args, command, procs = {}
+    fname = calling_method
+    env = {}
+    task_aux(fname, args, command, env, procs)
+  end
+
+  def native_task args, command, having
+    fname = calling_method
+    native_task_aux(fname, args, command, having)
+  end
+
+  def async_task args, command, procs = {}
+    fname = calling_method
+    env = {}
+    Percolate.asynchronizer.async_task_aux(fname, args, command, env, procs)
+  end
+
+  def async_task_array args_arrays, commands, array_file, command, procs = {}
+    fname = calling_method
+    env = {}
+    Percolate.asynchronizer.async_task_array_aux(fname, args_arrays, commands,
+                                                 array_file, command, env, procs)
+  end
+
+  def async_command *args
+    Percolate.asynchronizer.async_command(*args)
+  end
+
+  private
+    # Run a memoized system command having pre- and post-conditions.
   #
   # Arguments:
   #
@@ -192,7 +221,7 @@ module Percolate
   #
   # Returns:
   # - Return value of the :yielding Proc, or nil.
-  def task fname, args, command, env, procs = {}
+  def task_aux fname, args, command, env, procs = {}
     having, confirm, yielding = ensure_procs(procs)
 
     memos = Percolate.memoizer.method_memos(fname)
@@ -253,7 +282,7 @@ module Percolate
   #
   # Returns:
   # - Return value of the :command Proc, or nil.
-  def native_task fname, args, command, having
+  def native_task_aux fname, args, command, having
     ensure_proc('command', command)
     ensure_proc('having', having)
 
@@ -283,19 +312,15 @@ module Percolate
     end
   end
 
-  def async_task *args
-    Percolate.asynchronizer.run_async_task(*args)
+  def calling_method
+    if caller[1] =~ /`([^']*)'/
+      $1.to_sym
+    else
+      raise PercolateError,
+            "Failed to determine Percolate method name from '#{caller[0]}'"
+    end
   end
 
-  def async_task_array *args
-    Percolate.asynchronizer.async_task_array(*args)
-  end
-
-  def async_command *args
-    Percolate.asynchronizer.async_command(*args)
-  end
-
-  private
   def ensure_procs procs
     [:having, :confirm, :yielding].collect { |k| ensure_proc(k, procs[k]) }
   end

@@ -37,11 +37,11 @@ module PercolateTest
       super
     end
 
-    def add_task *args
+    def sum_task *args
       having = lambda { |numbers| !numbers.nil? }
       command = lambda { |*numbers| numbers.inject(0) { |n, sum| n + sum } }
 
-      native_task(:test_add_task, args, command, having)
+      native_task(args, command, having)
     end
 
     def test_get_memos
@@ -63,13 +63,13 @@ module PercolateTest
     def test_result_count
       memoizer = Percolate.memoizer
       assert(memoizer.result_count.zero?)
-      assert(add_task(1, 2, 3))
+      assert(sum_task(1, 2, 3))
       assert_equal(1, memoizer.result_count)
       assert_equal(1, memoizer.result_count { |result| result.submitted? })
       assert_equal(1, memoizer.result_count { |result| result.started? })
       assert_equal(1, memoizer.result_count { |result| result.finished? })
 
-      assert(add_task(1, 2, 4))
+      assert(sum_task(1, 2, 4))
       assert_equal(2, memoizer.result_count)
       assert_equal(2, memoizer.result_count { |result| result.submitted? })
       assert_equal(2, memoizer.result_count { |result| result.started? })
@@ -88,15 +88,15 @@ module PercolateTest
 
     def test_native_task
       memoizer = Percolate.memoizer
-      assert(!memoizer.memos.has_key?(:test_add_task))
+      assert(!memoizer.memos.has_key?(:sum_task))
 
-      result = add_task(1, 2, 3)
-      assert_equal(:test_add_task, result.task)
+      result = sum_task(1, 2, 3)
+      assert_equal(:sum_task, result.task)
       assert_equal(6, result.value)
 
-      memos = memoizer.method_memos(:test_add_task)
+      memos = memoizer.method_memos(:sum_task)
       assert(memos.is_a?(Hash))
-      assert(memoizer.memos.has_key?(:test_add_task))
+      assert(memoizer.memos.has_key?(:sum_task))
     end
   end
 end

@@ -71,7 +71,7 @@ module Percolate
       MessageClient.new(self.message_queue, self.message_host, self.message_port)
     end
 
-    def run_async_task fname, args, command, env, procs = {}
+    def async_task_aux fname, args, command, env, procs = {}
       having, confirm, yielding = ensure_procs(procs)
       memos = Percolate.memoizer.async_method_memos(fname)
       result = memos[args]
@@ -175,7 +175,7 @@ module Percolate
 
     def async_command task_id, command, work_dir, log, args = {}
       cmd_str = command_string(task_id)
-      Percolate.cd(work_dir, "#{cmd_str} -- #{command} &")
+      cd(work_dir, "#{cmd_str} -- #{command} &")
     end
   end
 
@@ -262,15 +262,15 @@ module Percolate
         cmd_str << " -- '#{command}'"
       end
 
-      Percolate.cd(work_dir,
-                   "#{self.async_submitter} -J '#{job_name}' -q #{queue} " +
-                   "-R 'select[mem>#{mem}#{select}] " +
-                   "rusage[mem=#{mem}#{reserve}]'#{depend} " +
-                   "#{cpu_str} " +
-                   "-M #{mem * 1000} -oo #{log} #{cmd_str}")
+      cd(work_dir,
+         "#{self.async_submitter} -J '#{job_name}' -q #{queue} " +
+         "-R 'select[mem>#{mem}#{select}] " +
+         "rusage[mem=#{mem}#{reserve}]'#{depend} " +
+         "#{cpu_str} " +
+         "-M #{mem * 1000} -oo #{log} #{cmd_str}")
     end
 
-    def async_task_array fname, args_arrays, commands, array_file, command, env,
+    def async_task_array_aux fname, args_arrays, commands, array_file, command, env,
     procs = {}
       having, confirm, yielding = ensure_procs(procs)
       memos = Percolate.memoizer.async_method_memos(fname)

@@ -28,13 +28,12 @@ require 'percolate'
 module AsyncTest
   include Percolate
 
-  def async_sleep seconds, work_dir, log, env = {}
+  def async_sleep seconds, work_dir, log
     command = "sleep #{seconds}"
 
     task_id = Percolate.task_identity(:async_sleep, [seconds, work_dir])
-    async_task(:async_sleep, [seconds, work_dir],
+    async_task([seconds, work_dir],
                async_command(task_id, command, work_dir, log, :queue => :small),
-               env,
                :having => lambda { work_dir },
                :confirm => lambda { true },
                :yielding => lambda { seconds })
@@ -49,7 +48,7 @@ module AsyncTest
     }
   end
 
-  def p_async_sleep seconds, size, work_dir, log, env = {}
+  def p_async_sleep seconds, size, work_dir, log
     args_arrays = size.times.collect { |i| [seconds + i, work_dir] }
     commands = size.times.collect { |i| "sleep #{seconds + i}" }
 
@@ -57,10 +56,9 @@ module AsyncTest
     log = "#{task_id}.%I.log"
     array_file = File.join(work_dir, "#{task_id}.txt")
 
-    async_task_array(:p_async_sleep, args_arrays, commands, array_file,
+    async_task_array(args_arrays, commands, array_file,
                      async_command(task_id, commands, work_dir, log,
                                    :queue => :small),
-                     env,
                      :having => lambda { work_dir },
                      :confirm => lambda { true },
                      :yielding => lambda { |sec, dir| sec })

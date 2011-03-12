@@ -18,15 +18,12 @@
 
 require 'test/unit'
 
-require 'parallel'
-
 libpath = File.expand_path('../lib')
 $:.unshift(libpath) unless $:.include?(libpath)
 
 require 'percolate'
 
 module PercolateTest
-  include Percolate
 
   class TestPartitions < Test::Unit::TestCase
     include Percolate
