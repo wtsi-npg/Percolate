@@ -18,14 +18,23 @@
 
 module Percolate
   module CommandFileIO
-    def write_array_commands file, fname, args_array, commands
+
+    def write_array_commands file, method_name, args_array, commands
       File.open(file, 'w') { |f|
         args_array.zip(commands).each { |args, cmd|
-          task_id = Percolate.task_identity(fname, args)
-          f.puts("#{task_id}\t#{fname}\t#{args.inspect}\t#{cmd}")
+          task_id = task_identity(method_name, args)
+          f.puts("#{task_id}\t#{method_name}\t#{args.inspect}\t#{cmd}")
         }
       }
     end
+
+#    def write_array_commands file, method_name, task_ids, args_array, commands
+#      File.open(file, 'w') { |f|
+#        task_ids.zip(args_array, commands).each { |task_id, args, cmd|
+#          f.puts("#{task_id}\t#{method_name}\t#{args.inspect}\t#{cmd}")
+#        }
+#      }
+#    end
 
     def read_array_command file, lineno
       task_id = command = nil
@@ -71,30 +80,30 @@ module Percolate
       MessageClient.new(self.message_queue, self.message_host, self.message_port)
     end
 
-    def async_task_aux fname, args, command, env, procs = {}
-      having, confirm, yielding = ensure_procs(procs)
-      memos = Percolate.memoizer.async_method_memos(fname)
+    def async_task_aux method_name, args, command, env, procs = {}
+      pre, post, proc = ensure_procs(procs)
+      memos = Percolate.memoizer.async_method_memos(method_name)
       result = memos[args]
       submitted = result && result.submitted?
 
       log = Percolate.log
-      log.debug("Entering task #{fname}")
+      log.debug("Entering task #{method_name}")
 
       if submitted # Job was submitted
-        log.debug("#{fname} job '#{command}' is already submitted")
-        update_result(fname, args, confirm, yielding, result, log)
+        log.debug("#{method_name} job '#{command}' is already submitted")
+        update_result(method_name, args, post, proc, result, log)
       else # Can we submit the job?
-        if !having.call(*args.take(having.arity.abs))
-          log.debug("Preconditions for #{fname} not satisfied; " +
+        if !pre.call(*args.take(pre.arity.abs))
+          log.debug("Preconditions for #{method_name} not satisfied; " +
                     "returning nil")
         else
-          log.debug("Preconditions for #{fname} satisfied; " +
+          log.debug("Preconditions for #{method_name} satisfied; " +
                     "submitting '#{command}'")
 
-          if submit_async(fname, command)
-            task_id = Percolate.task_identity(fname, args)
+          if submit_async(method_name, command)
+            task_id = task_identity(method_name, args)
             submission_time = Time.now
-            memos[args] = Result.new(fname, task_id, submission_time)
+            memos[args] = Result.new(method_name, task_id, submission_time)
           end
         end
       end
@@ -110,7 +119,7 @@ module Percolate
       "--task #{task_id}"
     end
 
-    def submit_async fname, command
+    def submit_async method_name, command
       unless self.message_queue
         raise PercolateError, "No message queue has been provided"
       end
@@ -120,7 +129,7 @@ module Percolate
       status, stdout = system_command(command)
       success = command_success?(status)
 
-      Percolate.log.info("submission reported #{stdout} for #{fname}")
+      Percolate.log.info("submission reported #{stdout} for #{method_name}")
 
       case
         when status.signaled?
@@ -130,38 +139,37 @@ module Percolate
           raise PercolateAsyncTaskError,
                 "Non-zero exit #{status.exitstatus} from '#{command}'"
         else
-          Percolate.log.debug("#{fname} async job '#{command}' is submitted, " +
+          Percolate.log.debug("#{method_name} async job '#{command}' is submitted, " +
                               "meanwhile returning nil")
       end
 
       success
     end
 
-    def update_result fname, args, confirm, yielding, result, log, index = nil
+    def update_result method_name, args, post, proc, result, log, index = nil
       ix = ''
       if index
         ix = "[#{index}]"
       end
 
       if result.value?
-        log.debug("Returning memoized #{fname} result: #{result}")
+        log.debug("Returning memoized #{method_name} result: #{result}")
       else
         begin
           if result.failed?
             raise PercolateAsyncTaskError,
-                  "#{fname}#{ix} args: #{args.inspect} failed"
-          elsif result.finished? &&
-          confirm.call(*args.take(confirm.arity.abs))
-            result.finished!(yielding.call(*args.take(yielding.arity.abs)))
-            log.debug("Postconditions for #{fname}#{ix} satsified; " +
+                  "#{method_name}#{ix} args: #{args.inspect} failed"
+          elsif result.finished? && post.call(*args.take(post.arity.abs))
+            result.finished!(proc.call(*args.take(proc.arity.abs)))
+            log.debug("Postconditions for #{method_name}#{ix} satsified; " +
                       "returning #{result}")
           else
-            log.debug("Postconditions for #{fname}#{ix} not satsified; " +
+            log.debug("Postconditions for #{method_name}#{ix} not satsified; " +
                       "returning nil")
           end
         rescue PercolateAsyncTaskError => pate
           # Any of the having, confirm or yielding procs may throw this
-          log.error("#{fname}#{ix} requires attention: #{pate.message}")
+          log.error("#{method_name}#{ix} requires attention: #{pate.message}")
           raise pate
         end
       end
@@ -246,7 +254,7 @@ module Percolate
 
       cpu_str = nil
       if args[:cpus] > 1
-        cpu_str = "-n #{args[:cpus]} -R 'span[hosts=1]'"
+        cpu_str = " -n #{args[:cpus]} -R 'span[hosts=1]'"
       end
 
       cmd_str = command_string(task_id)
@@ -265,22 +273,21 @@ module Percolate
       cd(work_dir,
          "#{self.async_submitter} -J '#{job_name}' -q #{queue} " +
          "-R 'select[mem>#{mem}#{select}] " +
-         "rusage[mem=#{mem}#{reserve}]'#{depend} " +
-         "#{cpu_str} " +
+         "rusage[mem=#{mem}#{reserve}]'#{depend}#{cpu_str} " +
          "-M #{mem * 1000} -oo #{log} #{cmd_str}")
     end
 
-    def async_task_array_aux fname, args_arrays, commands, array_file, command, env,
-    procs = {}
-      having, confirm, yielding = ensure_procs(procs)
-      memos = Percolate.memoizer.async_method_memos(fname)
+    def async_task_array_aux method_name, args_arrays, commands, array_file,
+    command, env, procs = {}
+      pre, post, proc = ensure_procs(procs)
+      memos = Percolate.memoizer.async_method_memos(method_name)
 
       # If first in array was submitted, all were submitted
       submitted = memos.has_key?(args_arrays.first) &&
       memos[args_arrays.first].submitted?
 
       log = Percolate.log
-      log.debug("Entering task #{fname}")
+      log.debug("Entering task #{method_name}")
 
       results = Array.new(args_arrays.size)
 
@@ -288,35 +295,34 @@ module Percolate
         args_arrays.each_with_index { |args, i|
           result = memos[args]
           results[i] = result
-          log.debug("Checking #{fname}[#{i}] args: #{args.inspect}, " +
+          log.debug("Checking #{method_name}[#{i}] args: #{args.inspect}, " +
                     "result: #{result}")
 
-          update_result(fname, args, confirm, yielding, result, log, i)
+          update_result(method_name, args, post, proc, result, log, i)
         }
       else
         # Can't submit any members of a job array until all their
         # preconditions are met
-        pre = args_arrays.collect { |args|
-          having.call(*args.take(having.arity.abs))
-        }
+        pre = args_arrays.collect { |args| pre.call(*args.take(pre.arity.abs)) }
 
         if pre.include?(false)
-          log.debug("Preconditions for #{fname} not satisfied; " +
+          log.debug("Preconditions for #{method_name} not satisfied; " +
                     "returning nil")
         else
-          array_task_id = Percolate.task_identity(fname, args_arrays)
-          log.debug("Preconditions for #{fname} are satisfied; " +
+          array_task_id = task_identity(method_name, args_arrays)
+          # task_ids = args_arrays.collect { |args| task_identity(method_name, args) }
+          log.debug("Preconditions for #{method_name} are satisfied; " +
                     "submitting '#{command}' with env #{env}")
           log.debug("Writing #{commands.size} commands to #{array_file}")
-          write_array_commands(array_file, fname, args_arrays, commands)
+          write_array_commands(array_file, method_name, args_arrays, commands)
 
-          if submit_async(fname, command)
+          if submit_async(method_name, command)
             submission_time = Time.now
             args_arrays.each_with_index { |args, i|
-              task_id = Percolate.task_identity(fname, args)
-              result = Result.new(fname, task_id, submission_time)
+              task_id = task_identity(method_name, args)
+              result = Result.new(method_name, task_id, submission_time)
               memos[args] = result
-              log.debug("Submitted #{fname}[#{i}] args: #{args.inspect}, " +
+              log.debug("Submitted #{method_name}[#{i}] args: #{args.inspect}, " +
                         "result #{result}")
             }
           end

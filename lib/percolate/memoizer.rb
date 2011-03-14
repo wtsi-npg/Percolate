@@ -96,8 +96,7 @@ module Percolate
 
             task_id = result.task_identity
             if updates.has_key?(task_id)
-              msgs = updates[task_id]
-              msgs.each { |msg|
+              updates[task_id].each { |msg|
                 case msg.state
                   when :started
                     if result.started? || result.finished?
@@ -131,8 +130,7 @@ module Percolate
     # Returns true if the outcome of one or more asynchronous tasks
     # that have been started is still unknown.
     def dirty_async?
-      dirty = self.async_memos.keys.select { |key| self.dirty_async_memos?(key) }
-      !dirty.empty?
+      !self.async_memos.keys.select { |key| self.dirty_async_memos?(key) }.empty?
     end
 
     def result_count &result
@@ -165,7 +163,7 @@ module Percolate
     end
 
     def dirty_async_memos? key
-      ! self.async_method_memos(key).values.compact.select { |result|
+      !self.async_method_memos(key).values.compact.select { |result|
         result.submitted? && !result.finished?
       }.empty?
     end

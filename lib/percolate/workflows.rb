@@ -122,7 +122,6 @@ module Percolate
     def restore
       check_transient(:restore)
       if File.exists?(self.run_file)
-        # state, memos, async_memos = Percolate.memoizer.restore_memos(self.run_file)
         state = Percolate.memoizer.restore_memos(self.run_file)
 
         Percolate.log.debug("Restored #{self} with state #{state}")
@@ -306,12 +305,11 @@ module Percolate
       "#<#{self.class} #{self.definition_file}#{state}#{result}>"
     end
 
-    :private
-
+    private
     def check_transient operation
       if self.transient?
         raise PercolateError,
-              "#{operation} cannot be performed on transient Task #{self.to_s}"
+              "#{operation} cannot be performed on transient workflow #{self.to_s}"
       end
     end
   end

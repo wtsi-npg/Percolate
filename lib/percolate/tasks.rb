@@ -19,16 +19,16 @@
 module Percolate
   def true_task work_dir = '.'
     task([work_dir], cd(work_dir, 'true'),
-         :having => lambda { work_dir },
-         :confirm => lambda { true },
-         :yielding => lambda { true })
+         :pre => lambda { work_dir },
+         :post => lambda { true },
+         :result => lambda { true })
   end
 
   # A task which always fails.
   def false_task work_dir = '.'
     task([work_dir], cd(work_dir, 'false'),
-         :having => lambda { true },
-         :confirm => lambda { true },
-         :yielding => lambda { false })
+         :pre => lambda { true },
+         :post => lambda { true },
+         :result => lambda { false })
   end
 end

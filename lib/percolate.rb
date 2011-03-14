@@ -55,18 +55,6 @@ module Percolate
     attr_accessor :asynchronizer
   end
 
-  # Returns a task identity string for a call to function named fname
-  # with arguments Array args.
-  def self.task_identity fname, args
-    Digest::MD5.hexdigest(fname.to_s + args.inspect) + '-' + fname.to_s
-  end
-
-  # Returns a copy of String command with a change directory operation
-  # prepended.
-  def cd path, command
-    "cd #{path} \; #{command}"
-  end
-
   # A result of running an external program, including metadata (time
   # started and finished, exit code).
   #
@@ -165,28 +153,46 @@ module Percolate
     end
   end
 
-  def task args, command, procs = {}
-    fname = calling_method
-    env = {}
-    task_aux(fname, args, command, env, procs)
+  # Returns a task identity string for a call to method named method_name
+  # with arguments Array args.
+  def task_identity method_name, args
+    Digest::MD5.hexdigest(method_name.to_s + args.inspect) + '-' + method_name.to_s
   end
 
-  def native_task args, command, having
-    fname = calling_method
-    native_task_aux(fname, args, command, having)
+  # Returns a copy of String command with a change directory operation
+  # prepended.
+  def cd path, command
+    "cd #{path} \; #{command}"
+  end
+
+  def task args, command, procs = {}
+    method_name = calling_method
+    env = {}
+
+    task_aux(method_name, args, command, env, proc_defaults.merge(procs))
+  end
+
+  def native_task args, command, pre = lambda { true }
+    method_name = calling_method
+
+    native_task_aux(method_name, args, command, pre)
   end
 
   def async_task args, command, procs = {}
-    fname = calling_method
+    method_name = calling_method
     env = {}
-    Percolate.asynchronizer.async_task_aux(fname, args, command, env, procs)
+
+    Percolate.asynchronizer.async_task_aux(method_name, args, command,
+                                           env, proc_defaults.merge(procs))
   end
 
   def async_task_array args_arrays, commands, array_file, command, procs = {}
-    fname = calling_method
+    method_name = calling_method
     env = {}
-    Percolate.asynchronizer.async_task_array_aux(fname, args_arrays, commands,
-                                                 array_file, command, env, procs)
+
+    Percolate.asynchronizer.async_task_array_aux(method_name, args_arrays,
+                                                 commands, array_file, command,
+                                                 env, proc_defaults.merge(procs))
   end
 
   def async_command *args
@@ -194,11 +200,11 @@ module Percolate
   end
 
   private
-    # Run a memoized system command having pre- and post-conditions.
+  # Run a memoized system command having pre- and post-conditions.
   #
   # Arguments:
   #
-  # - fname (Symbol): name of memoized method, unique with respect to
+  # - method_name (Symbol): name of memoized method, unique with respect to
   #   the memoization namespace.
   # - args: (Array): memoization key arguments.
   # - command (String): system command string.
@@ -207,32 +213,32 @@ module Percolate
   #
   # - procs (Hash): hash of named Procs
   #
-  #   - :having => pre-condition Proc, should evaluate true if
+  #   - :pre => pre-condition Proc, should evaluate true if
   #     pre-conditions of execution are satisfied
-  #   - :confirm => post-condition Proc, should evaluate true if
+  #   - :post => post-condition Proc, should evaluate true if
   #     post-conditions of execution are satisfied
-  #   - :yielding => return value Proc, should evaluate to the desired
+  #   - :result => return value Proc, should evaluate to the desired
   #     return value
   #
   #  These Procs may accept no, some, or all the arguments that are
   #  passed to the system command. Each will be called with the
-  #  appropriate number. For example, if the :having Proc has arity 2,
+  #  appropriate number. For example, if the :pre Proc has arity 2,
   #  it will be called with the first 2 elements of args.
   #
   # Returns:
   # - Return value of the :yielding Proc, or nil.
-  def task_aux fname, args, command, env, procs = {}
-    having, confirm, yielding = ensure_procs(procs)
+  def task_aux method_name, args, command, env, procs = {}
+    pre, post, proc = ensure_procs(procs)
 
-    memos = Percolate.memoizer.method_memos(fname)
+    memos = Percolate.memoizer.method_memos(method_name)
     result = memos[args]
     log = Percolate.log
-    log.debug("Entering task #{fname}")
+    log.debug("Entering task #{method_name}")
 
     if result && result.value?
       log.debug("Returning memoized result: #{result}")
       result
-    elsif !having.call(*args.take(having.arity.abs))
+    elsif !pre.call(*args.take(pre.arity.abs))
       log.debug("Preconditions not satisfied, returning nil")
       nil
     else
@@ -250,11 +256,11 @@ module Percolate
         when !success
           raise PercolateTaskError,
                 "Non-zero exit #{status.exitstatus} from '#{command}'"
-        when success && confirm.call(*args.take(confirm.arity.abs))
-          yielded = yielding.call(*args.take(yielding.arity.abs))
-          task_id = Percolate.task_identity(fname, args)
-          result = Result.new(fname, task_id, submission_time, start_time,
-                              finish_time, yielded, status.exitstatus, stdout)
+        when success && post.call(*args.take(post.arity.abs))
+          value = proc.call(*args.take(proc.arity.abs))
+          task_id = task_identity(method_name, args)
+          result = Result.new(method_name, task_id, submission_time, start_time,
+                              finish_time, value, status.exitstatus, stdout)
           log.debug("Postconditions satsified; returning #{result}")
           memos[args] = result
         else
@@ -268,46 +274,46 @@ module Percolate
   #
   # Arguments:
   #
-  # - fname (Symbol): name of memoized method, unique with respect to
+  # - method_name (Symbol): name of memoized method, unique with respect to
   #   the memoization namespace.
   # - args: (Array): memoization key arguments.
   # - command (Proc): the Proc to memoize
-  # - having: (Proc):  pre-condition Proc, should evaluate true if
+  # - pre: (Proc):  pre-condition Proc, should evaluate true if
   #   pre-conditions of execution are satisfied
   #
-  #  The 'having' Proc may accept no, some, or all the arguments that
+  #  The 'pre' Proc may accept no, some, or all the arguments that
   #  are passed to the 'command' Proc. It will be called with the
-  #  appropriate number. For example, if the 'having' Proc has arity 2,
+  #  appropriate number. For example, if the 'pre' Proc has arity 2,
   #  it will be called with the first 2 elements of args.
   #
   # Returns:
   # - Return value of the :command Proc, or nil.
-  def native_task_aux fname, args, command, having
+  def native_task_aux method_name, args, command, pre
     ensure_proc('command', command)
-    ensure_proc('having', having)
+    ensure_proc('pre', pre)
 
-    memos = Percolate.memoizer.method_memos(fname)
+    memos = Percolate.memoizer.method_memos(method_name)
     result = memos[args]
     log = Percolate.log
-    log.debug("Entering task #{fname}")
+    log.debug("Entering task #{method_name}")
 
     if result
       log.debug("Returning memoized result: #{result}")
       result
-    elsif !having.call(*args.take(having.arity.abs))
+    elsif !pre.call(*args.take(pre.arity.abs))
       log.debug("Preconditions not satisfied, returning nil")
       nil
     else
       log.debug("Preconditions are satisfied; calling '#{command}'")
 
       submission_time = start_time = Time.now
-      task_id = Percolate.task_identity(fname, args)
+      task_id = task_identity(method_name, args)
       value = command.call(*args)
       finish_time = Time.now
 
-      result = Result.new(fname, task_id, submission_time, start_time,
+      result = Result.new(method_name, task_id, submission_time, start_time,
                           finish_time, value, nil, nil)
-      log.debug("#{fname} called; returning #{result}")
+      log.debug("#{method_name} called; returning #{result}")
       memos[args] = result
     end
   end
@@ -322,7 +328,7 @@ module Percolate
   end
 
   def ensure_procs procs
-    [:having, :confirm, :yielding].collect { |k| ensure_proc(k, procs[k]) }
+    [:pre, :post, :result].collect { |k| ensure_proc(k, procs[k]) }
   end
 
   def ensure_proc key, proc
@@ -331,6 +337,11 @@ module Percolate
     else
       raise ArgumentError, "a #{key} Proc is required"
     end
+  end
+
+  def proc_defaults
+    {:pre => lambda { true },
+     :post => lambda { true }}
   end
 
   def system_command command

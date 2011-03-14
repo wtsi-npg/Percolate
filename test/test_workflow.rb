@@ -36,9 +36,9 @@ module PercolateTest
     # A task which is permanently unready and can never be run.
     def unready_task work_dir = '.'
       task([work_dir], cd(work_dir, 'true'),
-           :having => lambda { false },
-           :confirm => lambda { true },
-           :yielding => lambda { true })
+           :pre => lambda { false },
+           :post => lambda { true },
+           :result => lambda { true })
     end
 
     def run *args
@@ -52,9 +52,9 @@ module PercolateTest
     # A task which may be run, but which never finishes.
     def unfinished_task work_dir = '.'
       task([work_dir], cd(work_dir, 'true'),
-           :having => lambda { true },
-           :confirm => lambda { false },
-           :yielding => lambda { true })
+           :pre => lambda { true },
+           :post => lambda { false },
+           :result => lambda { true })
     end
 
     def run *args
@@ -68,9 +68,9 @@ module PercolateTest
       program = $BOOLEAN_WORKFLOW ? 'true' : 'false'
 
       task([work_dir], cd(work_dir, program),
-           :having => lambda { true },
-           :confirm => lambda { true },
-           :yielding => lambda { $BOOLEAN_WORKFLOW })
+           :pre => lambda { true },
+           :post => lambda { true },
+           :result => lambda { $BOOLEAN_WORKFLOW })
     end
 
     def run *args
@@ -118,11 +118,11 @@ module PercolateTest
     end
 
     def test_task_args
-      def bad_arg_task work_dir = '.', env = {}
-        task([work_dir], cd(work_dir, 'true'), env,
-             :having => :not_a_proc,
-             :confirm => lambda { false },
-             :yielding => lambda { true })
+      def bad_arg_task work_dir = '.'
+        task([work_dir], cd(work_dir, 'true'),
+             :pre => :not_a_proc,
+             :post => lambda { false },
+             :result => lambda { true })
       end
 
       assert_raise ArgumentError do

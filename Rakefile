@@ -1,4 +1,3 @@
-
 require 'rake'
 require 'rake/clean'
 require 'rake/gempackagetask'
@@ -41,8 +40,8 @@ Rake::TestTask.new do |t|
 end
 
 Rcov::RcovTask.new do |rcov|
-  rcov.pattern    = FileList['test/**/*.rb']
+  rcov.pattern = FileList['test/**/*.rb']
   rcov.output_dir = 'coverage'
-  rcov.verbose    = true
+  rcov.verbose = true
   rcov.rcov_opts << "--sort coverage -x 'rcov,ruby'"
 end

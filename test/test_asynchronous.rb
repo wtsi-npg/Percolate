@@ -30,38 +30,29 @@ module AsyncTest
 
   def async_sleep seconds, work_dir, log
     command = "sleep #{seconds}"
+    args = [seconds, work_dir]
+    task_id = task_identity(:async_sleep, args)
 
-    task_id = Percolate.task_identity(:async_sleep, [seconds, work_dir])
-    async_task([seconds, work_dir],
+    async_task(args,
                async_command(task_id, command, work_dir, log, :queue => :small),
-               :having => lambda { work_dir },
-               :confirm => lambda { true },
-               :yielding => lambda { seconds })
-  end
-
-  def write_array_commands file, fname, args_array, commands
-    File.open(file, 'w') { |f|
-      args_array.zip(commands).each { |args, cmd|
-        task_id = Percolate.task_identity(fname, args)
-        f.puts("#{task_id}\t#{fname}\t#{args.inspect}\t#{cmd}")
-      }
-    }
+               :pre => lambda { work_dir },
+               :post => lambda { true },
+               :result => lambda { seconds })
   end
 
   def p_async_sleep seconds, size, work_dir, log
     args_arrays = size.times.collect { |i| [seconds + i, work_dir] }
     commands = size.times.collect { |i| "sleep #{seconds + i}" }
 
-    task_id = Percolate.task_identity(:p_async_sleep, args_arrays)
+    task_id = task_identity(:p_async_sleep, args_arrays)
     log = "#{task_id}.%I.log"
     array_file = File.join(work_dir, "#{task_id}.txt")
 
     async_task_array(args_arrays, commands, array_file,
-                     async_command(task_id, commands, work_dir, log,
-                                   :queue => :small),
-                     :having => lambda { work_dir },
-                     :confirm => lambda { true },
-                     :yielding => lambda { |sec, dir| sec })
+                     async_command(task_id, commands, work_dir, log, :queue => :small),
+                     :pre => lambda { work_dir },
+                     :post => lambda { true },
+                     :result => lambda { |sec, dir| sec })
   end
 end
 
@@ -104,7 +95,7 @@ module PercolateTest
       command = 'sleep 10'
       work_dir = data_path
       log = 'test_lsf_args.log'
-      task_id = Percolate.task_identity(:async_sleep, 10)
+      task_id = task_identity(:async_sleep, 10)
 
       array_file = File.join(data_path, 'test_lsf_args.txt')
 

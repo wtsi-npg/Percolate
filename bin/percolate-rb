@@ -15,29 +15,29 @@ default_config = File.expand_path('~/.percolate')
 config_file = nil
 
 if arguments.has_key?(:config)
-   config_file = arguments[:config]
+  config_file = arguments[:config]
 elsif File.exists?(default_config)
-   config_file = default_config
+  config_file = default_config
 end
 
 if config_file
-   begin
-     if ! File.exists?(config_file)
-       raise ArgumentError,
-             "Percolate configuration '#{config_file}' does not exist"
-     elsif ! File.file?(config_file)
-       raise ArgumentError,
-             "Percolate configuration '#{config_file}' is not a file"
-     elsif ! File.readable?(config_file)
-       raise ArgumentError,
-             "Percolate configuration '#{config_file}' is not readable"
-     else
-       config = YAML.load_file(config_file)
-     end
-   rescue ArgumentError => ae
-     $stderr.puts("Invalid configuration: #{ae}")
-     exit(1)
-   end
+  begin
+    if !File.exists?(config_file)
+      raise ArgumentError,
+            "Percolate configuration '#{config_file}' does not exist"
+    elsif !File.file?(config_file)
+      raise ArgumentError,
+            "Percolate configuration '#{config_file}' is not a file"
+    elsif !File.readable?(config_file)
+      raise ArgumentError,
+            "Percolate configuration '#{config_file}' is not readable"
+    else
+      config = YAML.load_file(config_file)
+    end
+  rescue ArgumentError => ae
+    $stderr.puts("Invalid configuration: #{ae}")
+    exit(1)
+  end
 end
 
 # The :percolate flag means we are supposed to run workflows

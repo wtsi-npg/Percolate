@@ -14,9 +14,9 @@ class WrapClientArguments < Hash
 
     opts = OptionParser.new do |opts|
       opts.banner = "Usage: #$0 [options]"
-      t = [:task_id, '-t', '--task TASK_ID',  'Percolate task identity']
-      q = [:queue,   '-q', '--queue QUEUE',   'Percolate queue name']
-      h = [:host,    '-h', '--host HOSTNAME', 'Percolate queue host']
+      t = [:task_id, '-t', '--task TASK_ID', 'Percolate task identity']
+      q = [:queue, '-q', '--queue QUEUE', 'Percolate queue name']
+      h = [:host, '-h', '--host HOSTNAME', 'Percolate queue host']
       [t, q, h].each do |key, short, long, doc|
         opts.on(short, long, doc) { |opt| self[key] = opt }
       end
@@ -43,7 +43,7 @@ class WrapClientArguments < Hash
       opts.parse!(args)
 
       [:task_id, :queue, :host, :port].each { |arg|
-        if ! self.has_key?(arg)
+        if !self.has_key?(arg)
           raise ArgumentError, "a --#{arg} argument must be provided"
         end
       }
