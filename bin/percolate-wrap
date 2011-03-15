@@ -78,16 +78,23 @@ end
 
 host, port, queue = args[:host], args[:port], args[:queue]
 client = MessageClient.new(queue, host, port)
-client.send_message(TaskMessage.new(task_id, command, :started))
 
-system(command)
-exitstatus = if $?.exited?
-               $?.exitstatus
-             elsif $?.signaled?
-               128 + $?.termsig
-             end
+exitstatus = 10
 
-client.send_message(TaskMessage.new(task_id, command, :finished, exitstatus))
+begin
+  client.open_queue
+  client.send_message(TaskMessage.new(task_id, command, :started))
 
-exitstatus ||= 1
+  system(command)
+  exitstatus = if $?.exited?
+                 $?.exitstatus
+               elsif $?.signaled?
+                 128 + $?.termsig
+               end
+
+  client.send_message(TaskMessage.new(task_id, command, :finished, exitstatus))
+ensure
+  client.close_queue
+end
+
 exit(exitstatus)

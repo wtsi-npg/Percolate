@@ -165,34 +165,50 @@ module Percolate
     "cd #{path} \; #{command}"
   end
 
-  def task args, command, procs = {}
-    method_name = calling_method
+  def task margs, command, args = {}
+    unwrap = args.delete(:unwrap)
+    mname = calling_method
     env = {}
 
-    task_aux(method_name, args, command, env, proc_defaults.merge(procs))
+    result = task_aux(mname, margs, command, env, proc_defaults.merge(args))
+    maybe_unwrap(result, unwrap)
   end
 
-  def native_task args, command, pre = lambda { true }
-    method_name = calling_method
-
-    native_task_aux(method_name, args, command, pre)
+  def native_task margs, command, pre = lambda { true }
+    mname = calling_method
+    native_task_aux(mname, margs, command, pre)
   end
 
-  def async_task args, command, procs = {}
-    method_name = calling_method
+  def async_task margs, command, work_dir, log, args = {}
+    unwrap = args.delete(:unwrap)
+    mname = calling_method
     env = {}
 
-    Percolate.asynchronizer.async_task_aux(method_name, args, command,
-                                           env, proc_defaults.merge(procs))
+    procs, bargs = split_task_args(args)
+    task_id = task_identity(mname, margs)
+    async_command = async_command(task_id, command, work_dir, log, bargs)
+
+    result = Percolate.asynchronizer. async_task_aux(mname, margs,
+                                                     async_command, env,
+                                                     proc_defaults.merge(procs))
+    maybe_unwrap(result, unwrap)
   end
 
-  def async_task_array args_arrays, commands, array_file, command, procs = {}
-    method_name = calling_method
+  def async_task_array margs_arrays, commands, work_dir, log, args = {}
+    unwrap = args.delete(:unwrap)
+    mname = calling_method
     env = {}
 
-    Percolate.asynchronizer.async_task_array_aux(method_name, args_arrays,
-                                                 commands, array_file, command,
-                                                 env, proc_defaults.merge(procs))
+    procs, bargs = split_task_args(args)
+    task_id = task_identity(mname, margs_arrays)
+    array_file = File.join(work_dir, "#{task_id}.txt")
+    async_command = async_command(task_id, commands, work_dir, log, bargs)
+
+    result = Percolate.asynchronizer.async_task_array_aux(mname, margs_arrays,
+                                                          commands, array_file,
+                                                          async_command, env,
+                                                          proc_defaults.merge(procs))
+    maybe_unwrap(result, unwrap)
   end
 
   def async_command *args
@@ -226,19 +242,19 @@ module Percolate
   #  it will be called with the first 2 elements of args.
   #
   # Returns:
-  # - Return value of the :yielding Proc, or nil.
-  def task_aux method_name, args, command, env, procs = {}
-    pre, post, proc = ensure_procs(procs)
+  # - Return value of the :result Proc, or nil.
+  def task_aux method_name, margs, command, env, args = {}
+    pre, post, proc = ensure_procs(args)
 
     memos = Percolate.memoizer.method_memos(method_name)
-    result = memos[args]
+    result = memos[margs]
     log = Percolate.log
     log.debug("Entering task #{method_name}")
 
     if result && result.value?
       log.debug("Returning memoized result: #{result}")
       result
-    elsif !pre.call(*args.take(pre.arity.abs))
+    elsif !pre.call(*margs.take(pre.arity.abs))
       log.debug("Preconditions not satisfied, returning nil")
       nil
     else
@@ -256,13 +272,13 @@ module Percolate
         when !success
           raise PercolateTaskError,
                 "Non-zero exit #{status.exitstatus} from '#{command}'"
-        when success && post.call(*args.take(post.arity.abs))
-          value = proc.call(*args.take(proc.arity.abs))
-          task_id = task_identity(method_name, args)
+        when success && post.call(*margs.take(post.arity.abs))
+          value = proc.call(*margs.take(proc.arity.abs))
+          task_id = task_identity(method_name, margs)
           result = Result.new(method_name, task_id, submission_time, start_time,
                               finish_time, value, status.exitstatus, stdout)
           log.debug("Postconditions satsified; returning #{result}")
-          memos[args] = result
+          memos[margs] = result
         else
           log.debug("Postconditions not satsified; returning nil")
           nil
@@ -288,33 +304,33 @@ module Percolate
   #
   # Returns:
   # - Return value of the :command Proc, or nil.
-  def native_task_aux method_name, args, command, pre
+  def native_task_aux method_name, margs, command, pre
     ensure_proc('command', command)
     ensure_proc('pre', pre)
 
     memos = Percolate.memoizer.method_memos(method_name)
-    result = memos[args]
+    result = memos[margs]
     log = Percolate.log
     log.debug("Entering task #{method_name}")
 
     if result
       log.debug("Returning memoized result: #{result}")
       result
-    elsif !pre.call(*args.take(pre.arity.abs))
+    elsif !pre.call(*margs.take(pre.arity.abs))
       log.debug("Preconditions not satisfied, returning nil")
       nil
     else
       log.debug("Preconditions are satisfied; calling '#{command}'")
 
       submission_time = start_time = Time.now
-      task_id = task_identity(method_name, args)
-      value = command.call(*args)
+      task_id = task_identity(method_name, margs)
+      value = command.call(*margs)
       finish_time = Time.now
 
       result = Result.new(method_name, task_id, submission_time, start_time,
                           finish_time, value, nil, nil)
       log.debug("#{method_name} called; returning #{result}")
-      memos[args] = result
+      memos[margs] = result
     end
   end
 
@@ -324,6 +340,21 @@ module Percolate
     else
       raise PercolateError,
             "Failed to determine Percolate method name from '#{caller[0]}'"
+    end
+  end
+
+  def split_task_args args
+    procs = args.reject {|key, value| ! [:pre, :post, :result].include?(key) }
+    bargs = args.reject {|key, value| procs.keys.include?(key) }
+
+    [procs, bargs]
+  end
+
+  def maybe_unwrap result, unwrap
+    if result && unwrap
+      result.value
+    else
+      result
     end
   end
 

@@ -29,30 +29,27 @@ module AsyncTest
   include Percolate
 
   def async_sleep seconds, work_dir, log
+    margs = [seconds, work_dir]
     command = "sleep #{seconds}"
-    args = [seconds, work_dir]
-    task_id = task_identity(:async_sleep, args)
 
-    async_task(args,
-               async_command(task_id, command, work_dir, log, :queue => :small),
+    async_task(margs, command, work_dir, log,
                :pre => lambda { work_dir },
                :post => lambda { true },
-               :result => lambda { seconds })
+               :result => lambda { seconds },
+               :unwrap => false,
+               :queue => :small)
   end
 
   def p_async_sleep seconds, size, work_dir, log
-    args_arrays = size.times.collect { |i| [seconds + i, work_dir] }
+    margs_arrays = size.times.collect { |i| [seconds + i, work_dir] }
     commands = size.times.collect { |i| "sleep #{seconds + i}" }
 
-    task_id = task_identity(:p_async_sleep, args_arrays)
-    log = "#{task_id}.%I.log"
-    array_file = File.join(work_dir, "#{task_id}.txt")
-
-    async_task_array(args_arrays, commands, array_file,
-                     async_command(task_id, commands, work_dir, log, :queue => :small),
+    async_task_array(margs_arrays, commands, work_dir, log,
                      :pre => lambda { work_dir },
                      :post => lambda { true },
-                     :result => lambda { |sec, dir| sec })
+                     :result => lambda { |sec, dir| sec },
+                     :unwrap => false,
+                     :queue => :small)
   end
 end
 
@@ -184,7 +181,7 @@ module PercolateTest
                                      'log_level' => 'INFO',
                                      'msg_host' => @msg_host,
                                      'msg_port' => @msg_port})
-        lsf_log = File.join(data_path, 'minimal_p_async_workflow.log')
+        lsf_log = File.join(data_path, 'minimal_p_async_workflow.%I.log')
 
         wf = MinimalPAsyncWorkflow.new(:dummy_def,
                                        'dummy_def.yml', 'dummy_run.run',

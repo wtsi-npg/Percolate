@@ -69,55 +69,59 @@ module Percolate
       log = Percolate.log
       log.debug("Started fetching messages from #{client.inspect}")
 
-      updates = Hash.new
-      loop do
-        msg = client.get_message
-        if msg
-          if updates.has_key?(msg.task_identity)
-            updates[msg.task_identity] << msg
-          else
-            updates[msg.task_identity] = [msg]
-          end
-        else
-          break
-        end
-      end
+      begin
+        client.open_queue
 
-      log.debug("Fetched #{updates.size} messages from " +
-                "#{Percolate.asynchronizer.message_queue}")
-      updates.each_value { |msgs|
-        msgs.each { |msg| log.debug("Received #{msg.inspect}") }
-      }
-
-      self.async_memos.each { |key, memos|
-        memos.each { |method_args, result|
-          unless result.finished?
-            log.debug("Checking messages for updates to #{result.inspect}")
-
-            task_id = result.task_identity
-            if updates.has_key?(task_id)
-              updates[task_id].each { |msg|
-                case msg.state
-                  when :started
-                    if result.started? || result.finished?
-                      log.warn("#{task_id} has been restarted")
-                    else
-                      log.debug("#{task_id} has started")
-                    end
-                    result.started!(msg.time)
-                  when :finished
-                    log.debug("#{task_id} has finished")
-                    result.finished!(nil, msg.time, msg.exit_code)
-                  else
-                    raise PercolateError, "Invalid message: " + msg.inspect
-                end
-              }
+        updates = Hash.new
+        loop do
+          msg = client.get_message
+          if msg
+            if updates.has_key?(msg.task_identity)
+              updates[msg.task_identity] << msg
+            else
+              updates[msg.task_identity] = [msg]
             end
+          else
+            break
           end
-        }
-      }
+        end
 
-      client.close
+        log.debug("Fetched #{updates.size} messages from " +
+                  "#{Percolate.asynchronizer.message_queue}")
+        updates.each_value { |msgs|
+          msgs.each { |msg| log.debug("Received #{msg.inspect}") }
+        }
+
+        self.async_memos.values.each { |memos|
+          memos.values.each { |result|
+            unless result.finished?
+              log.debug("Checking messages for updates to #{result.inspect}")
+
+              task_id = result.task_identity
+              if updates.has_key?(task_id)
+                updates[task_id].each { |msg|
+                  case msg.state
+                    when :started
+                      if result.started? || result.finished?
+                        log.warn("#{task_id} has been restarted")
+                      else
+                        log.debug("#{task_id} has started")
+                      end
+                      result.started!(msg.time)
+                    when :finished
+                      log.debug("#{task_id} has finished")
+                      result.finished!(nil, msg.time, msg.exit_code)
+                    else
+                      raise PercolateError, "Invalid message: " + msg.inspect
+                  end
+                }
+              end
+            end
+          }
+        }
+      ensure
+        client.close_queue
+      end
 
       updates.size > 0
     end

@@ -28,14 +28,6 @@ module Percolate
       }
     end
 
-#    def write_array_commands file, method_name, task_ids, args_array, commands
-#      File.open(file, 'w') { |f|
-#        task_ids.zip(args_array, commands).each { |task_id, args, cmd|
-#          f.puts("#{task_id}\t#{method_name}\t#{args.inspect}\t#{cmd}")
-#        }
-#      }
-#    end
-
     def read_array_command file, lineno
       task_id = command = nil
 
@@ -124,10 +116,14 @@ module Percolate
         raise PercolateError, "No message queue has been provided"
       end
 
+      # TODO: check the number of open jobs versus the maximum permitted,
+      # allowing submission to be throttled
+
       # Jump through hoops because bsub insists on polluting our stdout
       # TODO: pass environment variables from env
       status, stdout = system_command(command)
       success = command_success?(status)
+      chomp(stdout)
 
       Percolate.log.info("submission reported #{stdout} for #{method_name}")
 
@@ -265,6 +261,13 @@ module Percolate
         # array file using the LSF job index
         job_name << "[1-#{command.size}]"
         cmd_str << ' --index'
+
+        unless log =~ /%I/
+          raise PercolateTaskError,
+                "LSF job array log '#{log}' does not countain " +
+                "a job index placeholder (%I): all jobs " +
+                "would attempt to write to the same file"
+        end
       else
         # Otherwise the command is run directly
         cmd_str << " -- '#{command}'"
@@ -277,22 +280,22 @@ module Percolate
          "-M #{mem * 1000} -oo #{log} #{cmd_str}")
     end
 
-    def async_task_array_aux method_name, args_arrays, commands, array_file,
-    command, env, procs = {}
+    def async_task_array_aux method_name, margs_arrays, commands, array_file,
+    async_command, env, procs = {}
       pre, post, proc = ensure_procs(procs)
       memos = Percolate.memoizer.async_method_memos(method_name)
 
       # If first in array was submitted, all were submitted
-      submitted = memos.has_key?(args_arrays.first) &&
-      memos[args_arrays.first].submitted?
+      submitted = memos.has_key?(margs_arrays.first) &&
+      memos[margs_arrays.first].submitted?
 
       log = Percolate.log
       log.debug("Entering task #{method_name}")
 
-      results = Array.new(args_arrays.size)
+      results = Array.new(margs_arrays.size)
 
       if submitted
-        args_arrays.each_with_index { |args, i|
+        margs_arrays.each_with_index { |args, i|
           result = memos[args]
           results[i] = result
           log.debug("Checking #{method_name}[#{i}] args: #{args.inspect}, " +
@@ -303,22 +306,21 @@ module Percolate
       else
         # Can't submit any members of a job array until all their
         # preconditions are met
-        pre = args_arrays.collect { |args| pre.call(*args.take(pre.arity.abs)) }
+        pre = margs_arrays.collect { |args| pre.call(*args.take(pre.arity.abs)) }
 
         if pre.include?(false)
           log.debug("Preconditions for #{method_name} not satisfied; " +
                     "returning nil")
         else
-          array_task_id = task_identity(method_name, args_arrays)
-          # task_ids = args_arrays.collect { |args| task_identity(method_name, args) }
+          array_task_id = task_identity(method_name, margs_arrays)
           log.debug("Preconditions for #{method_name} are satisfied; " +
-                    "submitting '#{command}' with env #{env}")
+                    "submitting '#{async_command}' with env #{env}")
           log.debug("Writing #{commands.size} commands to #{array_file}")
-          write_array_commands(array_file, method_name, args_arrays, commands)
+          write_array_commands(array_file, method_name, margs_arrays, commands)
 
-          if submit_async(method_name, command)
+          if submit_async(method_name, async_command)
             submission_time = Time.now
-            args_arrays.each_with_index { |args, i|
+            margs_arrays.each_with_index { |args, i|
               task_id = task_identity(method_name, args)
               result = Result.new(method_name, task_id, submission_time)
               memos[args] = result
