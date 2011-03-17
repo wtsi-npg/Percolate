@@ -60,10 +60,15 @@ module Percolate
     attr_accessor :message_queue
     attr_accessor :async_wrapper
 
-    def initialize
-      @message_host = 'localhost'
-      @message_port = 11300
-      @async_wrapper = 'percolate-wrap'
+    def initialize args = {}
+      defaults = {:message_host => 'localhost',
+                  :message_port => 11300,
+                  :async_wrapper => 'percolate-wrap'}
+      args = defaults.merge(args)
+
+      @message_host = args[:message_host]
+      @message_port = args[:message_port]
+      @async_wrapper = args[:async_wrapper]
     end
 
     def message_client
@@ -188,10 +193,14 @@ module Percolate
     attr_reader :async_submitter
     attr_accessor :async_queues
 
-    def initialize async_queues = [:yesterday, :small, :normal, :long, :basement]
-      super()
-      @async_queues = async_queues
-      @async_submitter = 'bsub'
+    def initialize args = {}
+      super(args)
+      defaults = {:async_queues => [:yesterday, :small, :normal, :long, :basement],
+                  :async_submitter => 'bsub'}
+      args = defaults.merge(args)
+
+      @async_queues = args[:async_queues]
+      @async_submitter = args[:async_submitter]
     end
 
     # Wraps a command String in an LSF job submission command.

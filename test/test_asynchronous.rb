@@ -114,8 +114,9 @@ module PercolateTest
     end
 
     def test_minimal_async_workflow
-      Percolate.asynchronizer = Percolate::SystemAsynchronizer.new
-      Percolate.asynchronizer.async_wrapper = File.join(bin_path, 'percolate-wrap')
+      wrapper = File.join(bin_path, 'percolate-wrap')
+      Percolate.asynchronizer =
+              Percolate::SystemAsynchronizer.new(:async_wrapper => wrapper)
 
       percolator = Percolator.new({'root_dir' => data_path,
                                    'log_file' => 'percolate-test.log',
@@ -172,8 +173,9 @@ module PercolateTest
     end
 
     def test_minimal_p_async_workflow
-      Percolate.asynchronizer = Percolate::LSFAsynchronizer.new
-      Percolate.asynchronizer.async_wrapper = File.join(bin_path, 'percolate-wrap')
+      wrapper = File.join(bin_path, 'percolate-wrap')
+      Percolate.asynchronizer =
+              Percolate::LSFAsynchronizer.new(:async_wrapper => wrapper)
 
       if $LSF_PRESENT
         percolator = Percolator.new({'root_dir' => data_path,
