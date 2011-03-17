@@ -63,7 +63,7 @@ module Percolate
     end
 
     def close_queue
-      pool.close
+      pool && pool.close
     end
   end
 
