@@ -123,7 +123,6 @@ module Percolate
       # TODO: pass environment variables from env
       status, stdout = system_command(command)
       success = command_success?(status)
-      chomp(stdout)
 
       Percolate.log.info("submission reported #{stdout} for #{method_name}")
 
