@@ -37,7 +37,7 @@ module AsyncTest
                :post => lambda { true },
                :result => lambda { seconds },
                :unwrap => false,
-               :queue => :small)
+               :async => {:queue => :small})
   end
 
   def p_async_sleep seconds, size, work_dir, log
@@ -49,7 +49,7 @@ module AsyncTest
                      :post => lambda { true },
                      :result => lambda { |sec, dir| sec },
                      :unwrap => false,
-                     :queue => :small)
+                     :async => {:queue => :small})
   end
 end
 
@@ -134,7 +134,7 @@ module PercolateTest
       memoizer = Percolate.memoizer
       memoizer.clear_memos
       assert(memoizer.async_result_count.zero?)
-      assert(!Percolate.memoizer.dirty_async?)
+      assert(!memoizer.dirty_async?)
       run_time = 5
 
       # Initially nil from async task

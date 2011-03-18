@@ -170,7 +170,7 @@ module Percolate
     mname = calling_method
     env = {}
 
-    result = task_aux(mname, margs, command, env, proc_defaults.merge(args))
+    result = task_aux(mname, margs, command, env, callback_defaults.merge(args))
     maybe_unwrap(result, unwrap)
   end
 
@@ -181,33 +181,35 @@ module Percolate
 
   def async_task margs, command, work_dir, log, args = {}
     unwrap = args.delete(:unwrap)
+    async = args.delete(:async) || {}
     mname = calling_method
     env = {}
 
-    procs, bargs = split_task_args(args)
+    callbacks, other = split_task_args(args)
     task_id = task_identity(mname, margs)
-    async_command = async_command(task_id, command, work_dir, log, bargs)
+    async_command = async_command(task_id, command, work_dir, log, async)
 
-    result = Percolate.asynchronizer. async_task_aux(mname, margs,
-                                                     async_command, env,
-                                                     proc_defaults.merge(procs))
+    result = Percolate.asynchronizer.async_task_aux(mname, margs,
+                                                    async_command, env,
+                                                    callback_defaults.merge(callbacks))
     maybe_unwrap(result, unwrap)
   end
 
   def async_task_array margs_arrays, commands, work_dir, log, args = {}
     unwrap = args.delete(:unwrap)
+    async = args.delete(:async) || {}
     mname = calling_method
     env = {}
 
-    procs, bargs = split_task_args(args)
+    callbacks, other = split_task_args(args)
     task_id = task_identity(mname, margs_arrays)
     array_file = File.join(work_dir, "#{task_id}.txt")
-    async_command = async_command(task_id, commands, work_dir, log, bargs)
+    async_command = async_command(task_id, commands, work_dir, log, async)
 
     result = Percolate.asynchronizer.async_task_array_aux(mname, margs_arrays,
                                                           commands, array_file,
                                                           async_command, env,
-                                                          proc_defaults.merge(procs))
+                                                          callback_defaults.merge(callbacks))
     maybe_unwrap(result, unwrap)
   end
 
@@ -227,7 +229,7 @@ module Percolate
   # - env (Hash): hash of shell environment variable Strings for the
   #   system command.
   #
-  # - procs (Hash): hash of named Procs
+  # - callbacks (Hash): hash of named Procs
   #
   #   - :pre => pre-condition Proc, should evaluate true if
   #     pre-conditions of execution are satisfied
@@ -244,7 +246,7 @@ module Percolate
   # Returns:
   # - Return value of the :result Proc, or nil.
   def task_aux method_name, margs, command, env, args = {}
-    pre, post, proc = ensure_procs(args)
+    pre, post, val = ensure_callbacks(args)
 
     memos = Percolate.memoizer.method_memos(method_name)
     result = memos[margs]
@@ -273,7 +275,7 @@ module Percolate
           raise PercolateTaskError,
                 "Non-zero exit #{status.exitstatus} from '#{command}'"
         when success && post.call(*margs.take(post.arity.abs))
-          value = proc.call(*margs.take(proc.arity.abs))
+          value = val.call(*margs.take(val.arity.abs))
           task_id = task_identity(method_name, margs)
           result = Result.new(method_name, task_id, submission_time, start_time,
                               finish_time, value, status.exitstatus, stdout)
@@ -305,8 +307,8 @@ module Percolate
   # Returns:
   # - Return value of the :command Proc, or nil.
   def native_task_aux method_name, margs, command, pre
-    ensure_proc('command', command)
-    ensure_proc('pre', pre)
+    ensure_callback('command', command)
+    ensure_callback('pre', pre)
 
     memos = Percolate.memoizer.method_memos(method_name)
     result = memos[margs]
@@ -344,10 +346,10 @@ module Percolate
   end
 
   def split_task_args args
-    procs = args.reject {|key, value| ! [:pre, :post, :result].include?(key) }
-    bargs = args.reject {|key, value| procs.keys.include?(key) }
+    callbacks = args.reject {|key, value| ! [:pre, :post, :result].include?(key) }
+    other = args.reject {|key, value| callbacks.keys.include?(key) }
 
-    [procs, bargs]
+    [callbacks, other]
   end
 
   def maybe_unwrap result, unwrap
@@ -358,19 +360,19 @@ module Percolate
     end
   end
 
-  def ensure_procs procs
-    [:pre, :post, :result].collect { |k| ensure_proc(k, procs[k]) }
+  def ensure_callbacks callbacks
+    [:pre, :post, :result].collect { |k| ensure_callback(k, callbacks[k]) }
   end
 
-  def ensure_proc key, proc
-    if proc.is_a?(Proc)
-      proc
+  def ensure_callback key, callback
+    if callback.is_a?(Proc)
+      callback
     else
       raise ArgumentError, "a #{key} Proc is required"
     end
   end
 
-  def proc_defaults
+  def callback_defaults
     {:pre => lambda { true },
      :post => lambda { true }}
   end
