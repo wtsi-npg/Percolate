@@ -38,10 +38,10 @@ module PercolateTest
     end
 
     def sum_task *args
-      having = lambda { |numbers| !numbers.nil? }
+      pre = lambda { |numbers| !numbers.nil? }
       command = lambda { |*numbers| numbers.inject(0) { |n, sum| n + sum } }
 
-      native_task(args, command, having)
+      native_task(args, command, pre)
     end
 
     def test_get_memos
