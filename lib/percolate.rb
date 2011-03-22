@@ -176,7 +176,7 @@ module Percolate
 
   def native_task margs, command, pre = lambda { true }
     mname = calling_method
-    native_task_aux(mname, margs, command, pre)
+    maybe_unwrap(native_task_aux(mname, margs, command, pre), true)
   end
 
   def async_task margs, command, work_dir, log, args = {}
@@ -353,7 +353,7 @@ module Percolate
   end
 
   def maybe_unwrap result, unwrap
-    if result && unwrap
+    if result && unwrap != false
       result.value
     else
       result
