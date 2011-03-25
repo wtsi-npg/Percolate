@@ -78,6 +78,20 @@ module PercolateTest
     end
   end
 
+  # This one doesn't unwrap its return value
+  class StayWrappedWorkflow < Workflow
+    def stay_wrapped_task work_dir = '.'
+      task([work_dir], cd(work_dir, 'true'),
+           :pre => lambda { work_dir },
+           :result => lambda { true },
+           :unwrap => false)
+    end
+
+    def run *args
+      stay_wrapped_task(*args)
+    end
+  end
+
   class TestWorkflow < Test::Unit::TestCase
     @msg_host = 'localhost'
     @msg_port = 11300
@@ -195,17 +209,27 @@ module PercolateTest
     end
 
     def test_run_workflow
+      percolator = Percolator.new({'root_dir' => data_path(),
+                                   'log_level' => 'INFO',
+                                   'msg_host' => @msg_host,
+                                   'msg_port' => @msg_port})
+      def_file = File.join(percolator.run_dir, 'test_def1_tmp.yml')
+      run_file = File.join(percolator.run_dir, 'test_def1_tmp.run')
+
+      FileUtils.cp(File.join(percolator.run_dir, 'test_def1.yml'), def_file)
+
       begin
-        wf = make_empty_workflow
+        wf = StayWrappedWorkflow.new(:test_def1, def_file, run_file,
+                                     percolator.pass_dir, percolator.fail_dir)
 
         assert(!wf.run(nil)) # Should require the work_dir arg
         assert(wf.run)
         x = wf.run
         assert(x.is_a?(Result))
-        assert_equal(:true_task, x.task)
+        assert_equal(:stay_wrapped_task, x.task)
         assert_equal(true, x.value)
 
-        memos = Percolate.memoizer.method_memos(:true_task)
+        memos = Percolate.memoizer.method_memos(:stay_wrapped_task)
         assert(memos.has_key? ['.'])
         assert(memos[['.']].is_a?(Result))
       ensure

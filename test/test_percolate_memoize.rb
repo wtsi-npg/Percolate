@@ -41,7 +41,7 @@ module PercolateTest
       pre = lambda { |numbers| !numbers.nil? }
       command = lambda { |*numbers| numbers.inject(0) { |n, sum| n + sum } }
 
-      native_task(args, command, pre)
+      native_task(args, command, pre, :unwrap => false)
     end
 
     def test_get_memos
@@ -79,9 +79,10 @@ module PercolateTest
     def test_store_restore_memos
       Dir.mktmpdir('percolate') { |dir|
         file = File.join dir, 'store_restore_memos.dat'
-        Percolate.memoizer.store_memos(file, :passed)
-        state = Percolate.memoizer.restore_memos(file)
+        Percolate.memoizer.store_memos(file, :dummy_name, :passed)
+        workflow, state = Percolate.memoizer.restore_memos(file)
 
+        assert_equal(:dummy_name, workflow)
         assert_equal(:passed, state)
       }
     end
