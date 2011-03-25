@@ -18,6 +18,7 @@
 
 module Percolate
   class Memoizer
+    attr_accessor :workflow
     attr_accessor :memos
     attr_accessor :async_memos
     attr_accessor :max_processes
@@ -34,9 +35,10 @@ module Percolate
       self.async_memos.clear
     end
 
-    def store_memos place, state
+    def store_memos place, workflow, state
       File.open(place, 'w') { |file|
         Marshal.dump({:percolate_version => Percolate::VERSION,
+                      :workflow => workflow,
                       :workflow_state => state,
                       :memos => self.memos,
                       :async_memos => self.async_memos}, file)
@@ -48,9 +50,17 @@ module Percolate
         ensure_valid_memos(place, Marshal.load(file))
       }
 
+      self.workflow = restored[:workflow]
       self.memos = restored[:memos]
       self.async_memos = restored[:async_memos]
-      restored[:workflow_state]
+
+      [self.workflow, restored[:workflow_state]]
+    end
+
+    def results
+      [self.memos, self.async_memos].collect { |memos|
+        memos.values.collect { |method_memos| method_memos.values }
+      }.flatten
     end
 
     def method_memos key
@@ -92,8 +102,8 @@ module Percolate
           msgs.each { |msg| log.debug("Received #{msg.inspect}") }
         }
 
-        self.async_memos.values.each { |memos|
-          memos.values.each { |result|
+        self.async_memos.values.each { |method_memos|
+          method_memos.values.each { |result|
             unless result.finished?
               log.debug("Checking messages for updates to #{result.inspect}")
 
@@ -155,8 +165,8 @@ module Percolate
 
       purged = Hash.new
 
-      self.async_memos.each_pair { |key, memos|
-        purged[key] = memos.reject { |method_args, result|
+      self.async_memos.each_pair { |key, method_memos|
+        purged[key] = method_memos.reject { |method_args, result|
           result && result.failed?
         }
 

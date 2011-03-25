@@ -60,25 +60,25 @@ module Percolate
     attr_reader :fail_dir
 
     def initialize identity, definition_file = nil, run_file = nil,
-    pass_dir = nil, fail_dir = nil
+        pass_dir = nil, fail_dir = nil
       unless identity.is_a?(String) || identity.is_a?(Symbol)
         raise ArgumentError,
               "Invalid identity '#{identity.inspect}'. " +
-              "Must be a String or Symbol."
+                  "Must be a String or Symbol."
       end
 
       if definition_file
         unless File.extname(definition_file) == DEFINITION_SUFFIX
           raise ArgumentError,
                 "Invalid definition file name '#{definition_file}'. " +
-                "Suffix must be '#{DEFINITION_SUFFIX}'"
+                    "Suffix must be '#{DEFINITION_SUFFIX}'"
         end
 
         unless File.basename(definition_file,
                              File.extname(definition_file)).match(BASENAME_REGEXP)
           raise ArgumentError,
                 "Invalid definition file name '#{definition_file}'. " +
-                "Basename must match '#{BASENAME_REGEXP.inspect}'"
+                    "Basename must match '#{BASENAME_REGEXP.inspect}'"
         end
       end
 
@@ -122,7 +122,14 @@ module Percolate
     def restore
       check_transient(:restore)
       if File.exists?(self.run_file)
-        state = Percolate.memoizer.restore_memos(self.run_file)
+        workflow, state = Percolate.memoizer.restore_memos(self.run_file)
+
+        unless workflow == self.class
+          raise PercolateError,
+                "Attempted to restore a #{workflow} workflow from " +
+                    "#{self.run_file} into #{self}, which is a #{self.class} " +
+                    "workflow"
+        end
 
         Percolate.log.debug("Restored #{self} with state #{state}")
 
@@ -157,7 +164,7 @@ module Percolate
               end
 
       Percolate.log.debug("Storing workflow in #{self.run_file}, state: #{state}")
-      Percolate.memoizer.store_memos(self.run_file, state)
+      Percolate.memoizer.store_memos(self.run_file, self.class, state)
       self
     end
 
@@ -179,7 +186,7 @@ module Percolate
       rescue Exception => e
         raise PercolateError,
               "Failed to archive workflow #{self} to '#{directory}': " +
-              "#{e.message}"
+                  "#{e.message}"
       end
 
       self
@@ -381,15 +388,15 @@ Returns:
               else
                 raise ArgumentError,
                       "Invalid ancestor argument. Expected a string or " +
-                      "constant, but was #{ancestor.inspect}"
+                          "constant, but was #{ancestor.inspect}"
             end
     rescue NameError => ne
       raise ArgumentError,
             "Invalid ancestor argument. Expected a Ruby module, " +
-            "but was #{ancestor.inspect}"
+                "but was #{ancestor.inspect}"
     end
 
     ObjectSpace.each_object(Class).select { |c| c.ancestors.include?(Workflow) &&
-    c.ancestors.include?(mod) }
+        c.ancestors.include?(mod) }
   end
 end
