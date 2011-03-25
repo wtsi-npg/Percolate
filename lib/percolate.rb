@@ -31,7 +31,7 @@ require 'percolate/partitions'
 
 module Percolate
 
-  VERSION = '0.4.0'
+  VERSION = '0.4.1'
 
   @log = Logger.new(STDERR)
   @memoizer = Percolate::Memoizer.new
@@ -59,8 +59,14 @@ module Percolate
   # started and finished, exit code).
   #
   class Result
+    COLUMN_NAMES = [:task, :mode, :task_identity,
+                    :submission_time, :start_time, :finish_time, :run_time,
+                    :exit_code]
+
     # The name of task responsible for the result
     attr_reader :task
+    # The task mode e.g. :native, :sync or :async
+    attr_reader :mode
     # The unique identity of the task instance responsible for the
     # result
     attr_reader :task_identity
@@ -81,9 +87,10 @@ module Percolate
     # Task STDERR
     attr_accessor :stderr
 
-    def initialize task, task_identity, submission_time, start_time = nil,
-    finish_time = nil, value = nil, stdout = nil, stderr = nil
+    def initialize task, mode, task_identity, submission_time, start_time = nil,
+        finish_time = nil, value = nil, stdout = nil, stderr = nil
       @task = task
+      @mode = mode
       @task_identity = task_identity
       @submission_time = submission_time
       @start_time = start_time
@@ -139,17 +146,28 @@ module Percolate
       self.finished? && !self.exit_code.zero?
     end
 
-    def runtime
+    def run_time
       if started? && finished?
         self.finish_time - self.start_time
       end
     end
 
+    def to_a
+      [self.task, self.mode, self.task_identity,
+       self.submission_time, self.start_time, self.finish_time, self.run_time,
+       self.exit_code].collect { |x| x.nil? ? 'NA' : x }
+    end
+
     def to_s
-      "#<#{self.class} task_id: #{self.task_identity} " +
+      vstr = self.value.inspect
+      if vstr.length > 124
+        vstr = vstr[0, 124] + " ..."
+      end
+
+      "#<#{self.class} #{self.mode} task_id: #{self.task_identity} " +
       "sub: #{self.submission_time.inspect} " +
       "start: #{self.start_time.inspect} " +
-      "finish: #{self.finish_time.inspect} value: #{self.value.inspect}>"
+      "finish: #{self.finish_time.inspect} value: #{vstr}>"
     end
   end
 
@@ -174,9 +192,12 @@ module Percolate
     maybe_unwrap(result, unwrap)
   end
 
-  def native_task margs, command, pre = lambda { true }
+  def native_task margs, command, pre = lambda { true }, args = {}
     mname = calling_method
-    maybe_unwrap(native_task_aux(mname, margs, command, pre), true)
+    unwrap = args.delete(:unwrap)
+
+    result = native_task_aux(mname, margs, command, pre)
+    maybe_unwrap(result, unwrap)
   end
 
   def async_task margs, command, work_dir, log, args = {}
@@ -277,8 +298,9 @@ module Percolate
         when success && post.call(*margs.take(post.arity.abs))
           value = val.call(*margs.take(val.arity.abs))
           task_id = task_identity(method_name, margs)
-          result = Result.new(method_name, task_id, submission_time, start_time,
-                              finish_time, value, status.exitstatus, stdout)
+          result = Result.new(method_name, :sync, task_id,
+                              submission_time, start_time, finish_time,
+                              value, status.exitstatus, stdout)
           log.debug("Postconditions satsified; returning #{result}")
           memos[margs] = result
         else
@@ -329,8 +351,9 @@ module Percolate
       value = command.call(*margs)
       finish_time = Time.now
 
-      result = Result.new(method_name, task_id, submission_time, start_time,
-                          finish_time, value, nil, nil)
+      result = Result.new(method_name, :native, task_id,
+                          submission_time, start_time, finish_time,
+                          value, nil, nil)
       log.debug("#{method_name} called; returning #{result}")
       memos[margs] = result
     end

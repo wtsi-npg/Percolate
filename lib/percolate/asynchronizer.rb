@@ -100,7 +100,7 @@ module Percolate
           if submit_async(method_name, command)
             task_id = task_identity(method_name, args)
             submission_time = Time.now
-            memos[args] = Result.new(method_name, task_id, submission_time)
+            memos[args] = Result.new(method_name, :async, task_id, submission_time)
           end
         end
       end
@@ -330,7 +330,7 @@ module Percolate
             submission_time = Time.now
             margs_arrays.each_with_index { |args, i|
               task_id = task_identity(method_name, args)
-              result = Result.new(method_name, task_id, submission_time)
+              result = Result.new(method_name, :async, task_id, submission_time)
               memos[args] = result
               log.debug("Submitted #{method_name}[#{i}] args: #{args.inspect}, " +
                             "result #{result}")
