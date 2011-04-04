@@ -1,4 +1,20 @@
 #!/usr/bin/env ruby
+#
+# Copyright (C) 2010 Genome Research Ltd. All rights reserved.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
 
 require 'rubygems'
 require 'yaml'
@@ -43,10 +59,14 @@ class QueueClientArguments < Hash
 
     begin
       opts.parse!(args)
+    rescue OptionParser::ParseError => pe
+      $stderr.puts(opts)
+      $stderr.puts("\nInvalid argument: #{pe}")
+      exit(CLI_ERROR)
     rescue Exception => e
       $stderr.puts(opts)
       $stderr.puts("\nCommand line error: #{e.message}")
-      exit(10)
+      exit(CLI_ERROR)
     end
 
     self
@@ -107,7 +127,7 @@ begin
   end
 rescue Exception => e
   $stderr.puts("Error: #{e}")
-  exit(10)
+  exit(CLI_ERROR)
 ensure
   client.close
 end

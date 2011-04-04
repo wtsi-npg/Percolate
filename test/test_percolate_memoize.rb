@@ -30,7 +30,7 @@ module PercolateTest
 
     def setup
       super
-      Percolate.memoizer.clear_memos
+      Percolate.memoizer.clear_memos!
     end
 
     def teardown
@@ -41,7 +41,7 @@ module PercolateTest
       pre = lambda { |numbers| !numbers.nil? }
       command = lambda { |*numbers| numbers.inject(0) { |n, sum| n + sum } }
 
-      native_task(args, command, pre, :unwrap => false)
+      native_task(args, command, :pre => pre, :unwrap => false)
     end
 
     def test_get_memos
@@ -80,7 +80,7 @@ module PercolateTest
       Dir.mktmpdir('percolate') { |dir|
         file = File.join dir, 'store_restore_memos.dat'
         Percolate.memoizer.store_memos(file, :dummy_name, :passed)
-        workflow, state = Percolate.memoizer.restore_memos(file)
+        workflow, state = Percolate.memoizer.restore_memos!(file)
 
         assert_equal(:dummy_name, workflow)
         assert_equal(:passed, state)

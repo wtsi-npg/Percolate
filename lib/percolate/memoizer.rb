@@ -17,9 +17,15 @@
 #
 
 module Percolate
+  # A Memoizer is responsible for maintaining mappings of arguments to return
+  # values for all Percolate task methods. It allows the mappings to be updated,
+  # saved and restored.
   class Memoizer
+    # The class of Workflow running cuurently.
     attr_accessor :workflow
+    # A mapping of task method names to method memoization tables.
     attr_accessor :memos
+    # A mapping of task method names to method memoization tables.
     attr_accessor :async_memos
     attr_accessor :max_processes
 
@@ -29,12 +35,15 @@ module Percolate
       @max_processes = 4
     end
 
-    def clear_memos
+    # Erases all memoization tables.
+    def clear_memos!
       Percolate.log.debug("Emptying memo tables")
       self.memos.clear
       self.async_memos.clear
     end
 
+    # Stores memoization data to place along with additional information on the
+    # workflow class and its state.
     def store_memos place, workflow, state
       File.open(place, 'w') { |file|
         Marshal.dump({:percolate_version => Percolate::VERSION,
@@ -45,7 +54,8 @@ module Percolate
       }
     end
 
-    def restore_memos place
+    # Destructively modifies self by reading stored memoization data from place.
+    def restore_memos! place
       restored = File.open(place, 'r') { |file|
         ensure_valid_memos(place, Marshal.load(file))
       }
@@ -57,16 +67,21 @@ module Percolate
       [self.workflow, restored[:workflow_state]]
     end
 
+    # Returns an Array of all the Result objects available.
     def results
       [self.memos, self.async_memos].collect { |memos|
         memos.values.collect { |method_memos| method_memos.values }
       }.flatten
     end
 
+    # Returns the memoization table for the synchronous task method with name
+    # key.
     def method_memos key
       ensure_memos(self.memos, key)
     end
 
+    # Returns the memoization table for the asynchronous task method with name
+    # key.
     def async_method_memos key
       ensure_memos(self.async_memos, key)
     end
@@ -74,7 +89,7 @@ module Percolate
     # Updates memoization results for asynchronous tasks by polling a
     # the current message queue. Returns true if any messages were
     # received, or false otherwise.
-    def update_async_memos
+    def update_async_memos!
       client = Percolate.asynchronizer.message_client
       log = Percolate.log
       log.debug("Started fetching messages from #{client.inspect}")
@@ -136,8 +151,10 @@ module Percolate
       updates.size > 0
     end
 
-    def async_finished? key, args
-      result = self.async_method_memos(key)[args]
+    # Returns true if the asynchronous task method with name key, called with
+    # arguments margs has finished?
+    def async_finished? key, margs
+      result = self.async_method_memos(key)[margs]
       result && result.finished?
     end
 
@@ -158,7 +175,7 @@ module Percolate
     protected
     # Removes memoized values for failed asynchronous tasks so that
     # they may be run again
-    def purge_async_memos
+    def purge_async_memos!
       log = Percolate.log
       log.debug("Purging failed asynchronous tasks")
       log.debug("Before purging: #{self.async_memos.inspect}")

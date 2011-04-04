@@ -21,6 +21,7 @@ require 'fileutils'
 require 'logger'
 require 'uri'
 
+require 'percolate/auditor'
 require 'percolate/memoizer'
 require 'percolate/message_client'
 require 'percolate/asynchronizer'
@@ -31,11 +32,19 @@ require 'percolate/partitions'
 
 module Percolate
 
-  VERSION = '0.4.1'
+  VERSION = '0.4.2'
 
   @log = Logger.new(STDERR)
   @memoizer = Percolate::Memoizer.new
   @asynchronizer = Percolate::LSFAsynchronizer.new
+
+  # Exit codes
+  # Error in the command line arguments provided
+  CLI_ERROR = 10
+  # Error in the configuration file
+  CONFIG_ERROR = 11
+  # Error when the wrapper executed a system call
+  WRAPPER_ERROR = 12
 
   # An error raised by the Percolate system.
   class PercolateError < StandardError
@@ -59,32 +68,34 @@ module Percolate
   # started and finished, exit code).
   #
   class Result
-    COLUMN_NAMES = [:task, :mode, :task_identity,
+    # When a result is presented in tabular form, these are the default column
+    # names.
+    COLUMN_NAMES = [:task, :mode, :task_identity, :state,
                     :submission_time, :start_time, :finish_time, :run_time,
                     :exit_code]
 
-    # The name of task responsible for the result
+    # The name of task responsible for the result.
     attr_reader :task
-    # The task mode e.g. :native, :sync or :async
+    # The task mode e.g. :native, :sync or :async.
     attr_reader :mode
     # The unique identity of the task instance responsible for the
-    # result
+    # result.
     attr_reader :task_identity
 
-    # The submission time, if available
+    # The submission time, if available.
     attr_accessor :submission_time
-    # The start time, if available
+    # The start time, if available.
     attr_accessor :start_time
-    # The finish time, if available
+    # The finish time, if available.
     attr_accessor :finish_time
 
-    # Task return value
+    # Task return value.
     attr_accessor :value
-    # Task exit code
+    # Task exit code.
     attr_accessor :exit_code
-    # Task SDTOUT
+    # Task STDOUT.
     attr_accessor :stdout
-    # Task STDERR
+    # Task STDERR.
     attr_accessor :stderr
 
     def initialize task, mode, task_identity, submission_time, start_time = nil,
@@ -109,7 +120,7 @@ module Percolate
 
     # Sets the time at which the task started. Tasks may be restarted,
     # in which case the finish time, value, stdout and stderr are set
-    # to nil
+    # to nil.
     def started! start_time = Time.now
       self.start_time = start_time
       self.finish_time = nil
@@ -136,16 +147,20 @@ module Percolate
       !self.finish_time.nil?
     end
 
-    # Return true if the task that will generate the Result's value
+    # Returns true if the task that will generate the Result's value
     # has returned something i.e. the value is not nil.
     def value?
       !self.value.nil?
     end
 
+    # Returns true if the task that would have generated the Result's value
+    # has failed.
     def failed?
-      self.finished? && !self.exit_code.zero?
+      self.finished? && (self.exit_code.nil? || !self.exit_code.zero?)
     end
 
+    # Returns the run time of the task, if it has finished, otherwise returns
+    # nil.
     def run_time
       if started? && finished?
         self.finish_time - self.start_time
@@ -153,9 +168,9 @@ module Percolate
     end
 
     def to_a
-      [self.task, self.mode, self.task_identity,
+      [self.task, self.mode, self.task_identity, state,
        self.submission_time, self.start_time, self.finish_time, self.run_time,
-       self.exit_code].collect { |x| x.nil? ? 'NA' : x }
+       self.exit_code]
     end
 
     def to_s
@@ -164,10 +179,26 @@ module Percolate
         vstr = vstr[0, 124] + " ..."
       end
 
-      "#<#{self.class} #{self.mode} task_id: #{self.task_identity} " +
-      "sub: #{self.submission_time.inspect} " +
-      "start: #{self.start_time.inspect} " +
-      "finish: #{self.finish_time.inspect} value: #{vstr}>"
+      "#<#{self.class} #{self.mode} task_id: #{self.task_identity} #{state} " +
+          "sub: #{self.submission_time.inspect} " +
+          "start: #{self.start_time.inspect} " +
+          "finish: #{self.finish_time.inspect} value: #{vstr}>"
+    end
+
+    private
+    def state
+      case
+        when self.finished? && !self.failed?
+          :passed
+        when self.failed?
+          :failed
+        when self.started?
+          :started
+        when self.submitted?
+          :submitted
+        else
+          :pending
+      end
     end
   end
 
@@ -178,11 +209,39 @@ module Percolate
   end
 
   # Returns a copy of String command with a change directory operation
-  # prepended.
+  # prefixed.
   def cd path, command
     "cd #{path} \; #{command}"
   end
 
+  # Defines a synchronous external (system call) task method.
+  #
+  # Arguments:
+  #
+  # - margs (Array): The arguments that are necessary and sufficient to
+  #   identify an invoaction of the task. If the task method is called in
+  #   multiple contexts with these same arguments, they will resolve to a
+  #   single invocation in the Memoizer.
+  # - command (String): A complete command line string to be executed.
+  #
+  # Other arguments (keys and values):
+  #
+  # - :pre (Proc): A precondition callback that must evaluate true before
+  #   the task is executed. Optional.
+  # - :post (Proc): A postcondition callback that must evaluate true before
+  #   a result is returned. Optional.
+  # - :result (Proc): A return value callback that must evaluate to the desired
+  #   return value.
+  # - :unwrap (boolean): A boolean indicating that the return value will be
+  #   unwrapped.
+  #
+  #  These Procs may accept none, some, or all the arguments that are
+  #  defined by margs. Each will be called with the  appropriate number.
+  #  For example, if the :pre Proc has arity 2, it will be called with the
+  #  first 2 elements of margs.
+  #
+  # Returns:
+  # - Return value of the :result Proc, or nil.
   def task margs, command, args = {}
     unwrap = args.delete(:unwrap)
     mname = calling_method
@@ -192,14 +251,77 @@ module Percolate
     maybe_unwrap(result, unwrap)
   end
 
-  def native_task margs, command, pre = lambda { true }, args = {}
+  # Defines a synchronous native (Ruby) task method.
+  #
+  # Arguments:
+  #
+  # - margs (Array): The arguments that are necessary and sufficient to
+  #   identify an invocation of the task. If the task method is called in
+  #   multiple contexts with these same arguments, they will resolve to a
+  #   single invocation in the Memoizer.
+  # - command (String): A complete command line string to be executed.
+  #
+  # Other arguments (keys and values):
+  #
+  # - :pre (Proc): A precondition callback that must evaluate true before
+  #   the task is executed. Optional.
+  # - :post (Proc): A postcondition callback that must evaluate true before
+  #   a result is returned. Optional.
+  # - :result (Proc): A return value callback that must evaluate to the desired
+  #   return value.
+  # - :unwrap (boolean): A boolean indicating that the return value will be
+  #   unwrapped.
+  #
+  #  These Procs may accept none, some, or all the arguments that are
+  #  defined by margs. Each will be called with the  appropriate number.
+  #  For example, if the :pre Proc has arity 2, it will be called with the
+  #  first 2 elements of margs.
+  #
+  # Returns:
+  # - Return value of the :result Proc, or nil.
+  def native_task margs, command, args = {}
     mname = calling_method
-    unwrap = args.delete(:unwrap)
+    defaults = {:pre => lambda { true }}
+    args = defaults.merge(args)
 
-    result = native_task_aux(mname, margs, command, pre)
-    maybe_unwrap(result, unwrap)
+    result = native_task_aux(mname, margs, command, args[:pre])
+    maybe_unwrap(result, args[:unwrap])
   end
 
+  # Defines an asynchronous external (batch queue) task method.
+  #
+  # Arguments:
+  #
+  # - margs (Array): The arguments that are necessary and sufficient to
+  #   identify an invocation of the task. If the task method is called in
+  #   multiple contexts with these same arguments, they will resolve to a
+  #   single invocation in the Memoizer.
+  # - command (String): A complete command line string to be executed.
+  # - work_dir (String): The working directory where the batch job will be run.
+  # - log (String): The name of the batch queue log file. This may be an
+  #   absolute file name, or one relative to the work_dir.
+  #
+  # Other arguments (keys and values):
+  #
+  # - :pre (Proc): A precondition callback that must evaluate true before
+  #   the task is submitted to the batch queue system. Optional.
+  # - :post (Proc): A postcondition callback that must evaluate true before
+  #   a result is returned. Optional.
+  # - :result (Proc): A return value callback that must evaluate to the desired
+  #   return value.
+  # - :unwrap (boolean): A boolean indicating that the return value will be
+  #   unwrapped.
+  # - :async (Hash): A mapping of batch queue system parameters to arguments.
+  #   These are passed to the batch queue system only and changes to these must
+  #   not affect the return value of the method.
+  #
+  #  These Procs may accept none, some, or all the arguments that are
+  #  defined by margs. Each will be called with the  appropriate number.
+  #  For example, if the :pre Proc has arity 2, it will be called with the
+  #  first 2 elements of margs.
+  #
+  # Returns:
+  # - Return value of the :result Proc, or nil
   def async_task margs, command, work_dir, log, args = {}
     unwrap = args.delete(:unwrap)
     async = args.delete(:async) || {}
@@ -216,6 +338,43 @@ module Percolate
     maybe_unwrap(result, unwrap)
   end
 
+  # Defines an indexed array asynchronous external (batch queue) task method.
+  #
+  # Arguments:
+  #
+  # - margs_arrays (Array of Arrays): The argument arrays for each indexed
+  #   method call. Each element is an argument Array of a separate call and
+  #   contains the arguments that are necessary and sufficient to identify an
+  #   invocation of the task. If the task method is called in  multiple contexts
+  #   with these same arguments, they will resolve to a single invocation in the
+  #    Memoizer.
+  # - commands (Array of Strings): The command strings to be executed. This and
+  #   the margs_arrays must be the same length.
+  # - work_dir (String): The working directory where the batch job will be run.
+  # - log (String): The name of the batch queue log file. This may be an
+  #   absolute file name, or one relative to the work_dir.
+  #
+  # Other arguments (keys and values):
+  #
+  # - :pre (Proc): A precondition callback that must evaluate true before
+  #   the task is submitted to the batch queue system. Optional.
+  # - :post (Proc): A postcondition callback that must evaluate true before
+  #   a result is returned. Optional.
+  # - :result (Proc): A return value callback that must evaluate to the desired
+  #   return value.
+  # - :unwrap (boolean): A boolean indicating that the return value will be
+  #   unwrapped.
+  # - :async (Hash): A mapping of batch queue system parameters to arguments.
+  #   These are passed to the batch queue system only and changes to these must
+  #   not affect the return value of the method.
+  #
+  #  These Procs may accept none, some, or all the arguments that are
+  #  defined by margs. Each will be called with the  appropriate number.
+  #  For example, if the :pre Proc has arity 2, it will be called with the
+  #  first 2 elements of margs.
+  #
+  # Returns:
+  # - Return value of the :result Proc, or nil
   def async_task_array margs_arrays, commands, work_dir, log, args = {}
     unwrap = args.delete(:unwrap)
     async = args.delete(:async) || {}
@@ -234,6 +393,7 @@ module Percolate
     maybe_unwrap(result, unwrap)
   end
 
+  # Delegates to the async_command method of the current Asynchronizer.
   def async_command *args
     Percolate.asynchronizer.async_command(*args)
   end
@@ -250,22 +410,17 @@ module Percolate
   # - env (Hash): hash of shell environment variable Strings for the
   #   system command.
   #
-  # - callbacks (Hash): hash of named Procs
+  # Other arguments (keys and values):
   #
-  #   - :pre => pre-condition Proc, should evaluate true if
-  #     pre-conditions of execution are satisfied
-  #   - :post => post-condition Proc, should evaluate true if
-  #     post-conditions of execution are satisfied
-  #   - :result => return value Proc, should evaluate to the desired
-  #     return value
-  #
-  #  These Procs may accept no, some, or all the arguments that are
-  #  passed to the system command. Each will be called with the
-  #  appropriate number. For example, if the :pre Proc has arity 2,
-  #  it will be called with the first 2 elements of args.
+  # - :pre (Proc): A precondition callback that must evaluate true before
+  #   the task is executed. Optional.
+  # - :post (Proc): A postcondition callback that must evaluate true before
+  #   a result is returned. Optional.
+  # - :result (Proc): A return value callback that must evaluate to the desired
+  #   return value.
   #
   # Returns:
-  # - Return value of the :result Proc, or nil.
+  # - Wrapped return value of the :result Proc, or nil.
   def task_aux method_name, margs, command, env, args = {}
     pre, post, val = ensure_callbacks(args)
 
@@ -314,20 +469,15 @@ module Percolate
   #
   # Arguments:
   #
-  # - method_name (Symbol): name of memoized method, unique with respect to
+  # - method_name (Symbol): Name of memoized method, unique with respect to
   #   the memoization namespace.
-  # - args: (Array): memoization key arguments.
-  # - command (Proc): the Proc to memoize
-  # - pre: (Proc):  pre-condition Proc, should evaluate true if
-  #   pre-conditions of execution are satisfied
-  #
-  #  The 'pre' Proc may accept no, some, or all the arguments that
-  #  are passed to the 'command' Proc. It will be called with the
-  #  appropriate number. For example, if the 'pre' Proc has arity 2,
-  #  it will be called with the first 2 elements of args.
+  # - args (Array): Memoization key arguments.
+  # - command (Proc): The Proc to memoize.
+  # - pre (Proc): Pre-condition Proc, should evaluate true if
+  #   pre-conditions of execution are satisfied.
   #
   # Returns:
-  # - Return value of the :command Proc, or nil.
+  # - Wrapped return value of the :command Proc, or nil.
   def native_task_aux method_name, margs, command, pre
     ensure_callback('command', command)
     ensure_callback('pre', pre)
@@ -337,28 +487,30 @@ module Percolate
     log = Percolate.log
     log.debug("Entering task #{method_name}")
 
-    if result
-      log.debug("Returning memoized result: #{result}")
-      result
-    elsif !pre.call(*margs.take(pre.arity.abs))
-      log.debug("Preconditions not satisfied, returning nil")
-      nil
-    else
-      log.debug("Preconditions are satisfied; calling '#{command}'")
+    case
+      when result
+        log.debug("Returning memoized result: #{result}")
+        result
+      when !pre.call(*margs.take(pre.arity.abs))
+        log.debug("Preconditions not satisfied, returning nil")
+        nil
+      else
+        log.debug("Preconditions are satisfied; calling '#{command}'")
 
-      submission_time = start_time = Time.now
-      task_id = task_identity(method_name, margs)
-      value = command.call(*margs)
-      finish_time = Time.now
+        submission_time = start_time = Time.now
+        task_id = task_identity(method_name, margs)
+        value = command.call(*margs)
+        finish_time = Time.now
 
-      result = Result.new(method_name, :native, task_id,
-                          submission_time, start_time, finish_time,
-                          value, nil, nil)
-      log.debug("#{method_name} called; returning #{result}")
-      memos[margs] = result
+        result = Result.new(method_name, :native, task_id,
+                            submission_time, start_time, finish_time,
+                            value, nil, nil)
+        log.debug("#{method_name} called; returning #{result}")
+        memos[margs] = result
     end
   end
 
+  # Returns a Symbol naming the calling method.
   def calling_method
     if caller[1] =~ /`([^']*)'/
       $1.to_sym

@@ -1,4 +1,3 @@
-# -*- coding: iso-8859-1 -*-
 #--
 #
 # Copyright (C) 2010 Genome Research Ltd. All rights reserved.
@@ -37,7 +36,6 @@ module PercolateTest
     def unready_task work_dir = '.'
       task([work_dir], cd(work_dir, 'true'),
            :pre => lambda { false },
-           :post => lambda { true },
            :result => lambda { true })
     end
 
@@ -52,7 +50,6 @@ module PercolateTest
     # A task which may be run, but which never finishes.
     def unfinished_task work_dir = '.'
       task([work_dir], cd(work_dir, 'true'),
-           :pre => lambda { true },
            :post => lambda { false },
            :result => lambda { true })
     end
@@ -68,8 +65,6 @@ module PercolateTest
       program = $BOOLEAN_WORKFLOW ? 'true' : 'false'
 
       task([work_dir], cd(work_dir, program),
-           :pre => lambda { true },
-           :post => lambda { true },
            :result => lambda { $BOOLEAN_WORKFLOW })
     end
 
@@ -98,7 +93,7 @@ module PercolateTest
 
     def setup
       super
-      Percolate.memoizer.clear_memos
+      Percolate.memoizer.clear_memos!
     end
 
     def data_path
@@ -158,7 +153,7 @@ module PercolateTest
                         'no_such_pass_dir', 'no_such_fail_dir')
 
       assert_raise PercolateError do
-        wf.restore
+        wf.restore!
       end
     end
 
@@ -166,11 +161,11 @@ module PercolateTest
       begin
         wf = make_empty_workflow
         wf.run
-        wf.declare_passed
+        wf.declare_passed!
         assert(wf.passed?)
 
         assert_raise PercolateError do
-          wf.declare_passed
+          wf.declare_passed!
         end
 
       ensure
@@ -183,11 +178,11 @@ module PercolateTest
       begin
         wf = make_empty_workflow
         wf.run
-        wf.declare_failed
+        wf.declare_failed!
         assert(wf.failed?)
 
         assert_raise PercolateError do
-          wf.declare_failed
+          wf.declare_failed!
         end
 
       ensure
@@ -258,9 +253,9 @@ module PercolateTest
         wf.store
 
         memoizer = Percolate.memoizer
-        memoizer.clear_memos
+        memoizer.clear_memos!
 
-        assert(wf.restore)
+        assert(wf.restore!)
         memos = memoizer.method_memos(:true_task)
 
         assert(memos.has_key? ['.'])
@@ -284,7 +279,7 @@ module PercolateTest
 
         assert(!wf.passed?)
         assert(!wf.failed?)
-        wf.declare_passed
+        wf.declare_passed!
         assert(wf.passed?)
         assert(!wf.failed?)
 
@@ -311,7 +306,7 @@ module PercolateTest
 
         assert(!wf.passed?)
         assert(!wf.failed?)
-        wf.declare_failed
+        wf.declare_failed!
         assert(!wf.passed?)
         assert(wf.failed?)
 
@@ -343,7 +338,7 @@ module PercolateTest
         wf.run
       rescue => e
         assert(!wf.passed?)
-        wf.declare_failed
+        wf.declare_failed!
         assert(wf.failed?)
         assert(File.exists?(wf.failed_run_file))
 
@@ -351,9 +346,9 @@ module PercolateTest
         FileUtils.cp(wf.failed_run_file, wf.run_file)
 
         $BOOLEAN_WORKFLOW = true
-        assert(wf.restore)
+        assert(wf.restore!)
 
-        wf.restart
+        wf.restart!
         assert(wf.run)
 
         memos = Percolate.memoizer.method_memos(:boolean_task)
@@ -407,11 +402,11 @@ module PercolateTest
       assert(wf.transient?)
 
       assert_raise PercolateError do
-        wf.declare_passed
+        wf.declare_passed!
       end
 
       assert_raise PercolateError do
-        wf.declare_failed
+        wf.declare_failed!
       end
 
       assert_raise PercolateError do
@@ -435,7 +430,7 @@ module PercolateTest
       end
 
       assert_raise PercolateError do
-        wf.restore
+        wf.restore!
       end
     end
   end

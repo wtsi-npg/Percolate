@@ -91,17 +91,17 @@ module Percolate
       @failed = false
     end
 
-    # The description string for online user help
+    # The description string for online user help.
     def description
       self.class.description
     end
 
-    # The usage string for online user help
+    # The usage string for online user help.
     def usage
       self.class.usage
     end
 
-    # The version string for online user help
+    # The version string for online user help.
     def version
       self.class.version
     end
@@ -113,16 +113,18 @@ module Percolate
       self.definition_file.nil?
     end
 
+    # Returns the basename of the definition file which is used as the
+    # run name.
     def run_name
       File.basename(self.definition_file)
     end
 
     # Restores the workflow from its run file, if it exists. Returns
     # the workflow.
-    def restore
+    def restore!
       check_transient(:restore)
       if File.exists?(self.run_file)
-        workflow, state = Percolate.memoizer.restore_memos(self.run_file)
+        workflow, state = Percolate.memoizer.restore_memos!(self.run_file)
 
         unless workflow == self.class
           raise PercolateError,
@@ -155,12 +157,13 @@ module Percolate
     # Stores the workflow to its run file. Returns the workflow.
     def store
       check_transient(:store)
-      state = if self.passed?
-                :passed
-              elsif self.failed?
-                :failed
-              else
-                nil
+      state = case
+                when self.passed?
+                  :passed
+                when self.failed?
+                  :failed
+                else
+                  nil
               end
 
       Percolate.log.debug("Storing workflow in #{self.run_file}, state: #{state}")
@@ -200,7 +203,7 @@ module Percolate
 
     # Archives the workflow to the pass directory. Returns the
     # workflow.
-    def declare_passed
+    def declare_passed!
       check_transient(:declare_passed)
       if self.passed?
         raise PercolateError,
@@ -219,7 +222,7 @@ module Percolate
 
     # Archives the workflow to the fail directory. Returns the
     # workflow.
-    def declare_failed
+    def declare_failed!
       check_transient(:declare_failed)
       if self.failed?
         raise PercolateError,
@@ -245,7 +248,7 @@ module Percolate
 
     # Restarts workflow by removing any pass or fail
     # information. Returns the workflow.
-    def restart
+    def restart!
       check_transient(:restart)
       unless self.finished?
         raise PercolateError,
@@ -295,18 +298,14 @@ module Percolate
     end
 
     def to_s
-      state = if self.finished?
-                ' finished:'
-              else
-                nil
-              end
-
-      result = if self.passed?
-                 ' passed'
-               elsif self.failed?
-                 ' failed'
-               else
-                 nil
+      state = self.finished? ? ' finished:' : nil
+      result = case
+                 when self.passed?
+                   ' passed'
+                 when self.failed?
+                   ' failed'
+                 else
+                   nil
                end
 
       "#<#{self.class} #{self.definition_file}#{state}#{result}>"

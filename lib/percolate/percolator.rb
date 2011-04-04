@@ -33,12 +33,13 @@ module Percolate
           self[:config] = file
         }
 
-        opts.on('-l', '--load [LIBRARY]', 'Load a workflow library') { |lib|
+        opts.on('-l', '--load LIBRARY', 'Load a workflow library') { |lib|
           begin
+            self[:load] = lib
             require lib
           rescue LoadError
             puts("Could not load workflow library '#{lib}'")
-            exit 1
+            exit(CLI_ERROR)
           end
         }
 
@@ -48,7 +49,7 @@ module Percolate
             $stderr.puts(Percolate.find_workflows group)
           rescue ArgumentError => ae
             $stderr.puts("Unknown workflow group #{group}")
-            exit 1
+            exit(CLI_ERROR)
           end
 
           exit
@@ -82,7 +83,7 @@ module Percolate
             end
           rescue NameError => ne
             $stderr.puts "Unknown workflow #{wf}"
-            exit 1
+            exit(CLI_ERROR)
           end
 
           exit
@@ -96,10 +97,18 @@ module Percolate
 
       begin
         opts.parse(args)
+
+        if !self.has_key?(:percolate) && !self.has_key?(:load)
+          raise ArgumentError, "a --load argument is required"
+        end
       rescue OptionParser::ParseError => pe
         $stderr.puts(opts)
         $stderr.puts("\nInvalid argument: #{pe}")
-        exit 1
+        exit(CLI_ERROR)
+      rescue Exception => e
+        $stderr.puts(opts)
+        $stderr.puts("\nCommand line error: #{e}")
+        exit(CLI_ERROR)
       end
 
       self
@@ -348,41 +357,38 @@ module Percolate
             # data share the same namespace in the table. Without
             # clearing between workflows, workflow state would leak
             # from one workflow to another.
-            memoizer.clear_memos
+            memoizer.clear_memos!
 
             if File.exists?(run_file)
               log.info("Restoring state of #{definition} from #{run_file}")
-              workflow.restore
+              workflow.restore!
             end
 
             Percolate.asynchronizer.message_queue = workflow.message_queue
             if memoizer.dirty_async?
-              memoizer.update_async_memos
+              memoizer.update_async_memos!
             end
 
             # If we find a failed workflow, it means that it is being
             # restarted.
             if workflow.failed?
-              memoizer.purge_async_memos
+              memoizer.purge_async_memos!
 
               log.info("Restarting #{definition} [FAILED] from #{run_file}")
-              workflow.restart
+              workflow.restart!
             else
               log.info("Continuing #{definition} from #{run_file}")
             end
 
-            result = if !workflow.finished?
+            result = unless workflow.finished?
                        workflow.run(*substitute_uris(workflow_args))
-              # workflow.run(*workflow_args)
-                     else
-                       nil
                      end
 
             log.debug("Workflow run result is #{result.inspect}")
 
             if result
               log.info("Workflow #{definition} passed")
-              workflow.declare_passed # Stores in pass directory
+              workflow.declare_passed! # Stores in pass directory
             else
               log.info("Workflow #{definition} not passed; storing")
               workflow.store
@@ -392,7 +398,7 @@ module Percolate
             log.error(e.backtrace.join("\n"))
 
             if workflow
-              workflow.declare_failed # Stores in fail directory
+              workflow.declare_failed! # Stores in fail directory
             end
           end
         else

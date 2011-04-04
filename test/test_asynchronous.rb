@@ -132,7 +132,7 @@ module PercolateTest
       Percolate.asynchronizer.message_queue = wf.message_queue
 
       memoizer = Percolate.memoizer
-      memoizer.clear_memos
+      memoizer.clear_memos!
       assert(memoizer.async_result_count.zero?)
       assert(!memoizer.dirty_async?)
       run_time = 5
@@ -149,7 +149,7 @@ module PercolateTest
 
       Timeout.timeout(60) do
         until (memoizer.async_finished?(:async_sleep, [run_time, '.'])) do
-          memoizer.update_async_memos
+          memoizer.update_async_memos!
           sleep(5)
           print('#')
         end
@@ -192,7 +192,7 @@ module PercolateTest
         Percolate.asynchronizer.message_queue = wf.message_queue
 
         memoizer = Percolate.memoizer
-        memoizer.clear_memos
+        memoizer.clear_memos!
         assert(memoizer.async_result_count.zero?)
         assert(!memoizer.dirty_async?)
         run_time = 5
@@ -218,7 +218,7 @@ module PercolateTest
                                        [run_time + i, data_path])
             }
 
-            memoizer.update_async_memos
+            memoizer.update_async_memos!
             sleep(run_time)
             print('#')
           end

@@ -1,4 +1,20 @@
 #!/usr/bin/env ruby
+#
+# Copyright (C) 2010 Genome Research Ltd. All rights reserved.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
 
 require 'rubygems'
 require 'optparse'
@@ -47,10 +63,14 @@ class WrapClientArguments < Hash
           raise ArgumentError, "a --#{arg} argument must be provided"
         end
       }
+    rescue OptionParser::ParseError => pe
+      $stderr.puts(opts)
+      $stderr.puts("\nInvalid argument: #{pe}")
+      exit(CLI_ERROR)
     rescue Exception => e
       $stderr.puts(opts)
       $stderr.puts("\nCommand line error: #{e.message}")
-      exit(10)
+      exit(CLI_ERROR)
     end
 
     self
@@ -79,7 +99,7 @@ end
 host, port, queue = args[:host], args[:port], args[:queue]
 client = MessageClient.new(queue, host, port)
 
-exitstatus = 10
+exitstatus = WRAPPER_ERROR
 
 begin
   client.open_queue
