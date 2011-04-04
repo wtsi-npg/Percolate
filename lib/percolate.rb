@@ -32,7 +32,7 @@ require 'percolate/partitions'
 
 module Percolate
 
-  VERSION = '0.4.2'
+  VERSION = '0.4.3'
 
   @log = Logger.new(STDERR)
   @memoizer = Percolate::Memoizer.new
@@ -279,12 +279,12 @@ module Percolate
   #
   # Returns:
   # - Return value of the :result Proc, or nil.
-  def native_task margs, command, args = {}
+  def native_task margs, args = {}
     mname = calling_method
     defaults = {:pre => lambda { true }}
     args = defaults.merge(args)
 
-    result = native_task_aux(mname, margs, command, args[:pre])
+    result = native_task_aux(mname, margs, args[:pre], args[:result])
     maybe_unwrap(result, args[:unwrap])
   end
 
@@ -471,16 +471,16 @@ module Percolate
   #
   # - method_name (Symbol): Name of memoized method, unique with respect to
   #   the memoization namespace.
-  # - args (Array): Memoization key arguments.
-  # - command (Proc): The Proc to memoize.
+  # - margs (Array): Memoization key arguments.
   # - pre (Proc): Pre-condition Proc, should evaluate true if
   #   pre-conditions of execution are satisfied.
+  # - proc (Proc): The Proc to memoize.
   #
   # Returns:
-  # - Wrapped return value of the :command Proc, or nil.
-  def native_task_aux method_name, margs, command, pre
-    ensure_callback('command', command)
+  # - Wrapped return value of the :result Proc, or nil.
+  def native_task_aux method_name, margs, pre, proc
     ensure_callback('pre', pre)
+    ensure_callback('result', proc)
 
     memos = Percolate.memoizer.method_memos(method_name)
     result = memos[margs]
@@ -495,11 +495,11 @@ module Percolate
         log.debug("Preconditions not satisfied, returning nil")
         nil
       else
-        log.debug("Preconditions are satisfied; calling '#{command}'")
+        log.debug("Preconditions are satisfied; calling '#{proc.inspect}'")
 
         submission_time = start_time = Time.now
         task_id = task_identity(method_name, margs)
-        value = command.call(*margs)
+        value = proc.call(*margs)
         finish_time = Time.now
 
         result = Result.new(method_name, :native, task_id,
