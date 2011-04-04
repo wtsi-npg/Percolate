@@ -17,10 +17,14 @@
 #
 
 module Percolate
+  # Regular expression that matches a partition of a partitioned file.
   PARTITION_REGXEP = Regexp.new('^(.*)\.part\.(\d+)(\.\S+)$')
+  # The separator used in creating the names of file partitions.
   PARTITION_SEP = '.'
+  # The string used to tag file parts.
   PARTITION_TAG = 'part'
 
+  # Returns separator used in creating the names of file partitions.
   def partition_sep
     PARTITION_SEP
   end
@@ -29,6 +33,8 @@ module Percolate
     "#{pref}#{PARTITION_TAG}#{post}"
   end
 
+  # Returns an array of n file names that are the partitions of filename, in
+  # ascending order.
   def partitions filename, n
     if File.directory?(filename)
       raise ArgumentError,
@@ -58,7 +64,7 @@ module Percolate
     end
   end
 
-  # Returns true is filename is a partition.
+  # Returns true if filename is a partition.
   def partition? filename
     !parse_partition(filename).nil?
   end
@@ -115,7 +121,7 @@ module Percolate
   def complete_partitions? filenames
     range = 0...filenames.size
     sibling_partitions?(filenames) &&
-    filenames.select { |f| !range.include?(partition_index(f)) }.empty?
+        filenames.select { |f| !range.include?(partition_index(f)) }.empty?
   end
 
   private
@@ -133,13 +139,13 @@ module Percolate
 
   def duplicates array
     duplicates = Hash.new
-    array.each do |elt|
+    array.each { |elt|
       if duplicates.has_key?(elt)
         duplicates[elt] += 1
       else
         duplicates[elt] = 1
       end
-    end
+    }
 
     duplicates.select { |key, value| value > 1 }
   end
