@@ -17,18 +17,33 @@
 #
 
 module Percolate
+  # A task that should always succeed. It executes the Unix 'true' command.
+  #
+  # Arguments:
+  #
+  # - work_dir (String): The working directory. Optional, defaults to '.'
+  #
+  # Returns:
+  #
+  # - true.
   def true_task work_dir = '.'
     task([work_dir], cd(work_dir, 'true'),
          :pre => lambda { work_dir },
-         :post => lambda { true },
          :result => lambda { true })
   end
 
-  # A task which always fails.
+  # A task that should always fail. It executes the Unix 'false' command.
+  #
+  # Arguments:
+  #
+  # - work_dir (String): The working directory. Optional, defaults to '.'
+  #
+  # Returns:
+  #
+  # - false.
   def false_task work_dir = '.'
     task([work_dir], cd(work_dir, 'false'),
-         :pre => lambda { true },
-         :post => lambda { true },
+         :pre => lambda { work_dir },
          :result => lambda { false })
   end
 end
