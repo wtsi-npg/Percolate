@@ -21,6 +21,7 @@ require 'optparse'
 require 'beanstalk-client'
 
 module Percolate
+  # A Beanstalk client that sends and receives TaskMessages.
   class MessageClient
     DEFAULT_HOST = 'localhost'
     DEFAULT_PORT = '11300'
@@ -40,7 +41,7 @@ module Percolate
       rescue Beanstalk::NotConnected => nc
         raise PercolateError,
               "Failed to connect to message queue server at #{self.host_id} : " +
-              "#{nc.message}"
+                  "#{nc.message}"
       end
 
     end
@@ -67,21 +68,23 @@ module Percolate
     end
   end
 
+  # A message describing a change in task state, to be sent via Beanstalk
+  # message queue.
   class TaskMessage
     TASK_STATES = [:started, :finished]
 
     attr_reader :task_identity, :command, :state, :exit_code, :time
 
     def initialize task_identity, command, state, exit_code = nil,
-    time = Time.now
+        time = Time.now
       unless TASK_STATES.include?(state)
         raise ArgumentError,
               "Invalid state argument #{state}, must be one of " +
-              TASK_STATES.inspect
+                  TASK_STATES.inspect
       end
 
       @task_identity, @command, @state, @exit_code, @time =
-      task_identity, command, state, exit_code, time
+          task_identity, command, state, exit_code, time
     end
   end
 end
