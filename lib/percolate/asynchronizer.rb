@@ -19,15 +19,43 @@
 module Percolate
   module CommandFileIO
 
-    def write_array_commands file, method_name, args_array, commands
+    # Writes a tab-delimited file containing the commands to be run in a
+    # batch job array, one per line. Each line contains: task_id, method_name,
+    # argument list and command, separated by tab characters.
+    #
+    # Arguments:
+    # - file (String): The file to write.
+    # - method_name (Symbol): The name of the Percolate method that wraps the
+    #   command.
+    # - margs_arraym (Array of Arrays): The arguments for each wrapper method
+    #   call. Each element is an argument Array of a separate call.
+    # - commands (Array of Strings): The commands to be executed. This and the
+    #   args_array must be the same length.
+    #
+    # Returns:
+    #
+    # file (String)
+    def write_array_commands file, method_name, margs_arrays, commands
       File.open(file, 'w') { |f|
-        args_array.zip(commands).each { |args, cmd|
-          task_id = task_identity(method_name, args)
-          f.puts("#{task_id}\t#{method_name}\t#{args.inspect}\t#{cmd}")
+        margs_arrays.zip(commands).each { |margs, cmd|
+          task_id = task_identity(method_name, margs)
+          f.puts("#{task_id}\t#{method_name}\t#{margs.inspect}\t#{cmd}")
         }
       }
+      file
     end
 
+    # Reads a single command line from a tab-delimited file containing the
+    # commands to be run in a batch job array, one per line.
+    #
+    # Arguments:
+    #
+    # - file (String): The file to read.
+    # - lineno (integer): The line to read (as counted by IO.each_line)
+    #
+    # Returns:
+    #
+    # - Array of String, task id and command.
     def read_array_command file, lineno
       task_id = command = nil
 
@@ -41,18 +69,27 @@ module Percolate
         }
       }
 
-      if task_id.nil?
-        raise PercolateError, "No such command line #{lineno} in #{file}"
-      elsif task_id.empty?
-        raise PercolateError, "Empty task_id at line #{lineno} in #{file}"
-      elsif command.empty?
-        raise PercolateError, "Empty command at line #{lineno} in #{file}"
-      else
-        [task_id, command]
+      case
+        when task_id.nil?
+          raise PercolateError, "No such command line #{lineno} in #{file}"
+        when task_id.empty?
+          raise PercolateError, "Empty task_id at line #{lineno} in #{file}"
+        when command.empty?
+          raise PercolateError, "Empty command at line #{lineno} in #{file}"
+        else
+          [task_id, command]
       end
     end
   end
 
+  # An Asynchronizer is responsible for starting tasks that are run
+  # asynchronously as system calls or on batch queues, watching their
+  # state as they run and recording any changes.
+  #
+  # Once launched, a task will call back to a message queue which the
+  # Asynchronizer watches. The Asynchronizer uses this information and a
+  # Memoizer to determine what should be done with each subsequent task
+  # method invocation.
   class Asynchronizer
     include CommandFileIO
     attr_accessor :message_host
@@ -60,6 +97,16 @@ module Percolate
     attr_accessor :message_queue
     attr_accessor :async_wrapper
 
+    # Initializes a new Asynchronizer
+    #
+    # Arguments (keys and values):
+    #  - :message_host (String): The message queue host. Optional, defaults to
+    #    'localhost'.
+    #  - :message_port (integer): The message queue port. Optional, defaults to
+    #    11300.
+    #  - :async_wrapper (String): The executable Percolate wrapper that runs
+    #    the command and calls back to the message queue. Optional, defaults to
+    #    'percolate-wrap'.
     def initialize args = {}
       defaults = {:message_host => 'localhost',
                   :message_port => 11300,
@@ -71,12 +118,18 @@ module Percolate
       @async_wrapper = args[:async_wrapper]
     end
 
+    # Returns a new message queue client instance.
+    #
+    # Returns:
+    #
+    #  - A MessageClient.
     def message_client
       Percolate.log.debug("Connecting to message host #{self.message_host} " +
                               "port #{self.message_port}")
       MessageClient.new(self.message_queue, self.message_host, self.message_port)
     end
 
+    # Helper method for executing an asynchronous task. See async_task.
     def async_task_aux method_name, args, command, env, callbacks = {}
       pre, post, val = ensure_callbacks(callbacks)
       memos = Percolate.memoizer.async_method_memos(method_name)
@@ -147,25 +200,23 @@ module Percolate
     end
 
     def update_result method_name, args, post, val, result, log, index = nil
-      ix = ''
-      if index
-        ix = "[#{index}]"
-      end
+      ix = index ? "[#{index}]" : ''
 
       if result.value?
         log.debug("Returning memoized #{method_name} result: #{result}")
       else
         begin
-          if result.failed?
-            raise PercolateAsyncTaskError,
-                  "#{method_name}#{ix} args: #{args.inspect} failed"
-          elsif result.finished? && post.call(*args.take(post.arity.abs))
-            result.finished!(val.call(*args.take(val.arity.abs)))
-            log.debug("Postconditions for #{method_name}#{ix} satsified; " +
-                          "returning #{result}")
-          else
-            log.debug("Postconditions for #{method_name}#{ix} not satsified; " +
-                          "returning nil")
+          case
+            when result.failed?
+              raise PercolateAsyncTaskError,
+                    "#{method_name}#{ix} args: #{args.inspect} failed"
+            when result.finished? && post.call(*args.take(post.arity.abs))
+              result.finished!(val.call(*args.take(val.arity.abs)))
+              log.debug("Postconditions for #{method_name}#{ix} satsified; " +
+                            "returning #{result}")
+            else
+              log.debug("Postconditions for #{method_name}#{ix} not satsified; " +
+                            "returning nil")
           end
         rescue PercolateAsyncTaskError => pate
           # Any of the having, confirm or yielding callbacks may throw this
@@ -178,6 +229,7 @@ module Percolate
     end
   end
 
+  # An Asynchronizer that runs jobs as simple system calls.
   class SystemAsynchronizer < Asynchronizer
     include Percolate
 
@@ -187,6 +239,7 @@ module Percolate
     end
   end
 
+  # An Asynchronizer that submits jobs to platform LSF batch queues.
   class LSFAsynchronizer < Asynchronizer
     include Percolate
 
@@ -288,6 +341,8 @@ module Percolate
              "-M #{mem * 1000} -oo #{log} #{cmd_str}")
     end
 
+    # Helper method for executing an asynchronous task array. See
+    # async_task_array.
     def async_task_array_aux method_name, margs_arrays, commands, array_file,
         async_command, env, callbacks = {}
       pre, post, val = ensure_callbacks(callbacks)
