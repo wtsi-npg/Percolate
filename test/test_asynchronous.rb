@@ -59,8 +59,11 @@ module PercolateTest
 
     $LSF_PRESENT = system('which bsub >/dev/null 2>&1')
 
-    @msg_host = 'localhost'
-    @msg_port = 11300
+    def initialize name
+      super(name)
+      @msg_host = 'hgs3b'
+      @msg_port = 11301
+    end
 
     def bin_path
       File.expand_path(File.join(File.dirname(__FILE__), '..', 'bin'))

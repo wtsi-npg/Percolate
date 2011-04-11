@@ -88,8 +88,12 @@ module PercolateTest
   end
 
   class TestWorkflow < Test::Unit::TestCase
-    @msg_host = 'localhost'
-    @msg_port = 11300
+
+    def initialize name
+      super(name)
+      @msg_host = 'hgs3b'
+      @msg_port = 11301
+    end
 
     def setup
       super
@@ -122,7 +126,7 @@ module PercolateTest
 
     def test_bad_definition_basename
       assert_raise ArgumentError do
-        EmptyWorkflow.new(:foo, "fo o.yml", "foo.run", "pass_dir", "fail_dir")
+        EmptyWorkflow.new(:foo, "fo.o.yml", "foo.run", "pass_dir", "fail_dir")
       end
     end
 

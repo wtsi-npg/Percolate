@@ -31,8 +31,11 @@ module TestPercolate
   class TestPercolator < Test::Unit::TestCase
     include Percolate
 
-    @msg_host = 'localhost'
-    @msg_port = 11300
+    def initialize name
+      super(name)
+      @msg_host = 'hgs3b'
+      @msg_port = 11301
+    end
 
     def setup
       super

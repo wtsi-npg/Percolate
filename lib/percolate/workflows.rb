@@ -26,7 +26,7 @@ module Percolate
 
     DEFINITION_SUFFIX = '.yml'
     RUN_SUFFIX = '.run'
-    BASENAME_REGEXP = /^[A-Za-z0-9_-]+$/
+    BASENAME_REGEXP = /^[^.]+$/
     STATES = [:passed, :failed, nil]
 
     # Metaclass which holds a different set of help strings for each
