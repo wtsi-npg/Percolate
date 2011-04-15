@@ -37,7 +37,7 @@ module PercolateTest
       super
     end
 
-    def sum_task *args
+    def sum_task(*args)
       pre = lambda { |numbers| !numbers.nil? }
       result = lambda { |*numbers| numbers.inject(0) { |n, sum| n + sum } }
 

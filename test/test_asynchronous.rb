@@ -28,7 +28,7 @@ require 'percolate'
 module AsyncTest
   include Percolate
 
-  def async_sleep seconds, work_dir, log
+  def async_sleep(seconds, work_dir, log)
     margs = [seconds, work_dir]
     command = "sleep #{seconds}"
 
@@ -40,7 +40,7 @@ module AsyncTest
                :async => {:queue => :small})
   end
 
-  def p_async_sleep seconds, size, work_dir, log
+  def p_async_sleep(seconds, size, work_dir, log)
     margs_arrays = size.times.collect { |i| [seconds + i, work_dir] }
     commands = size.times.collect { |i| "sleep #{seconds + i}" }
 
@@ -59,7 +59,7 @@ module PercolateTest
 
     $LSF_PRESENT = system('which bsub >/dev/null 2>&1')
 
-    def initialize name
+    def initialize(name)
       super(name)
       @msg_host = 'hgs3b'
       @msg_port = 11301
@@ -76,7 +76,7 @@ module PercolateTest
     class MinimalAsyncWorkflow < Workflow
       include AsyncTest
 
-      def run *args
+      def run(*args)
         async_sleep(*args)
       end
     end
@@ -84,7 +84,7 @@ module PercolateTest
     class MinimalPAsyncWorkflow < Workflow
       include AsyncTest
 
-      def run *args
+      def run(*args)
         p_async_sleep(*args)
       end
     end

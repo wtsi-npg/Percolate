@@ -29,13 +29,13 @@ module Percolate
     PARTITION_SEP
   end
 
-  def partition_tag pref = PARTITION_SEP, post = PARTITION_SEP
+  def partition_tag(pref = PARTITION_SEP, post = PARTITION_SEP)
     "#{pref}#{PARTITION_TAG}#{post}"
   end
 
   # Returns an array of n file names that are the partitions of filename, in
   # ascending order.
-  def partitions filename, n
+  def partitions(filename, n)
     if File.directory?(filename)
       raise ArgumentError,
             "#{filename} could not be partitioned; it is a directory"
@@ -65,13 +65,13 @@ module Percolate
   end
 
   # Returns true if filename is a partition.
-  def partition? filename
+  def partition?(filename)
     !parse_partition(filename).nil?
   end
 
   # Returns the index of filename if it is a partition, or raises an
   # ArgumentError if it is as object other than nil.
-  def partition_index filename
+  def partition_index(filename)
     if filename.nil?
       nil
     elsif partition?(filename)
@@ -84,7 +84,7 @@ module Percolate
 
   # Returns the parent of filename i.e. the file that was partitioned
   # to create filename, or nil if filename is nil.
-  def partition_parent filename
+  def partition_parent(filename)
     if filename.nil?
       nil
     elsif partition?(filename)
@@ -97,7 +97,7 @@ module Percolate
 
   # Returns the template of filename if it is a partition, or raises
   # an ArgumentError if it is not.
-  def partition_template filename, placeholder = '%d'
+  def partition_template(filename, placeholder = '%d')
     if partition?(filename)
       replace_partition(filename, placeholder)
     else
@@ -108,7 +108,7 @@ module Percolate
   # Returns true if Array filenames is not empty and all filenames are
   # distinct and share the same parent i.e. are partitions of the same
   # file.
-  def sibling_partitions? filenames
+  def sibling_partitions?(filenames)
     if (!filenames.empty? && filenames.all? && duplicates(filenames).empty?)
       parents = filenames.collect { |f| partition_parent(f) }
       parents.count(parents.first) == filenames.size
@@ -118,26 +118,26 @@ module Percolate
   # Returns true if Array filenames is not empty and all filenames are
   # siblings with indices between 0 and 1- filenames.size, with no
   # duplicates.
-  def complete_partitions? filenames
+  def complete_partitions?(filenames)
     range = 0...filenames.size
     sibling_partitions?(filenames) &&
         filenames.select { |f| !range.include?(partition_index(f)) }.empty?
   end
 
   private
-  def parse_partition filename
+  def parse_partition(filename) # :nodoc
     if PARTITION_REGXEP.match(filename)
       [$1, $2, $3]
     end
   end
 
-  def replace_partition filename, placeholder
+  def replace_partition(filename, placeholder) # :nodoc
     if PARTITION_REGXEP.match(filename)
       "#{$1}#{partition_tag}#{placeholder}#{$3}"
     end
   end
 
-  def duplicates array
+  def duplicates(array) # :nodoc
     duplicates = Hash.new
     array.each { |elt|
       if duplicates.has_key?(elt)

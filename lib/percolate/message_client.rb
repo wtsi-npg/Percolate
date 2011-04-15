@@ -28,7 +28,7 @@ module Percolate
 
     attr_reader :host, :port, :pool
 
-    def initialize queue, host = DEFAULT_HOST, port = DEFAULT_PORT
+    def initialize(queue, host = DEFAULT_HOST, port = DEFAULT_PORT)
       @queue, @host, @port = queue, host, port
     end
 
@@ -50,7 +50,7 @@ module Percolate
       "#{self.host}:#{self.port}"
     end
 
-    def send_message message
+    def send_message(message)
       self.pool.yput(message)
     end
 
@@ -75,8 +75,8 @@ module Percolate
 
     attr_reader :task_identity, :command, :state, :exit_code, :time
 
-    def initialize task_identity, command, state, exit_code = nil,
-        time = Time.now
+    def initialize(task_identity, command, state, exit_code = nil,
+                   time = Time.now)
       unless TASK_STATES.include?(state)
         raise ArgumentError,
               "Invalid state argument #{state}, must be one of " +

@@ -35,7 +35,7 @@ module Percolate
     # Returns:
     #
     # file (String)
-    def write_array_commands file, method_name, margs_arrays, commands
+    def write_array_commands(file, method_name, margs_arrays, commands)
       File.open(file, 'w') { |f|
         margs_arrays.zip(commands).each { |margs, cmd|
           task_id = task_identity(method_name, margs)
@@ -56,7 +56,7 @@ module Percolate
     # Returns:
     #
     # - Array of String, task id and command.
-    def read_array_command file, lineno
+    def read_array_command(file, lineno)
       task_id = command = nil
 
       File.open(file, 'r') { |f|
@@ -107,7 +107,7 @@ module Percolate
     #  - :async_wrapper (String): The executable Percolate wrapper that runs
     #    the command and calls back to the message queue. Optional, defaults to
     #    'percolate-wrap'.
-    def initialize args = {}
+    def initialize(args = {})
       defaults = {:message_host => 'localhost',
                   :message_port => 11300,
                   :async_wrapper => 'percolate-wrap'}
@@ -130,7 +130,7 @@ module Percolate
     end
 
     # Helper method for executing an asynchronous task. See async_task.
-    def async_task_aux method_name, args, command, env, callbacks = {}
+    def async_task_aux(method_name, args, command, env, callbacks = {})
       pre, post, val = ensure_callbacks(callbacks)
       memos = Percolate.memoizer.async_method_memos(method_name)
       result = memos[args]
@@ -162,14 +162,14 @@ module Percolate
     end
 
     protected
-    def command_string task_id
+    def command_string(task_id)
       "#{self.async_wrapper} --host #{self.message_host} " +
           "--port #{self.message_port} " +
           "--queue #{self.message_queue} " +
           "--task #{task_id}"
     end
 
-    def submit_async method_name, command
+    def submit_async(method_name, command)
       unless self.message_queue
         raise PercolateError, "No message queue has been provided"
       end
@@ -199,7 +199,7 @@ module Percolate
       success
     end
 
-    def update_result method_name, args, post, val, result, log, index = nil
+    def update_result(method_name, args, post, val, result, log, index = nil)
       ix = index ? "[#{index}]" : ''
 
       if result.value?
@@ -233,7 +233,7 @@ module Percolate
   class SystemAsynchronizer < Asynchronizer
     include Percolate
 
-    def async_command task_id, command, work_dir, log, args = {}
+    def async_command(task_id, command, work_dir, log, args = {})
       cmd_str = command_string(task_id)
       cd(work_dir, "#{cmd_str} -- #{command} &")
     end
@@ -246,7 +246,7 @@ module Percolate
     attr_reader :async_submitter
     attr_accessor :async_queues
 
-    def initialize args = {}
+    def initialize(args = {})
       super(args)
       defaults = {:async_queues => [:yesterday, :small, :normal, :long, :basement],
                   :async_submitter => 'bsub'}
@@ -276,7 +276,7 @@ module Percolate
     #
     # - String
     #
-    def async_command task_id, command, work_dir, log, args = {}
+    def async_command(task_id, command, work_dir, log, args = {})
       defaults = {:queue => :normal,
                   :memory => 1900,
                   :cpus => 1,
@@ -343,8 +343,8 @@ module Percolate
 
     # Helper method for executing an asynchronous task array. See
     # async_task_array.
-    def async_task_array_aux method_name, margs_arrays, commands, array_file,
-        async_command, env, callbacks = {}
+    def async_task_array_aux(method_name, margs_arrays, commands, array_file,
+                             async_command, env, callbacks = {})
       pre, post, val = ensure_callbacks(callbacks)
       memos = Percolate.memoizer.async_method_memos(method_name)
 
@@ -398,7 +398,7 @@ module Percolate
     end
 
     private
-    def count_lines file
+    def count_lines(file) # :nodoc
       count = 0
       open(file).each { |line| count = count + 1 }
       count

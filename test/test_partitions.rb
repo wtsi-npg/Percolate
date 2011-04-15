@@ -83,10 +83,10 @@ module PercolateTest
     end
 
     def test_partition_template
-      (0..100).each do |i|
+      (0..100).each { |i|
         assert('foo.part.%d.txt' == partition_template("foo.part.#{i}.txt"))
         assert('foo.part.x.txt' == partition_template("foo.part.#{i}.txt", 'x'))
-      end
+      }
 
       assert_raise ArgumentError do
         partition_template(nil)

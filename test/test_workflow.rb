@@ -33,13 +33,13 @@ module PercolateTest
   # are not satisfied.
   class UnreadyWorkflow < Workflow
     # A task which is permanently unready and can never be run.
-    def unready_task work_dir = '.'
+    def unready_task(work_dir = '.')
       task([work_dir], cd(work_dir, 'true'),
            :pre => lambda { false },
            :result => lambda { true })
     end
 
-    def run *args
+    def run(*args)
       unready_task(*args)
     end
   end
@@ -48,48 +48,48 @@ module PercolateTest
   # postconditions are not satisfied.
   class UnfinishedWorkflow < Workflow
     # A task which may be run, but which never finishes.
-    def unfinished_task work_dir = '.'
+    def unfinished_task(work_dir = '.')
       task([work_dir], cd(work_dir, 'true'),
            :post => lambda { false },
            :result => lambda { true })
     end
 
-    def run *args
+    def run(*args)
       unfinished_task(*args)
     end
   end
 
   # Switchable workflow to that may be set to pass or fail.
   class BooleanWorkflow < Workflow
-    def boolean_task work_dir = '.'
+    def boolean_task(work_dir = '.')
       program = $BOOLEAN_WORKFLOW ? 'true' : 'false'
 
       task([work_dir], cd(work_dir, program),
            :result => lambda { $BOOLEAN_WORKFLOW })
     end
 
-    def run *args
+    def run(*args)
       boolean_task(*args)
     end
   end
 
   # This one doesn't unwrap its return value
   class StayWrappedWorkflow < Workflow
-    def stay_wrapped_task work_dir = '.'
+    def stay_wrapped_task(work_dir = '.')
       task([work_dir], cd(work_dir, 'true'),
            :pre => lambda { work_dir },
            :result => lambda { true },
            :unwrap => false)
     end
 
-    def run *args
+    def run(*args)
       stay_wrapped_task(*args)
     end
   end
 
   class TestWorkflow < Test::Unit::TestCase
 
-    def initialize name
+    def initialize(name)
       super(name)
       @msg_host = 'hgs3b'
       @msg_port = 11301
@@ -131,7 +131,7 @@ module PercolateTest
     end
 
     def test_task_args
-      def bad_arg_task work_dir = '.'
+      def bad_arg_task(work_dir = '.')
         task([work_dir], cd(work_dir, 'true'),
              :pre => :not_a_proc,
              :post => lambda { false },

@@ -26,7 +26,7 @@ module Percolate
   # Returns:
   #
   # - true.
-  def true_task work_dir = '.'
+  def true_task(work_dir = '.')
     task([work_dir], cd(work_dir, 'true'),
          :pre => lambda { work_dir },
          :result => lambda { true })
@@ -41,7 +41,7 @@ module Percolate
   # Returns:
   #
   # - false.
-  def false_task work_dir = '.'
+  def false_task(work_dir = '.')
     task([work_dir], cd(work_dir, 'false'),
          :pre => lambda { work_dir },
          :result => lambda { false })

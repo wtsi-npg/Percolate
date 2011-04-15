@@ -33,17 +33,17 @@ module Percolate
     # subclass.
     class << self
       # The description string for online user help
-      def description str = '<no description available>'
+      def description(str = '<no description available>')
         @description ||= str
       end
 
       # The usage string for online user help
-      def usage str = '<no usage information available>'
+      def usage(str = '<no usage information available>')
         @usage ||= str
       end
 
       # The version string for online user help
-      def version str = '<no version information available>'
+      def version(str = '<no version information available>')
         @version ||= str
       end
     end
@@ -59,8 +59,8 @@ module Percolate
     # The directory to which the files will be moved on failure
     attr_reader :fail_dir
 
-    def initialize identity, definition_file = nil, run_file = nil,
-        pass_dir = nil, fail_dir = nil
+    def initialize(identity, definition_file = nil, run_file = nil,
+                   pass_dir = nil, fail_dir = nil)
       unless identity.is_a?(String) || identity.is_a?(Symbol)
         raise ArgumentError,
               "Invalid identity '#{identity.inspect}'. " +
@@ -173,7 +173,7 @@ module Percolate
 
     # Archives the workflow to directory, moving the definition and
     # run files to that location. Returns the workflow.
-    def archive directory
+    def archive(directory)
       begin
         self.store
 
@@ -196,7 +196,7 @@ module Percolate
     end
 
     # Runs the workflow through one iteration.
-    def run *args
+    def run(*args)
       raise PercolateError,
             "No run method defined for workflow class #{self.class}"
     end
@@ -312,7 +312,7 @@ module Percolate
     end
 
     private
-    def check_transient operation
+    def check_transient(operation) # :nodoc
       if self.transient?
         raise PercolateError,
               "#{operation} cannot be performed on transient workflow #{self.to_s}"
@@ -341,7 +341,7 @@ Returns:
 
     version '0.0.1'
 
-    def run *args
+    def run(*args)
       true_task(*args)
     end
   end
@@ -367,7 +367,7 @@ Returns:
 
     version '0.0.1'
 
-    def run *args
+    def run(*args)
       # args ignored intentionally
       false_task
     end
@@ -375,7 +375,7 @@ Returns:
 
   # Returns an array of all Workflow classes, optionally restricting
   # the result to subclasses of ancestor.
-  def Percolate.find_workflows ancestor = Percolate
+  def Percolate.find_workflows(ancestor = Percolate)
     begin
       mod = case ancestor
               when NilClass;

@@ -44,7 +44,7 @@ module Percolate
 
     # Stores memoization data to place along with additional information on the
     # workflow class and its state.
-    def store_memos place, workflow, state
+    def store_memos(place, workflow, state)
       File.open(place, 'w') { |file|
         Marshal.dump({:percolate_version => Percolate::VERSION,
                       :workflow => workflow,
@@ -55,7 +55,7 @@ module Percolate
     end
 
     # Destructively modifies self by reading stored memoization data from place.
-    def restore_memos! place
+    def restore_memos!(place)
       restored = File.open(place, 'r') { |file|
         ensure_valid_memos(place, Marshal.load(file))
       }
@@ -76,13 +76,13 @@ module Percolate
 
     # Returns the memoization table for the synchronous task method with name
     # key.
-    def method_memos key
+    def method_memos(key)
       ensure_memos(self.memos, key)
     end
 
     # Returns the memoization table for the asynchronous task method with name
     # key.
-    def async_method_memos key
+    def async_method_memos(key)
       ensure_memos(self.async_memos, key)
     end
 
@@ -173,7 +173,7 @@ module Percolate
 
     # Returns true if the asynchronous task method with name key, called with
     # arguments margs has finished?
-    def async_finished? key, margs
+    def async_finished?(key, margs)
       result = self.async_method_memos(key)[margs]
       result && result.finished?
     end
@@ -184,23 +184,23 @@ module Percolate
       !self.async_memos.keys.select { |key| self.dirty_async_memos?(key) }.empty?
     end
 
-    def result_count &result
+    def result_count(&result)
       count_results(self.memos, &result)
     end
 
-    def async_result_count &result
+    def async_result_count(&result)
       count_results(self.async_memos, &result)
     end
 
     protected
-    def dirty_async_memos? key
+    def dirty_async_memos?(key) # :nodoc
       !self.async_method_memos(key).values.compact.select { |result|
         result.submitted? && !result.finished?
       }.empty?
     end
 
     private
-    def count_results memos, &block
+    def count_results(memos, &block) # :nodoc
       memos.values.collect { |method_memos|
         results = method_memos.values.compact
         if block
@@ -211,7 +211,7 @@ module Percolate
       }.inject(0) { |n, m| n + m }
     end
 
-    def ensure_valid_memos place, memos
+    def ensure_valid_memos(place, memos) # :nodoc
       msg = "Memoization data restored from '#{place}' is invalid"
 
       case
@@ -236,7 +236,7 @@ module Percolate
       memos
     end
 
-    def ensure_memos hash, key # :nodoc
+    def ensure_memos(hash, key) # :nodoc
       if hash.has_key?(key)
         hash[key]
       else

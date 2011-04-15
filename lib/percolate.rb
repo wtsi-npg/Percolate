@@ -32,7 +32,7 @@ require 'percolate/partitions'
 
 module Percolate
 
-  VERSION = '0.4.4'
+  VERSION = '0.4.5'
 
   @log = Logger.new(STDERR)
   @memoizer = Percolate::Memoizer.new
@@ -98,8 +98,8 @@ module Percolate
     # Task STDERR.
     attr_accessor :stderr
 
-    def initialize task, mode, task_identity, submission_time, start_time = nil,
-        finish_time = nil, value = nil, stdout = nil, stderr = nil
+    def initialize(task, mode, task_identity, submission_time, start_time = nil,
+                   finish_time = nil, value = nil, stdout = nil, stderr = nil)
       @task = task
       @mode = mode
       @task_identity = task_identity
@@ -112,7 +112,7 @@ module Percolate
     end
 
     # Sets the Result on completion of a task.
-    def finished! value, finish_time = Time.now, exit_code = 0
+    def finished!(value, finish_time = Time.now, exit_code = 0)
       self.finish_time = finish_time
       self.exit_code = exit_code
       self.value = value
@@ -121,7 +121,7 @@ module Percolate
     # Sets the time at which the task started. Tasks may be restarted,
     # in which case the finish time, value, stdout and stderr are set
     # to nil.
-    def started! start_time = Time.now
+    def started!(start_time = Time.now)
       self.start_time = start_time
       self.finish_time = nil
       self.value = nil
@@ -204,7 +204,7 @@ module Percolate
 
   # Returns a task identity string for a call to method named method_name
   # with arguments Array args.
-  def task_identity method_name, args
+  def task_identity(method_name, args)
     Digest::MD5.hexdigest(method_name.to_s + args.inspect) + '-' + method_name.to_s
   end
 
@@ -242,7 +242,7 @@ module Percolate
   #
   # Returns:
   # - Return value of the :result Proc, or nil.
-  def task margs, command, args = {}
+  def task(margs, command, args = {})
     unwrap = args.delete(:unwrap)
     mname = calling_method
     env = {}
@@ -279,7 +279,7 @@ module Percolate
   #
   # Returns:
   # - Return value of the :result Proc, or nil.
-  def native_task margs, args = {}
+  def native_task(margs, args = {})
     mname = calling_method
     defaults = {:pre => lambda { true }}
     args = defaults.merge(args)
@@ -322,7 +322,7 @@ module Percolate
   #
   # Returns:
   # - Return value of the :result Proc, or nil
-  def async_task margs, command, work_dir, log, args = {}
+  def async_task(margs, command, work_dir, log, args = {})
     unwrap = args.delete(:unwrap)
     async = args.delete(:async) || {}
     mname = calling_method
@@ -375,7 +375,7 @@ module Percolate
   #
   # Returns:
   # - Return value of the :result Proc, or nil
-  def async_task_array margs_arrays, commands, work_dir, log, args = {}
+  def async_task_array(margs_arrays, commands, work_dir, log, args = {})
     unwrap = args.delete(:unwrap)
     async = args.delete(:async) || {}
     mname = calling_method
@@ -394,7 +394,7 @@ module Percolate
   end
 
   # Delegates to the async_command method of the current Asynchronizer.
-  def async_command *args
+  def async_command(*args)
     Percolate.asynchronizer.async_command(*args)
   end
 
@@ -421,7 +421,7 @@ module Percolate
   #
   # Returns:
   # - Wrapped return value of the :result Proc, or nil.
-  def task_aux method_name, margs, command, env, args = {}
+  def task_aux(method_name, margs, command, env, args = {})
     pre, post, val = ensure_callbacks(args)
 
     memos = Percolate.memoizer.method_memos(method_name)
@@ -478,7 +478,7 @@ module Percolate
   #
   # Returns:
   # - Wrapped return value of the :result Proc, or nil.
-  def native_task_aux method_name, margs, pre, proc
+  def native_task_aux(method_name, margs, pre, proc)
     ensure_callback('pre', pre)
     ensure_callback('result', proc)
 
@@ -520,14 +520,14 @@ module Percolate
     end
   end
 
-  def split_task_args args
+  def split_task_args(args)
     callbacks = args.reject {|key, value| ! [:pre, :post, :result].include?(key) }
     other = args.reject {|key, value| callbacks.keys.include?(key) }
 
     [callbacks, other]
   end
 
-  def maybe_unwrap result, unwrap
+  def maybe_unwrap(result, unwrap)
     if result && unwrap != false
       result.value
     else
@@ -535,11 +535,11 @@ module Percolate
     end
   end
 
-  def ensure_callbacks callbacks
+  def ensure_callbacks(callbacks)
     [:pre, :post, :result].collect { |k| ensure_callback(k, callbacks[k]) }
   end
 
-  def ensure_callback key, callback
+  def ensure_callback(key, callback)
     if callback.is_a?(Proc)
       callback
     else
@@ -552,13 +552,13 @@ module Percolate
      :post => lambda { true }}
   end
 
-  def system_command command
+  def system_command(command)
     out = []
     IO.popen(command) { |io| out = io.readlines }
     [$?, out]
   end
 
-  def command_success? process_status
+  def command_success?(process_status)
     process_status.exited? && process_status.exitstatus.zero?
   end
 end

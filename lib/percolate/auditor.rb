@@ -25,11 +25,11 @@ module Percolate
   # Mean run time of each type of task by run file
 
   module Auditor
-    def mean numbers
+    def mean(numbers)
       numbers.inject(0) { |sum, n| sum += n }.to_f / numbers.size
     end
 
-    def median numbers
+    def median(numbers)
       if numbers.empty?
         nil
       elsif (numbers.size % 2).zero?
@@ -40,7 +40,7 @@ module Percolate
       end
     end
 
-    def variance numbers
+    def variance(numbers)
       if numbers.empty?
         nil
       else
@@ -49,7 +49,7 @@ module Percolate
       end
     end
 
-    def std_deviation numbers
+    def std_deviation(numbers)
       Math.sqrt(variance(numbers) / (numbers.size - 1))
     end
 
@@ -63,7 +63,7 @@ module Percolate
     # Returns:
     #
     # - A table.
-    def load_run_file run_file
+    def load_run_file(run_file)
       memoizer = Percolate::Memoizer.new
       memoizer.restore_memos!(run_file)
 
@@ -98,7 +98,7 @@ module Percolate
     # Returns:
     #
     # - Array of tables.
-    def load_run_files run_files, args = {}
+    def load_run_files(run_files, args = {})
       defaults = {:merge => true}
       args = defaults.merge(args)
 
@@ -123,7 +123,7 @@ module Percolate
     # Returns:
     #
     # - A table group.
-    def group table, args = {}
+    def group(table, args = {})
       Grouping(table, args)
     end
 
@@ -137,7 +137,7 @@ module Percolate
     # Returns:
     #
     # - A table.
-    def hide_columns table, *columns
+    def hide_columns(table, *columns)
       table.sub_table(table.column_names - columns)
     end
 
@@ -157,7 +157,7 @@ module Percolate
     # Returns:
     #
     # - A table.
-    def format_dates table, args = {}
+    def format_dates(table, args = {})
       defaults = {:format => '%I:%M:%S %p %d-%m-%Y',
                   :columns => [:submission_time, :start_time, :finish_time]}
       args = defaults.merge(args)
@@ -184,7 +184,7 @@ module Percolate
     # Returns:
     #
     # - A table with :task and :mean_run_time columns.
-    def mean_run_time table
+    def mean_run_time(table)
       g_by_task = group(table, :by => :task)
       g_by_task.summary(:task,
                         :mean_run_time => lambda { |g|
@@ -194,11 +194,11 @@ module Percolate
     end
 
     # Writes table to out as text.
-    def write_table table, out = $stdout, width = 1000
+    def write_table(table, out = $stdout, width = 1000)
       out.puts(table.as(:text, :table_width => width))
     end
 
-    def audit_run_times run_files
+    def audit_run_times(run_files)
       means = load_run_files(run_files, :merge => false).collect { |table|
         hide_columns(table, :task_identity)
       }.collect { |table|

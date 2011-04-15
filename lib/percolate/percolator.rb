@@ -151,7 +151,7 @@ module Percolate
     # The config hash will normally be supplied via a YAML file on the
     # command line or a YAML .percolate file in the user's home
     # directory.
-    def initialize config = {}
+    def initialize(config = {})
       symbol_config = {}
       config.each { |key, value|
         if value
@@ -247,7 +247,7 @@ module Percolate
 
     # Returns an array of workflow class and workflow arguments for
     # workflow definition in file.
-    def read_definition file
+    def read_definition(file)
       if !File.exists?(file)
         raise PercolateError, "Workflow definition '#{file}' does not exist"
       end
@@ -329,7 +329,7 @@ module Percolate
     end
 
     # Percolates data through the workflow described by definition.
-    def percolate_tasks definition
+    def percolate_tasks(definition)
       def_file = File.expand_path(definition, self.run_dir)
       run_file = def_file.gsub(Regexp.new(File.extname(def_file) + '$'),
                                self.run_suffix)
@@ -422,7 +422,7 @@ module Percolate
     end
 
     private
-    def substitute_uris args
+    def substitute_uris(args) # :nodoc
       args.collect { |arg|
         if arg.is_a?(String) && URI_REGEXP.match(arg)
           URI.parse(arg.slice(URI_REGEXP))
