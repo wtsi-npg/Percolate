@@ -151,6 +151,26 @@ module Percolate
       updates.size > 0
     end
 
+    # Removes memoized values for failed asynchronous tasks so that
+    # they may be run again
+    def purge_async_memos!
+      log = Percolate.log
+      log.debug("Purging failed asynchronous tasks")
+      log.debug("Before purging: #{self.async_memos.inspect}")
+
+      purged = Hash.new
+
+      self.async_memos.each_pair { |key, method_memos|
+        purged[key] = method_memos.reject { |method_args, result|
+          result && result.failed?
+        }
+
+        log.debug("After purging #{key}: #{purged.inspect}")
+      }
+
+      self.async_memos = purged
+    end
+
     # Returns true if the asynchronous task method with name key, called with
     # arguments margs has finished?
     def async_finished? key, margs
@@ -173,26 +193,6 @@ module Percolate
     end
 
     protected
-    # Removes memoized values for failed asynchronous tasks so that
-    # they may be run again
-    def purge_async_memos!
-      log = Percolate.log
-      log.debug("Purging failed asynchronous tasks")
-      log.debug("Before purging: #{self.async_memos.inspect}")
-
-      purged = Hash.new
-
-      self.async_memos.each_pair { |key, method_memos|
-        purged[key] = method_memos.reject { |method_args, result|
-          result && result.failed?
-        }
-
-        log.debug("After purging #{key}: #{purged.inspect}")
-      }
-
-      self.async_memos = purged
-    end
-
     def dirty_async_memos? key
       !self.async_method_memos(key).values.compact.select { |result|
         result.submitted? && !result.finished?
