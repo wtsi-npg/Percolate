@@ -32,7 +32,7 @@ require 'percolate/partitions'
 
 module Percolate
 
-  VERSION = '0.4.5'
+  VERSION = '0.4.6'
 
   @log = Logger.new(STDERR)
   @memoizer = Percolate::Memoizer.new
