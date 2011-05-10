@@ -101,6 +101,8 @@ module Percolate
         if !self.has_key?(:percolate) && !self.has_key?(:load)
           raise ArgumentError, "a --load argument is required"
         end
+      rescue SystemExit => se
+        raise se
       rescue OptionParser::ParseError => pe
         $stderr.puts(opts)
         $stderr.puts("\nInvalid argument: #{pe}")
