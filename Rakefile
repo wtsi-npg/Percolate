@@ -1,4 +1,3 @@
-
 require 'rake'
 require 'rake/clean'
 require 'rake/gempackagetask'
@@ -8,14 +7,13 @@ require 'rcov/rcovtask'
 
 spec = Gem::Specification.new do |spec|
   spec.name = 'percolate'
-  spec.version = '0.3.6'
-  spec.has_rdoc = true
+  spec.version = '0.4.7'
   spec.extra_rdoc_files = ['README', 'LICENSE']
   spec.summary = 'The Percolate workflow utility.'
   spec.description = spec.summary
   spec.author = 'Keith James'
   spec.email = 'kdj@sanger.ac.uk'
-  spec.executables = ['percolate-rb', 'percolate-wrap', 'percolate-queues']
+  spec.executables = ['percolate', 'percolate-audit', 'percolate-wrap', 'percolate-queues']
   spec.files = %w(LICENSE README Rakefile) + Dir.glob('{bin,lib,spec}/**/*')
   spec.require_path = 'lib'
   spec.bindir = 'bin'
@@ -41,8 +39,8 @@ Rake::TestTask.new do |t|
 end
 
 Rcov::RcovTask.new do |rcov|
-  rcov.pattern    = FileList['test/**/*.rb']
+  rcov.pattern = FileList['test/**/*.rb']
   rcov.output_dir = 'coverage'
-  rcov.verbose    = true
+  rcov.verbose = true
   rcov.rcov_opts << "--sort coverage -x 'rcov,ruby'"
 end

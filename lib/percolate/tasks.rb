@@ -17,21 +17,33 @@
 #
 
 module Percolate
-  include Percolate::Asynchronous
-
-  # A task which succeeds.
-  def true_task work_dir = '.', env = {}
-    task(:true_task, [work_dir], Percolate.cd(work_dir, 'true'), env,
-         :having   => lambda { work_dir },
-         :confirm  => lambda { true },
-         :yielding => lambda { true })
+  # A task that should always succeed. It executes the Unix 'true' command.
+  #
+  # Arguments:
+  #
+  # - work_dir (String): The working directory. Optional, defaults to '.'
+  #
+  # Returns:
+  #
+  # - true.
+  def true_task(work_dir = '.')
+    task([work_dir], cd(work_dir, 'true'),
+         :pre => lambda { work_dir },
+         :result => lambda { true })
   end
 
-  # A task which always fails.
-  def false_task work_dir = '.', env = {}
-    task(:false_task, [work_dir], Percolate.cd(work_dir, 'false'), env,
-         :having   => lambda { true },
-         :confirm  => lambda { true },
-         :yielding => lambda { false })
+  # A task that should always fail. It executes the Unix 'false' command.
+  #
+  # Arguments:
+  #
+  # - work_dir (String): The working directory. Optional, defaults to '.'
+  #
+  # Returns:
+  #
+  # - false.
+  def false_task(work_dir = '.')
+    task([work_dir], cd(work_dir, 'false'),
+         :pre => lambda { work_dir },
+         :result => lambda { false })
   end
 end

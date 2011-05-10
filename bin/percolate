@@ -1,0 +1,66 @@
+#!/usr/bin/env ruby
+#
+# Copyright (C) 2010 Genome Research Ltd. All rights reserved.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+require 'rubygems'
+require 'yaml'
+require 'optparse'
+
+require 'percolate'
+
+include Percolate
+
+arguments = PercolatorArguments.new(ARGV)
+
+config = {}
+default_config = File.expand_path('~/.percolate')
+
+config_file = case
+                when arguments.has_key?(:config)
+                  arguments[:config]
+                when File.exists?(default_config)
+                  default_config
+                else
+                  nil
+              end
+
+if config_file
+  begin
+    if !File.exists?(config_file)
+      raise ArgumentError,
+            "Percolate configuration '#{config_file}' does not exist"
+    elsif !File.file?(config_file)
+      raise ArgumentError,
+            "Percolate configuration '#{config_file}' is not a file"
+    elsif !File.readable?(config_file)
+      raise ArgumentError,
+            "Percolate configuration '#{config_file}' is not readable"
+    else
+      config = YAML.load_file(config_file)
+    end
+  rescue ArgumentError => ae
+    $stderr.puts("Invalid configuration: #{ae}")
+    exit(CONFIG_ERROR)
+  end
+end
+
+# The :percolate flag means we are supposed to run workflows
+if arguments.has_key?(:percolate)
+  Percolator.new(config).percolate
+else
+  PercolatorArguments.new('-h')
+end

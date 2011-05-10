@@ -25,63 +25,79 @@ $:.unshift(libpath) unless $:.include?(libpath)
 require 'percolate'
 
 module PercolateTest
-  class TestPercolateSystem < Test::Unit::TestCase
+  class TestPercolateMemoize < Test::Unit::TestCase
     include Percolate
-    include Percolate::Memoize
 
     def setup
       super
-      clear_memos
+      Percolate.memoizer.clear_memos!
     end
 
     def teardown
       super
     end
 
+    def sum_task(*args)
+      pre = lambda { |numbers| !numbers.nil? }
+      result = lambda { |*numbers| numbers.inject(0) { |n, sum| n + sum } }
+
+      native_task(args, :pre => pre, :result => result, :unwrap => false)
+    end
+
     def test_get_memos
-      memos = get_memos(:test_fn)
+      memos = Percolate.memoizer.method_memos(:test_fn)
 
       assert(memos.is_a?(Hash))
       assert_equal(0, memos.size)
-      assert(all_memos.has_key?(:test_fn))
+      assert(Percolate.memoizer.memos.has_key?(:test_fn))
     end
 
     def test_get_async_memos
-      memos = get_async_memos(:test_async_fn)
+      memos = Percolate.memoizer.async_method_memos(:test_async_fn)
 
       assert(memos.is_a?(Hash))
       assert_equal(0, memos.size)
-      assert(all_async_memos.has_key?(:test_async_fn))
+      assert(Percolate.memoizer.async_memos.has_key?(:test_async_fn))
+    end
+
+    def test_result_count
+      memoizer = Percolate.memoizer
+      assert(memoizer.result_count.zero?)
+      assert(sum_task(1, 2, 3))
+      assert_equal(1, memoizer.result_count)
+      assert_equal(1, memoizer.result_count { |result| result.submitted? })
+      assert_equal(1, memoizer.result_count { |result| result.started? })
+      assert_equal(1, memoizer.result_count { |result| result.finished? })
+
+      assert(sum_task(1, 2, 4))
+      assert_equal(2, memoizer.result_count)
+      assert_equal(2, memoizer.result_count { |result| result.submitted? })
+      assert_equal(2, memoizer.result_count { |result| result.started? })
+      assert_equal(2, memoizer.result_count { |result| result.finished? })
     end
 
     def test_store_restore_memos
       Dir.mktmpdir('percolate') { |dir|
         file = File.join dir, 'store_restore_memos.dat'
-        state = :passed
-        store_memos(file, state)
-        data = restore_memos(file)
+        Percolate.memoizer.store_memos(file, :dummy_name, :passed)
+        workflow, state = Percolate.memoizer.restore_memos!(file)
 
-        assert_equal([state, all_memos, all_async_memos], data)
+        assert_equal(:dummy_name, workflow)
+        assert_equal(:passed, state)
       }
     end
 
     def test_native_task
-      def test_add_task *args
-        having = lambda { |numbers| ! numbers.nil? }
-        command = lambda { |*numbers| numbers.inject(0) { |n, sum| n + sum } }
+      memoizer = Percolate.memoizer
+      assert(!memoizer.memos.has_key?(:sum_task))
 
-        native_task(:test_add_task, args, command, having)
-      end
-
-      assert(! all_memos.has_key?(:test_add_task))
-
-      result = test_add_task(1, 2, 3)
-      assert_equal(:test_add_task, result.task)
+      result = sum_task(1, 2, 3)
+      assert_equal(:sum_task, result.task)
       assert_equal(6, result.value)
 
-      memos = get_memos(:test_add_task)
+      memos = memoizer.method_memos(:sum_task)
       assert(memos.is_a?(Hash))
-      assert(all_memos.has_key?(:test_add_task))
+      assert(memoizer.memos.has_key?(:sum_task))
     end
   end
 end

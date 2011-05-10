@@ -1,62 +1,123 @@
 #!/usr/bin/env ruby
+#
+# Copyright (C) 2010 Genome Research Ltd. All rights reserved.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
 
 require 'rubygems'
 require 'optparse'
+require 'ruport'
 
 require 'percolate'
 
 include Percolate
+include Percolate::Auditor
 
-puts("opening #{ARGV[0]}")
-file = ARGV[0]
+class AuditArguments < Hash
+  def initialize args
+    super
 
-memos, async_memos = {}, {}
+    self[:verbose] = 0
 
-File.open(file, 'r') do |f|
-  memos, async_memos = Marshal.load(f)
-end
+    opts = OptionParser.new do |opts|
+      opts.banner = "Usage: #$0 [options] <runfile1 runfile2 ...>"
+      by = [:by, '-b', '--by [ATTRIBUTE]', 'Report by run-file or task-state']
+      [by].each{ |key, short, long, doc|
+        opts.on(short, long, doc) { |opt| self[key] = opt
+        }
+      }
 
-def mean numbers
-  numbers.inject(0) { |sum, n| sum += n }.to_f / numbers.size
-end
+      opts.on('-l', '--load LIBRARY', 'Load a workflow library') { |lib|
+        begin
+          self[:load] = lib
+          require lib
+        rescue LoadError
+          puts("Could not load workflow library '#{lib}'")
+          exit(CLI_ERROR)
+        end
+      }
 
-def median numbers
-  if numbers.empty?
-    nil
-  elsif (numbers.size % 2).zero?
-    m = numbers.size / 2
-    mean(numbers.sort[m - 1 .. m])
-  else
-    numbers.sort[numbers.size / 2]
+      opts.on('-v', '--verbose [LEVEL]',
+              'Set the verbosity level 0, 1 or 2') { |level|
+        begin
+          self[:verbose] = Integer(level)
+        rescue ArgumentError => ae
+          raise OptionParser::ParseError, ae.to_s
+        end
+      }
+
+      opts.on('-?', '--help', 'Display this help and exit') {
+        $stderr.puts(opts)
+        exit
+      }
+    end
+
+    begin
+      opts.parse!(args)
+
+      unless self.has_key?(:load)
+        raise ArgumentError, "a --load argument is required"
+      end
+
+      groups = ['run-file', 'task-state']
+      if self.has_key?(:by)
+        unless groups.include?(self[:by])
+          raise ArgumentError,
+                "Invalid group by '#{self[:by]}': expected one of #{groups.inspect}"
+        end
+      end
+
+    rescue OptionParser::ParseError => pe
+      $stderr.puts(opts)
+      $stderr.puts("\nInvalid argument: #{pe}")
+      exit(CLI_ERROR)
+    rescue Exception => e
+      $stderr.puts(opts)
+      $stderr.puts("\nCommand line error: #{e.message}")
+      exit(CLI_ERROR)
+    end
+
+    self
   end
 end
 
-def variance numbers
-  if numbers.empty?
-    nil
+
+arguments = AuditArguments.new(ARGV)
+
+group = case arguments[:by]
+          when 'run-file'
+            :run_file
+          when 'task-state'
+            :state
+        end
+
+hide = case arguments[:verbose]
+         when 0
+           [:task_identity, :mode, :submission_time, :start_time, :finish_time]
+         when 1
+           [:task_identity, :mode, :submission_time]
+         when 2
+           []
+       end
+
+run_files = ARGV
+unless run_files.empty?
+  if group
+    write_table(group(format_dates(hide_columns(load_run_files(run_files), *hide)),
+                      :by => group))
   else
-    m = mean(numbers)
-    numbers.inject(0) { |var, n| var += (n - m) ** 2 }
+    write_table(format_dates(hide_columns(load_run_files(run_files), *hide)))
   end
 end
-
-def std_deviation numbers
-  Math.sqrt(variance(numbers) / (numbers.size - 1))
-end
-
-times = memos.keys.collect do |task|
-  runs = memos[task]
-  [task, runs.each_value.collect do |result|
-     result.runtime
-   end]
-end
-puts(times.inspect)
-
-times = async_memos.keys.collect do |task|
-  runs = async_memos[task]
-  [task, runs.each_value.collect do |result|
-     result.runtime
-   end]
-end
-puts(times.inspect)
-

@@ -16,32 +16,34 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-require 'digest/md5'
+require 'digest'
 
 module Percolate
   # All workflows must be subclassed from Workflow which provides the
   # basic workflow management methods.
   class Workflow
     include Percolate
-    include Percolate::Memoize
 
     DEFINITION_SUFFIX = '.yml'
     RUN_SUFFIX = '.run'
-    BASENAME_REGEXP = /^[A-Za-z0-9_-]+$/
+    BASENAME_REGEXP = /^[^.]+$/
+    STATES = [:passed, :failed, nil]
 
     # Metaclass which holds a different set of help strings for each
     # subclass.
     class << self
       # The description string for online user help
-      def description str = '<no description available>'
+      def description(str = '<no description available>')
         @description ||= str
       end
+
       # The usage string for online user help
-      def usage str = '<no usage information available>'
+      def usage(str = '<no usage information available>')
         @usage ||= str
       end
+
       # The version string for online user help
-      def version str = '<no version information available>'
+      def version(str = '<no version information available>')
         @version ||= str
       end
     end
@@ -57,26 +59,26 @@ module Percolate
     # The directory to which the files will be moved on failure
     attr_reader :fail_dir
 
-    def initialize identity, definition_file = nil, run_file = nil,
-                   pass_dir = nil, fail_dir = nil
+    def initialize(identity, definition_file = nil, run_file = nil,
+                   pass_dir = nil, fail_dir = nil)
       unless identity.is_a?(String) || identity.is_a?(Symbol)
         raise ArgumentError,
-              "Invalid identity '#{identity.inspect}'. " <<
-              "Must be a String or Symbol."
+              "Invalid identity '#{identity.inspect}'. " +
+                  "Must be a String or Symbol."
       end
 
       if definition_file
         unless File.extname(definition_file) == DEFINITION_SUFFIX
           raise ArgumentError,
                 "Invalid definition file name '#{definition_file}'. " +
-                "Suffix must be '#{DEFINITION_SUFFIX}'"
+                    "Suffix must be '#{DEFINITION_SUFFIX}'"
         end
 
         unless File.basename(definition_file,
                              File.extname(definition_file)).match(BASENAME_REGEXP)
           raise ArgumentError,
                 "Invalid definition file name '#{definition_file}'. " +
-                "Basename must match '#{BASENAME_REGEXP.inspect}'"
+                    "Basename must match '#{BASENAME_REGEXP.inspect}'"
         end
       end
 
@@ -89,17 +91,17 @@ module Percolate
       @failed = false
     end
 
-    # The description string for online user help
+    # The description string for online user help.
     def description
       self.class.description
     end
 
-    # The usage string for online user help
-     def usage
-       self.class.usage
-     end
+    # The usage string for online user help.
+    def usage
+      self.class.usage
+    end
 
-    # The version string for online user help
+    # The version string for online user help.
     def version
       self.class.version
     end
@@ -111,26 +113,38 @@ module Percolate
       self.definition_file.nil?
     end
 
+    # Returns the basename of the definition file which is used as the
+    # run name.
     def run_name
       File.basename(self.definition_file)
     end
 
     # Restores the workflow from its run file, if it exists. Returns
     # the workflow.
-    def restore
+    def restore!
       check_transient(:restore)
       if File.exists?(self.run_file)
-        state, memo, async_memo = restore_memos(self.run_file)
+        workflow, state = Percolate.memoizer.restore_memos!(self.run_file)
 
-        $log.debug("Restored #{self} with state #{state}")
+        unless workflow == self.class
+          raise PercolateError,
+                "Attempted to restore a #{workflow} workflow from " +
+                    "#{self.run_file} into #{self}, which is a #{self.class} " +
+                    "workflow"
+        end
+
+        Percolate.log.debug("Restored #{self} with state #{state}")
 
         case state
-          when :passed ; @passed = true
-          when :failed ; @failed = true
-          when nil     ; nil
+          when :passed;
+            @passed = true
+          when :failed;
+            @failed = true
+          when nil;
+            nil
           else
-             raise PercolateError,
-                   "Bad state #{state} in #{self.run_file} for #{self}"
+            raise PercolateError,
+                  "Bad state #{state} in #{self.run_file} for #{self}"
         end
       else
         raise PercolateError,
@@ -143,59 +157,60 @@ module Percolate
     # Stores the workflow to its run file. Returns the workflow.
     def store
       check_transient(:store)
-      state = if self.passed?
-                :passed
-              elsif self.failed?
-                :failed
-              else
-                nil
+      state = case
+                when self.passed?
+                  :passed
+                when self.failed?
+                  :failed
+                else
+                  nil
               end
 
-      $log.debug("Storing workflow in #{self.run_file}, state: #{state}")
-      store_memos(self.run_file, state)
+      Percolate.log.debug("Storing workflow in #{self.run_file}, state: #{state}")
+      Percolate.memoizer.store_memos(self.run_file, self.class, state)
       self
     end
 
     # Archives the workflow to directory, moving the definition and
     # run files to that location. Returns the workflow.
-    def archive directory
+    def archive(directory)
       begin
         self.store
 
         if File.exists?(self.run_file)
-          $log.debug("Archiving #{self.run_file} to #{directory}")
+          Percolate.log.debug("Archiving #{self.run_file} to #{directory}")
           FileUtils.mv(self.run_file, directory)
         end
 
         if File.exists?(self.definition_file)
-          $log.debug("Archiving #{self.definition_file} to #{directory}")
+          Percolate.log.debug("Archiving #{self.definition_file} to #{directory}")
           FileUtils.mv(self.definition_file, directory)
         end
       rescue Exception => e
         raise PercolateError,
               "Failed to archive workflow #{self} to '#{directory}': " +
-              "#{e.message}"
+                  "#{e.message}"
       end
 
       self
     end
 
     # Runs the workflow through one iteration.
-    def run *args
+    def run(*args)
       raise PercolateError,
             "No run method defined for workflow class #{self.class}"
     end
 
     # Archives the workflow to the pass directory. Returns the
     # workflow.
-    def declare_passed
+    def declare_passed!
       check_transient(:declare_passed)
       if self.passed?
         raise PercolateError,
               "Cannot pass #{self} because it has already passed"
       end
 
-      $log.debug("Workflow #{self} passed")
+      Percolate.log.debug("Workflow #{self} passed")
       @passed = true
       self.archive(self.pass_dir)
     end
@@ -207,14 +222,14 @@ module Percolate
 
     # Archives the workflow to the fail directory. Returns the
     # workflow.
-    def declare_failed
+    def declare_failed!
       check_transient(:declare_failed)
       if self.failed?
         raise PercolateError,
               "Cannot fail #{self} because it has already failed"
       end
 
-      $log.debug("Workflow #{self} failed")
+      Percolate.log.debug("Workflow #{self} failed")
       @failed = true
       self.archive(self.fail_dir)
     end
@@ -233,7 +248,7 @@ module Percolate
 
     # Restarts workflow by removing any pass or fail
     # information. Returns the workflow.
-    def restart
+    def restart!
       check_transient(:restart)
       unless self.finished?
         raise PercolateError,
@@ -241,10 +256,10 @@ module Percolate
       end
 
       if self.passed?
-        $log.debug("Restarting passed workflow #{self}")
+        Percolate.log.debug("Restarting passed workflow #{self}")
         @passed = false
       elsif self.failed?
-        $log.debug("Restarting failed workflow #{self}")
+        Percolate.log.debug("Restarting failed workflow #{self}")
         @failed = false
       end
 
@@ -283,28 +298,24 @@ module Percolate
     end
 
     def to_s
-      state = if self.finished?
-                ' finished:'
-              else
-                nil
-              end
-
-      result = if self.passed?
-                ' passed'
-              elsif self.failed?
-                ' failed'
-              else
-                nil
-              end
+      state = self.finished? ? ' finished:' : nil
+      result = case
+                 when self.passed?
+                   ' passed'
+                 when self.failed?
+                   ' failed'
+                 else
+                   nil
+               end
 
       "#<#{self.class} #{self.definition_file}#{state}#{result}>"
     end
 
-    :private
-    def check_transient operation
+    private
+    def check_transient(operation) # :nodoc
       if self.transient?
         raise PercolateError,
-              "#{operation} cannot be performed on transient Task #{self.to_s}"
+              "#{operation} cannot be performed on transient workflow #{self.to_s}"
       end
     end
   end
@@ -314,7 +325,7 @@ module Percolate
   class EmptyWorkflow < Workflow
     description <<-DESC
 The empty workflow. This returns a true value when run and does nothing else.
-DESC
+    DESC
 
     usage <<-USAGE
 EmptyWorkflow *args
@@ -326,11 +337,11 @@ Arguments:
 Returns:
 
 - true
-USAGE
+    USAGE
 
-   version '0.0.1'
+    version '0.0.1'
 
-    def run *args
+    def run(*args)
       true_task(*args)
     end
   end
@@ -340,7 +351,7 @@ USAGE
   class FailingWorkflow < Workflow
     description <<-DESC
 The failing workflow. This fails by running the Unix 'false' command.
-DESC
+    DESC
 
     usage <<-USAGE
 FailingWorkflow *args
@@ -352,11 +363,11 @@ Arguments:
 Returns:
 
 - true
-USAGE
+    USAGE
 
     version '0.0.1'
 
-    def run *args
+    def run(*args)
       # args ignored intentionally
       false_task
     end
@@ -364,24 +375,27 @@ USAGE
 
   # Returns an array of all Workflow classes, optionally restricting
   # the result to subclasses of ancestor.
-  def Percolate.find_workflows ancestor = Percolate
+  def Percolate.find_workflows(ancestor = Percolate)
     begin
       mod = case ancestor
-              when NilClass ; Percolate
-              when String   ; Object.const_get ancestor
-              when Module   ; ancestor
-            else
-              raise ArgumentError,
-                    "Invalid ancestor argument. Expected a string or " +
-                    "constant, but was #{ancestor.inspect}"
+              when NilClass;
+                Percolate
+              when String;
+                Object.const_get ancestor
+              when Module;
+                ancestor
+              else
+                raise ArgumentError,
+                      "Invalid ancestor argument. Expected a string or " +
+                          "constant, but was #{ancestor.inspect}"
             end
     rescue NameError => ne
       raise ArgumentError,
             "Invalid ancestor argument. Expected a Ruby module, " +
-            "but was #{ancestor.inspect}"
+                "but was #{ancestor.inspect}"
     end
 
-    ObjectSpace.each_object(Class).select {|c| c.ancestors.include?(Workflow) &&
-                                               c.ancestors.include?(mod) }
+    ObjectSpace.each_object(Class).select { |c| c.ancestors.include?(Workflow) &&
+        c.ancestors.include?(mod) }
   end
 end
