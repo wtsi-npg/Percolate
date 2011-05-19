@@ -1,3 +1,14 @@
+#+TITLE:     Percolate Manual
+#+AUTHOR:    Keith James
+#+EMAIL:     kdj@sanger.ac.uk
+#+DESCRIPTION: 
+#+KEYWORDS: 
+#+OPTIONS:   H:6 num:t toc:t \n:nil @:t ::t |:t ^:t -:t f:t *:t <:t
+#+OPTIONS:   TeX:t LaTeX:t skip:nil d:nil todo:t pri:nil tags:nil
+#+LATEX_HEADER: \renewcommand{\familydefault}{\sfdefault}
+#+LaTeX_CLASS_OPTIONS: [a4]
+#+STARTUP: hidestars
+
 * Overview
 
   Percolate is a lightweight library for coordinated execution of
@@ -23,9 +34,6 @@
     - fail/ :: A directory to which failed workflow definition files
       are moved
 
-    - locks/ :: A directory where temporary lock files are created
-                during a workflow lifecycle
-
    If the root directory or any of the subdirectories are absent,
    Percolate will create them automatically. To run a workflow, a
    definition file containing its name and arguments is placed in the
@@ -35,11 +43,6 @@
    possible from each of those workflows. If a workflow completes, the
    definition file is moved to a 'pass' directory, or to a 'fail'
    directory if an error occurs.
-
-   It is preferable for the root directory /not to be located on an
-   NFS filesystem/. This is because lock files are used to prevent the
-   same workflow being started multiple times and they do not always
-   behave well on NFS filesystems.
 
    In general, it is safe to run the driver script on any host because
    most workflows do not do much local compute, but rather run jobs on
@@ -94,7 +97,6 @@ arguments:
   this is the recommended method for managing large numbers of
   workflows.
 
-
 ** The Percolate driver
 
    When the Percolate driver script or 'percolator' is run, it
@@ -109,20 +111,29 @@ arguments:
 
    The percolator may also be run to query the available workflows in
    any available libraries and print their online documentation. The
-   most commonly used command line arguments are:
+   available command line arguments are:
 
 #+BEGIN_EXAMPLE
-    -l, --load [LIBRARY]             Load a workflow library
+farm2-head2[kdj/P]735: percolate -h
+Usage: /software/gapi/pkg/gapi-ruby/0.1.0/bin/percolate [options]
+    -c, --config [FILE]              Load Percolator configuration from FILE
+    -l, --load LIBRARY               Load a workflow library
     -d, --display [GROUP]            Display available workflows
     -p, --percolate                  Run all defined workflows
+    -v, --version                    Print the Percolate version and exit
     -w, --workflow [WORKFLOW]        Display workflow help
+    -h, --help                       Display this help and exit
 #+END_EXAMPLE
 
+    The /-c/ argument allows the user to supply an alternative Percolate
+    configuration file to the default. See [[Configuring Percolate][Configuring Percolate]].
+
     The /-p/ argument simply runs all the workflows defined in the
-    'in' directory. The /-l/ argument is combined with either the /-d/
-    or the /-w/ argument to query available workflows. For example, to
-    display all workflows in the group (Module) MIG in the library
-    'mig':
+    'in' directory.
+
+    The /-l/ argument is combined with either the /-d/ or the /-w/
+    argument to query available workflows. For example, to display all
+    workflows in the group (Module) MIG in the library 'mig':
 
 #+BEGIN_EXAMPLE
 [kdj/D]511: percolate -l mig -d MIG
@@ -168,6 +179,7 @@ Returns:
 
 - String (filename of BAM format file)
 #+END_EXAMPLE
+
 
 ** Workflow failures
 
@@ -225,7 +237,9 @@ Client stats: {"name"=>"default", "total-jobs"=>0,
    log_level: <log verbosity, one of TRACE|DEBUG|INFO|WARN, defaults to WARN>
 #+END_EXAMPLE
 
-    Editing these values will change the Percolate driver's behaviour.
+    Editing these values will change the Percolate driver's
+    behaviour. For example, it is possible to run separate production
+    and development pipeline drivers concurrently.
 
 
 * Writing your own workflows
@@ -295,6 +309,7 @@ Client stats: {"name"=>"default", "total-jobs"=>0,
    internal functions and to return values from them. For this reason
    it is advisable to write workflows that perform a single, well
    defined task, much like any function should.
+
 
 * Footnotes
 
