@@ -89,8 +89,8 @@ module PercolateTest
     class MinimalPAsyncWorkflow < Workflow
       include AsyncTest
 
-      def run(*args)
-        p_async_sleep(*args)
+      def run(seconds, size, work_dir, log)
+        p_async_sleep(seconds, size, work_dir, log)
       end
     end
 
@@ -129,9 +129,10 @@ module PercolateTest
 
       percolator = Percolator.new({'root_dir' => data_path,
                                    'log_file' => 'percolate-test.log',
-                                   'log_level' => 'INFO',
+                                   'log_level' => 'DEBUG',
                                    'msg_host' => @msg_host,
-                                   'msg_port' => @msg_port})
+                                   'msg_port' => @msg_port,
+                                   'max_processes' => 2})
 
       wf = MinimalAsyncWorkflow.new(:dummy_def,
                                     'dummy_def.yml', 'dummy_run.run',
@@ -147,57 +148,48 @@ module PercolateTest
       size = 5
 
       # Initially nil from async task
-      assert_equal(size.times.collect { nil },
-                   wf.run(run_time, size, '.'))
+      result = wf.run(run_time, size, '.')
+      assert_equal(size.times.collect { nil }, result)
 
       # Test counting before updates
-      assert_equal(5, memoizer.async_result_count)
-      assert_equal(5, memoizer.async_result_count { |result| result.submitted? })
-      assert(memoizer.async_result_count { |result| result.started? }.zero?)
-      assert(memoizer.async_result_count { |result| result.finished? }.zero?)
+      assert_equal(memoizer.max_processes, memoizer.async_result_count)
+      assert_equal(memoizer.max_processes,
+                   memoizer.async_result_count { |r| r.submitted? })
+      assert(memoizer.async_result_count { |r| r.started? }.zero?)
+      assert(memoizer.async_result_count { |r| r.finished? }.zero?)
       assert(memoizer.dirty_async?)
 
       Timeout.timeout(60) do
-        runs = []
-
-        until runs.size == size && !runs.include?(false) do
-          runs = size.times.collect { |i|
-            memoizer.async_finished?(:async_sleep, [run_time + i, '.'])
-          }
-
+        until result.collect { |r| r && r.finished? }.all? do
           memoizer.update_async_memos!
+          result = wf.run(run_time, size, '.')
+
           sleep(5)
           print('#')
         end
       end
 
-      # Pick up result
-      x = wf.run(run_time, size, '.')
-
       # Test counting after updates
-      assert_equal(5, memoizer.async_result_count)
-      assert_equal(5, memoizer.async_result_count { |result| result.submitted? })
-      assert_equal(5, memoizer.async_result_count { |result| result.started? })
-      assert_equal(5, memoizer.async_result_count { |result| result.finished? })
+      assert_equal(size, memoizer.async_result_count)
+      assert_equal(size, memoizer.async_result_count { |r| r.submitted? })
+      assert_equal(size, memoizer.async_result_count { |r| r.started? })
+      assert_equal(size, memoizer.async_result_count { |r| r.finished? })
       assert(!memoizer.dirty_async?)
 
-      assert(x.is_a?(Array))
-      assert(x.all? { |elt| elt.is_a?(Result) })
-      assert(x.all? { |elt| elt.started? })
-      assert(x.all? { |elt| elt.finished? })
-      assert_equal([:async_sleep], x.collect { |elt| elt.task }.uniq)
-      assert_equal(size.times.collect { |i| i + run_time }, x.collect { |elt| elt.value })
+      assert_equal([:async_sleep], result.collect { |r| r.task }.uniq)
+      assert_equal(size.times.collect { |i| i + run_time },
+                   result.collect { |r| r.value })
     end
 
     def test_minimal_p_async_workflow
       wrapper = File.join(bin_path, 'percolate-wrap')
-      Percolate.asynchronizer =
-              Percolate::LSFAsynchronizer.new(:async_wrapper => wrapper)
+      asynchronizer = LSFAsynchronizer.new(:async_wrapper => wrapper)
+      Percolate.asynchronizer = asynchronizer
 
       if $LSF_PRESENT
         percolator = Percolator.new({'root_dir' => data_path,
                                      'log_file' => 'percolate-test.log',
-                                     'log_level' => 'INFO',
+                                     'log_level' => 'DEBUG',
                                      'msg_host' => @msg_host,
                                      'msg_port' => @msg_port})
         lsf_log = File.join(data_path, 'minimal_p_async_workflow.%I.log')
@@ -206,7 +198,7 @@ module PercolateTest
                                        'dummy_def.yml', 'dummy_run.run',
                                        percolator.pass_dir,
                                        percolator.fail_dir)
-        Percolate.asynchronizer.message_queue = wf.message_queue
+        asynchronizer.message_queue = wf.message_queue
 
         memoizer = Percolate.memoizer
         memoizer.clear_memos!
@@ -216,46 +208,36 @@ module PercolateTest
         size = 5
 
         # Initially nil from async task
-        assert_equal([nil, nil, nil, nil, nil],
-                     wf.run(run_time, size, data_path, lsf_log))
+        result = wf.run(run_time, size, data_path, lsf_log)
+        assert_equal(size.times.collect { nil }, result)
 
         # Test counting before updates
-        assert_equal(5, memoizer.async_result_count)
-        assert_equal(5, memoizer.async_result_count { |result| result.submitted? })
-        assert(memoizer.async_result_count { |result| result.started? }.zero?)
-        assert(memoizer.async_result_count { |result| result.finished? }.zero?)
+        # All jobs get submitted as one batch
+        assert_equal(size, memoizer.async_result_count)
+        assert_equal(size, memoizer.async_result_count { |r| r.submitted? })
+        assert(memoizer.async_result_count { |r| r.started? }.zero?)
+        assert(memoizer.async_result_count { |r| r.finished? }.zero?)
         assert(memoizer.dirty_async?)
 
         Timeout.timeout(60) do
-          runs = []
-
-          until runs.size == size && !runs.include?(false) do
-            runs = size.times.collect { |i|
-              memoizer.async_finished?(:p_async_sleep,
-                                       [run_time + i, data_path])
-            }
-
+          until result.collect { |r| r && r.finished? }.all? do
             memoizer.update_async_memos!
-            sleep(run_time)
-            print('#')
+            result = wf.run(run_time, size, data_path, lsf_log)
+
+            sleep(5)
+          print('#')
           end
         end
 
-        # Pick up result
-        x = wf.run(run_time, size, data_path, lsf_log)
-
         # Test counting after updates
-        assert_equal(5, memoizer.async_result_count { |result| result.submitted? })
-        assert_equal(5, memoizer.async_result_count { |result| result.started? })
-        assert_equal(5, memoizer.async_result_count { |result| result.finished? })
+        assert_equal(size, memoizer.async_result_count { |r| r.submitted? })
+        assert_equal(size, memoizer.async_result_count { |r| r.started? })
+        assert_equal(size, memoizer.async_result_count { |r| r.finished? })
         assert(!memoizer.dirty_async?)
 
-        assert(x.is_a?(Array))
-        assert(x.all? { |elt| elt.is_a?(Result) })
-        assert(x.all? { |elt| elt.started? })
-        assert(x.all? { |elt| elt.finished? })
-        assert_equal([:p_async_sleep], x.collect { |elt| elt.task }.uniq)
-        assert_equal(size.times.collect { |i| i + run_time }, x.collect { |elt| elt.value })
+        assert_equal([:p_async_sleep], result.collect { |r| r.task }.uniq)
+        assert_equal(size.times.collect { |i| i + run_time },
+                     result.collect { |r| r.value })
       end
     end
 

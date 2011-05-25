@@ -215,9 +215,12 @@ module Percolate
       if opts[:msg_port]
         Percolate.asynchronizer.message_port = opts[:msg_port]
       end
+      if opts[:max_processes]
+        Percolate.memoizer.max_processes = opts[:max_processes]
+      end
 
-      @def_suffix = Percolate::Workflow::DEFINITION_SUFFIX
-      @run_suffix = Percolate::Workflow::RUN_SUFFIX
+      @def_suffix = Workflow::DEFINITION_SUFFIX
+      @run_suffix = Workflow::RUN_SUFFIX
 
       self
     end

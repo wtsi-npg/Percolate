@@ -96,7 +96,8 @@ module Percolate
     # Method for executing an asynchronous task.
     def async_task(method_name, args, command, env, callbacks = {})
       pre, post, val = ensure_callbacks(callbacks)
-      memos = Percolate.memoizer.async_method_memos(method_name)
+      memoizer = Percolate.memoizer
+      memos = memoizer.async_method_memos(method_name)
       result = memos[args]
       submitted = result && result.submitted?
 
@@ -107,7 +108,10 @@ module Percolate
         log.debug("#{method_name} job '#{command}' is already submitted")
         update_result(method_name, args, post, val, result, log)
       else # Can we submit the job?
-        if !pre.call(*args.take(pre.arity.abs))
+        if !memoizer.free_async_slots?
+          log.debug("Deferring submission of #{method_name}; " +
+                        "returning nil")
+        elsif !pre.call(*args.take(pre.arity.abs))
           log.debug("Preconditions for #{method_name} not satisfied; " +
                         "returning nil")
         else
@@ -129,9 +133,6 @@ module Percolate
       unless self.message_queue
         raise PercolateError, "No message queue has been provided"
       end
-
-      # TODO: check the number of open jobs versus the maximum permitted,
-      # allowing submission to be throttled
 
       # Jump through hoops because bsub insists on polluting our stdout
       # TODO: pass environment variables from env

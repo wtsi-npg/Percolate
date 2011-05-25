@@ -61,6 +61,7 @@ module TestPercolate
         assert_equal('test', config['root_dir'])
         assert_equal('test-percolate.log', config['log_filename'])
         assert_equal('INFO', config['log_level'])
+        assert_equal(2, config['max_processes'])
       }
     end
 

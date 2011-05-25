@@ -27,7 +27,7 @@ require 'percolate'
 
 module PercolateTest
   include Percolate
-  include Percolate::Utilities
+  include Utilities
 
   $BOOLEAN_WORKFLOW = false
 

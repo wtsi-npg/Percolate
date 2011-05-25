@@ -27,12 +27,17 @@ module Percolate
     attr_accessor :memos
     # A mapping of task method names to method memoization tables.
     attr_accessor :async_memos
+    # Maximum number of asynchronous tasks permitted.
     attr_accessor :max_processes
 
-    def initialize
+    def initialize(max_processes = 8)
       @memos = {}
       @async_memos = {}
-      @max_processes = 4
+      @max_processes = max_processes
+    end
+
+    def free_async_slots?
+      self.async_result_count { |r| r.submitted? && !r.finished?} < self.max_processes
     end
 
     # Erases all memoization tables.

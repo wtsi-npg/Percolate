@@ -2,3 +2,4 @@
 root_dir: test
 log_filename: test-percolate.log
 log_level: INFO
+max_processes: 2
