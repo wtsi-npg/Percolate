@@ -1,6 +1,6 @@
 #--
 #
-# Copyright (C) 2010 Genome Research Ltd. All rights reserved.
+# Copyright (c) 2010-2011 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -225,10 +225,10 @@ module Percolate
           "does not match current the version #{Percolate::VERSION}"
         when !memos.key?(:workflow_state)
           raise PercolateError, msg + ": no Workflow state was stored"
-        when !Percolate::Workflow::STATES.include?(memos[:workflow_state])
+        when !Workflow::STATES.include?(memos[:workflow_state])
           raise PercolateError, msg + ": workflow state was " +
           "#{memos[:workflow_state]}, expected one of " +
-          "#{Percolate::Workflow::STATES}"
+          "#{Workflow::STATES}"
         when !memos.key?(:memos) || !memos.key?(:async_memos)
           raise PercolateError, ": memoization data was missing"
       end

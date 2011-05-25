@@ -1,6 +1,6 @@
 #--
 #
-# Copyright (C) 2010 Genome Research Ltd. All rights reserved.
+# Copyright (c) 2010-2011 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,9 +16,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+require 'rubygems'
 require 'test/unit'
 require 'timeout'
-require 'rubygems'
 
 libpath = File.expand_path('../lib')
 $:.unshift(libpath) unless $:.include?(libpath)
@@ -26,7 +26,7 @@ $:.unshift(libpath) unless $:.include?(libpath)
 require 'percolate'
 
 module AsyncTest
-  include Percolate
+  include Percolate::Tasks
 
   def async_sleep(seconds, work_dir, log)
     margs = [seconds, work_dir]
@@ -54,15 +54,16 @@ module AsyncTest
 end
 
 module PercolateTest
-  class TestWorkflow < Test::Unit::TestCase
+  class TestAsyncWorkflow < Test::Unit::TestCase
     include Percolate
+    include Tasks
 
     $LSF_PRESENT = system('which bsub >/dev/null 2>&1')
 
     def initialize(name)
       super(name)
-      @msg_host = 'hgs3b'
-      @msg_port = 11301
+      @msg_host = 'localhost'
+      @msg_port = 11300
     end
 
     def bin_path
@@ -76,8 +77,12 @@ module PercolateTest
     class MinimalAsyncWorkflow < Workflow
       include AsyncTest
 
-      def run(*args)
-        async_sleep(*args)
+      def run(seconds, size, work_dir)
+        log = nil
+
+        size.times.collect { |i|
+          async_sleep(seconds + i, work_dir, log)
+        }
       end
     end
 
@@ -90,7 +95,8 @@ module PercolateTest
     end
 
     def test_lsf_args
-      Percolate.asynchronizer = Percolate::LSFAsynchronizer.new
+      asynchronizer = LSFAsynchronizer.new
+      Percolate.asynchronizer = asynchronizer
 
       command = 'sleep 10'
       work_dir = data_path
@@ -100,58 +106,65 @@ module PercolateTest
       array_file = File.join(data_path, 'test_lsf_args.txt')
 
       assert_raise ArgumentError do
-        async_command(task_id, command, data_path, log, :queue => :no_such_queue)
+        asynchronizer.async_command(task_id, command, data_path, log, :queue => :no_such_queue)
       end
 
       assert_raise ArgumentError do
-        async_command(task_id, command, data_path, log, :memory => -1)
+        asynchronizer.async_command(task_id, command, data_path, log, :memory => -1)
       end
 
       assert_raise ArgumentError do
-        async_command(task_id, command, data_path, log, :memory => 0)
+        asynchronizer.async_command(task_id, command, data_path, log, :memory => 0)
       end
 
       assert_raise ArgumentError do
-        async_command(task_id, command, data_path, log, :memory => nil)
+        asynchronizer.async_command(task_id, command, data_path, log, :memory => nil)
       end
     end
 
     def test_minimal_async_workflow
       wrapper = File.join(bin_path, 'percolate-wrap')
-      Percolate.asynchronizer =
-              Percolate::SystemAsynchronizer.new(:async_wrapper => wrapper)
+      asynchronizer = SystemAsynchronizer.new(:async_wrapper => wrapper)
+      Percolate.asynchronizer = asynchronizer
 
       percolator = Percolator.new({'root_dir' => data_path,
                                    'log_file' => 'percolate-test.log',
                                    'log_level' => 'INFO',
                                    'msg_host' => @msg_host,
                                    'msg_port' => @msg_port})
-      lsf_log = File.join(data_path, 'minimal_async_workflow.log')
 
       wf = MinimalAsyncWorkflow.new(:dummy_def,
                                     'dummy_def.yml', 'dummy_run.run',
                                     percolator.pass_dir,
                                     percolator.fail_dir)
-      Percolate.asynchronizer.message_queue = wf.message_queue
+      asynchronizer.message_queue = wf.message_queue
 
       memoizer = Percolate.memoizer
       memoizer.clear_memos!
       assert(memoizer.async_result_count.zero?)
       assert(!memoizer.dirty_async?)
-      run_time = 5
+      run_time = 10
+      size = 5
 
       # Initially nil from async task
-      assert_nil(wf.run(run_time, '.', lsf_log))
+      assert_equal(size.times.collect { nil },
+                   wf.run(run_time, size, '.'))
 
       # Test counting before updates
-      assert_equal(1, memoizer.async_result_count)
-      assert_equal(1, memoizer.async_result_count { |result| result.submitted? })
+      assert_equal(5, memoizer.async_result_count)
+      assert_equal(5, memoizer.async_result_count { |result| result.submitted? })
       assert(memoizer.async_result_count { |result| result.started? }.zero?)
       assert(memoizer.async_result_count { |result| result.finished? }.zero?)
       assert(memoizer.dirty_async?)
 
       Timeout.timeout(60) do
-        until (memoizer.async_finished?(:async_sleep, [run_time, '.'])) do
+        runs = []
+
+        until runs.size == size && !runs.include?(false) do
+          runs = size.times.collect { |i|
+            memoizer.async_finished?(:async_sleep, [run_time + i, '.'])
+          }
+
           memoizer.update_async_memos!
           sleep(5)
           print('#')
@@ -159,20 +172,21 @@ module PercolateTest
       end
 
       # Pick up result
-      x = wf.run(run_time, '.', lsf_log)
+      x = wf.run(run_time, size, '.')
 
       # Test counting after updates
-      assert_equal(1, memoizer.async_result_count)
-      assert_equal(1, memoizer.async_result_count { |result| result.submitted? })
-      assert_equal(1, memoizer.async_result_count { |result| result.started? })
-      assert_equal(1, memoizer.async_result_count { |result| result.finished? })
+      assert_equal(5, memoizer.async_result_count)
+      assert_equal(5, memoizer.async_result_count { |result| result.submitted? })
+      assert_equal(5, memoizer.async_result_count { |result| result.started? })
+      assert_equal(5, memoizer.async_result_count { |result| result.finished? })
       assert(!memoizer.dirty_async?)
 
-      assert(x.is_a?(Result))
-      assert(x.started?)
-      assert(x.finished?)
-      assert_equal(:async_sleep, x.task)
-      assert_equal(run_time, x.value)
+      assert(x.is_a?(Array))
+      assert(x.all? { |elt| elt.is_a?(Result) })
+      assert(x.all? { |elt| elt.started? })
+      assert(x.all? { |elt| elt.finished? })
+      assert_equal([:async_sleep], x.collect { |elt| elt.task }.uniq)
+      assert_equal(size.times.collect { |i| i + run_time }, x.collect { |elt| elt.value })
     end
 
     def test_minimal_p_async_workflow
@@ -241,8 +255,9 @@ module PercolateTest
         assert(x.all? { |elt| elt.started? })
         assert(x.all? { |elt| elt.finished? })
         assert_equal([:p_async_sleep], x.collect { |elt| elt.task }.uniq)
-        assert_equal([5, 6, 7, 8, 9], x.collect { |elt| elt.value })
+        assert_equal(size.times.collect { |i| i + run_time }, x.collect { |elt| elt.value })
       end
     end
+
   end
 end

@@ -1,6 +1,6 @@
 #--
 #
-# Copyright (C) 2011 Genome Research Ltd. All rights reserved.
+# Copyright (c) 2011 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -185,11 +185,10 @@ module Percolate
     #
     # - A table with :task and :mean_run_time columns.
     def mean_run_time(table)
+      mrt = lambda { |g| mean(g.column(:run_time).compact) }
+
       g_by_task = group(table, :by => :task)
-      g_by_task.summary(:task,
-                        :mean_run_time => lambda { |g|
-                          mean(g.column(:run_time).compact)
-                        },
+      g_by_task.summary(:task, :mean_run_time => mrt,
                         :order => [:task, :mean_run_time])
     end
 

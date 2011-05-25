@@ -1,6 +1,6 @@
 #--
 #
-# Copyright (C) 2010 Genome Research Ltd. All rights reserved.
+# Copyright (c) 2010-2011 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+require 'rubygems'
 require 'fileutils'
 require 'tmpdir'
 require 'uri'
@@ -33,8 +34,8 @@ module TestPercolate
 
     def initialize(name)
       super(name)
-      @msg_host = 'hgs3b'
-      @msg_port = 11301
+      @msg_host = 'localhost'
+      @msg_port = 11300
     end
 
     def setup

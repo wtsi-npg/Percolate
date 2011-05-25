@@ -1,6 +1,6 @@
 #--
 #
-# Copyright (C) 2010 Genome Research Ltd. All rights reserved.
+# Copyright (c) 2010-2011 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,8 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-require 'rubygems'
-require 'optparse'
+# require 'rubygems'
 require 'beanstalk-client'
 
 module Percolate
@@ -65,26 +64,6 @@ module Percolate
 
     def close_queue
       pool && pool.close
-    end
-  end
-
-  # A message describing a change in task state, to be sent via Beanstalk
-  # message queue.
-  class TaskMessage
-    TASK_STATES = [:started, :finished]
-
-    attr_reader :task_identity, :command, :state, :exit_code, :time
-
-    def initialize(task_identity, command, state, exit_code = nil,
-                   time = Time.now)
-      unless TASK_STATES.include?(state)
-        raise ArgumentError,
-              "Invalid state argument #{state}, must be one of " +
-                  TASK_STATES.inspect
-      end
-
-      @task_identity, @command, @state, @exit_code, @time =
-          task_identity, command, state, exit_code, time
     end
   end
 end
