@@ -16,22 +16,14 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+require 'gibbler'
+
 module Percolate
   module NamedTasks
-    # Returns a task identity string for a call to method named method_name
-    # with arguments Array args. Optionally a custom serializer for args may
-    # be provided.
-    def task_identity(method_name, args, &serializer)
-
-      # Maybe use respond_to? to check for available serialization or checksumming
-      # libraries? Using inspect is a bit rubbish.
-      serial = if serializer
-                 serializer.call(args)
-               else
-                 args.inspect
-               end
-
-      Digest::MD5.hexdigest(method_name.to_s + serial) + '-' + method_name.to_s
+    # Returns an invocation identity string for a call to method named method_name
+    # with arguments args.
+    def task_identity(method_name, *args)
+      [method_name, *args].gibbler + '-' + method_name.to_s
     end
 
     # Run a memoized system command having pre- and post-conditions.
