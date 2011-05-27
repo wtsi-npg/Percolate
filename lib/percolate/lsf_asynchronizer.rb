@@ -90,8 +90,8 @@ module Percolate
       end
 
       cpu_str = nil
-      if args[:cpus] > 1
-        cpu_str = " -n #{args[:cpus]} -R 'span[hosts=1]'"
+      if cpus > 1
+        cpu_str = " -n #{cpus} -R 'span[hosts=1]'"
       end
 
       cmd_str = command_string(task_id)
@@ -139,12 +139,11 @@ module Percolate
 
       if submitted
         margs_arrays.each_with_index { |args, i|
-          result = memos[args]
-          results[i] = result
+          results[i] = memos[args]
           log.debug("Checking #{method_name}[#{i}] args: #{args.inspect}, " +
-                        "result: #{result}")
+                        "result: #{results[i]}")
 
-          update_result(method_name, args, post, val, result, log, i)
+          update_result(method_name, args, post, val, results[i], log, i)
         }
       else
         # Can't submit any members of a job array until all their

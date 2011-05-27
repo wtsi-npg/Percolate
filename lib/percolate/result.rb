@@ -60,6 +60,7 @@ module Percolate
       @start_time = start_time
       @finish_time = finish_time
       @value = value
+      @exit_code = nil
       @stdout = stdout
       @stderr = stderr
     end

@@ -21,7 +21,7 @@ module Percolate
   # values for all Percolate task methods. It allows the mappings to be updated,
   # saved and restored.
   class Memoizer
-    # The class of Workflow running cuurently.
+    # The class of Workflow running currently.
     attr_accessor :workflow
     # A mapping of task method names to method memoization tables.
     attr_accessor :memos

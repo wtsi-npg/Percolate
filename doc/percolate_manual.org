@@ -11,7 +11,7 @@
 
 * Overview
 
-  Percolate is a lightweight library for coordinated execution of
+  Percolate is a lightweight application for coordinated execution of
   external, command-line programs. It provides a means of defining
   data transformation workflows as simple scripts and a driver to
   execute those scripts.

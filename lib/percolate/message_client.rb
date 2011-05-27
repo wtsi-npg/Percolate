@@ -16,7 +16,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-# require 'rubygems'
 require 'beanstalk-client'
 
 module Percolate

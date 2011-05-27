@@ -26,7 +26,7 @@ module Percolate
 
   module Auditor
     def mean(numbers)
-      numbers.inject(0) { |sum, n| sum += n }.to_f / numbers.size
+      numbers.inject(0) { |sum, n| sum + n }.to_f / numbers.size
     end
 
     def median(numbers)
@@ -45,7 +45,7 @@ module Percolate
         nil
       else
         m = mean(numbers)
-        numbers.inject(0) { |var, n| var += (n - m) ** 2 }
+        numbers.inject(0) { |var, n| var + (n - m) ** 2 }
       end
     end
 

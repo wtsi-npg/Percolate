@@ -41,7 +41,7 @@ require 'percolate/partitions'
 
 module Percolate
 
-  VERSION = '0.4.8'
+  VERSION = '0.4.9'
 
   @log = Logger.new(STDERR)
   @memoizer = Memoizer.new

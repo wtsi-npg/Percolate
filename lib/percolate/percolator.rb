@@ -154,10 +154,10 @@ module Percolate
     # command line or a YAML .percolate file in the user's home
     # directory.
     def initialize(config = {})
-      symbol_config = {}
+      sconfig = {}
       config.each { |key, value|
         if value
-          symbol_config[key.intern] = value
+          sconfig[key.intern] = value
         end
       }
 
@@ -171,11 +171,11 @@ module Percolate
                   :log_file => 'percolate.log',
                   :log_level => 'WARN'}
 
-      opts = defaults.merge(symbol_config)
+      opts = defaults.merge(sconfig)
 
       # If the user has moved the root dir, but not defined a log dir,
       # move the log_dir too
-      if symbol_config[:root_dir] && !symbol_config[:log_dir]
+      if sconfig[:root_dir] && !sconfig[:log_dir]
         opts[:log_dir] = opts[:root_dir]
       end
 
@@ -346,12 +346,12 @@ module Percolate
       lock = File.new(lock_file, 'w')
       workflow = nil
 
+      memoizer = Percolate.memoizer
+      log = Percolate.log
+
       begin
         if lock.flock(File::LOCK_EX | File::LOCK_NB)
           begin
-            memoizer = Percolate.memoizer
-            log = Percolate.log
-
             log.debug("Successfully obtained lock #{lock} for #{definition}")
             workflow_class, workflow_args = read_definition(def_file)
             workflow = workflow_class.new(File.basename(def_file, '.yml'),
@@ -411,8 +411,8 @@ module Percolate
         end
       ensure
         if lock.flock(File::LOCK_UN).nonzero?
-          raise PercolateError
-          "Failed to release lock #{lock} for #{definition}"
+          raise PercolateError,
+                "Failed to release lock #{lock} for #{definition}"
         end
       end
 

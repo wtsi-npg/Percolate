@@ -23,6 +23,7 @@ module Percolate
 
       @message_host = args[:message_host]
       @message_port = args[:message_port]
+      @message_queue = nil
       @async_wrapper = args[:async_wrapper]
     end
 

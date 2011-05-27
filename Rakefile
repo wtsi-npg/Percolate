@@ -7,14 +7,18 @@ require 'rcov/rcovtask'
 
 spec = Gem::Specification.new do |spec|
   spec.name = 'percolate'
-  spec.version = '0.4.8'
+  spec.version = '0.4.9'
   spec.extra_rdoc_files = ['README', 'LICENSE']
   spec.summary = 'The Percolate workflow utility.'
-  spec.description = spec.summary
+  spec.description = 'Percolate is a lightweight library for coordinated ' +
+      'execution of command-line programs. It provides a means of defining data ' +
+      'transformation pipelines as simple scripts.'
   spec.author = 'Keith James'
   spec.email = 'kdj@sanger.ac.uk'
-  spec.executables = ['percolate', 'percolate-audit', 'percolate-wrap', 'percolate-queues']
-  spec.files = %w(LICENSE README Rakefile) + Dir.glob('{bin,lib,spec}/**/*')
+  spec.executables = ['percolate', 'percolate-audit', 'percolate-wrap',
+                      'percolate-queues']
+  spec.files = %w(LICENSE README Rakefile) + Dir.glob('{bin,spec}/**/*') +
+      Dir.glob('lib/**/*.rb')
   spec.require_path = 'lib'
   spec.bindir = 'bin'
 end

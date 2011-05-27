@@ -133,7 +133,7 @@ module Percolate
       mname = calling_method
       env = {}
 
-      callbacks, other = split_task_args(args)
+      callbacks, * = split_task_args(args)
       task_id = task_identity(mname, margs)
 
       # async_command = async_command(task_id, command, work_dir, log, async)
@@ -190,7 +190,7 @@ module Percolate
       mname = calling_method
       env = {}
 
-      callbacks, other = split_task_args(args)
+      callbacks, * = split_task_args(args)
       task_id = task_identity(mname, margs_arrays)
       array_file = File.join(work_dir, "#{task_id}.txt")
 
