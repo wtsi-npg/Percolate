@@ -1,4 +1,41 @@
-Percolate is a lightweight library for coordinated execution of
-external, command-line programs. It provides a means of defining data
-transformation pipelines as simple scripts and a driver to execute
-those scripts.
+Percolate is a lightweight application for combining command-line programs
+into flexible, fault-tolerant data transformation workflows. Its goal is to
+allow complex workflows to be expressed using only standard Ruby operators.
+
+Percolate's features are:
+
+- The ability to create complex, parallel workflows as plain Ruby code. The
+  workflow paths are implicit in the code; no explicit structure need be defined.
+
+- Workflows may contain any combination of Ruby code, local system calls and
+  asynchronous batch queue jobs.
+
+- Partially complete workflows may be suspended and continued later.
+
+- Workflows may be restarted after failure without repeating successful steps.
+  Partially complete workflows may be paused and archived, to be continued later.
+
+- Parallel workflows may be executed using fork/exec or by integration with
+  Platform LSF for large clusters.
+
+- Small and lightweight. These things are relative, of course, but the entire
+  system is less than 2000 LOC, including the driver and auditor.
+
+
+Percolate's restrictions are:
+
+- Methods on the workflow execution path must adhere to a simple convention
+  of being able to accept arguments and return values of 'nil'.
+
+- Heavy compute should be done by the command-line programs called by the
+  workflow, not the workflow script itself.
+
+
+Percolate's dependencies are:
+
+- Beanstalk (http://kr.github.com/beanstalkd/)
+- The beanstalk-client Ruby gem (http://beanstalk.rubyforge.org/)
+
+  and optionally, for the auditor
+
+- The Ruport Ruby gem (http://www.rubyreports.org/)
