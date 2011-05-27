@@ -24,6 +24,81 @@ module Percolate
       "cd #{path} \; #{command}"
     end
 
+    def args_available?(*args)
+      args.flatten.all?
+    end
+
+    # Returns a CLI argument String created by prefixing each element in args
+    # and then joining with sep.
+    #
+    # Example:
+    #
+    # cli_arg_cat(["x", 1, "y", 2])
+    #  => "-x 1 -y 2"
+    def cli_arg_cat(args, prefix = '-', sep = ' ')
+      args.collect { |arg| prefix + arg.to_s }.join(sep)
+    end
+
+    # Returns an Array of CLI argument strings created by joining each
+    # pair in Hash args with sep. If block &key is supplied, it will be used
+    # to transform the stringified key before joining. For boolean arguments,
+    # the key is returned if the value is true, otherwise the pair is removed.
+    #
+    # Example:
+    #
+    # cli_arg_map({:x => 1, :y => 2, :a => true, :b => false}, :prefix => '-')
+    #  => ["-x 1", "-y 2", "-a"]
+    #
+    # cli_arg_map({:x_y => 1, :a => true}, :prefix => '--', :sep => '=') { |key|
+    #   key.gsub(/_/, '-') }
+    #  => ["--x-y=1", "--a"]
+    def cli_arg_map(map, args = {}, &key)
+      defaults = {:prefix => '', :sep => ' '}
+      args = defaults.merge(args)
+
+      map.collect { |pair|
+        case pair[1]
+          when NilClass, FalseClass
+            nil
+          when TrueClass
+            str = pair[0].to_s
+            args[:prefix] + (key && key.call(str) || str)
+          else
+            strs = pair.collect { |elt| elt.to_s }
+            key && strs[0] = key.call(strs[0])
+            args[:prefix] + strs.join(args[:sep])
+        end
+      }.compact
+    end
+
+    def ensure_files(files, args = {})
+      err = lambda { |file, msg| raise ArgumentError, "File '#{file}' #{msg}" }
+
+      defaults = {:error => true}
+      args = defaults.merge(args)
+      error = args[:error]
+      found = []
+
+      files.each { |file|
+        case
+          when !FileTest.exist?(file)
+            error && err.call(file, 'does not exist')
+          when !FileTest.file?(file)
+            error && err.call(file, 'is not a regular file')
+          when !FileTest.readable?(file)
+            error && err.call(file, 'is not readable')
+          else
+            found << file
+        end
+      }
+
+      Percolate.log.debug("Expected #{files.inspect}, found #{found.inspect}")
+
+      if files == found
+        files
+      end
+    end
+
     def system_command(command)
       out = []
       IO.popen(command) { |io| out = io.readlines }
