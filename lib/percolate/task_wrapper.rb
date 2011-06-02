@@ -65,11 +65,16 @@ module Percolate
                       :port => self.message_port,
                       :queue => self.message_queue,
                       :task => task_id}
+      cmd = [self.async_wrapper, cli_arg_map(wrapper_args, :prefix => '--')]
 
-      ruby_args = cli_arg_map(self.ruby_args, :prefix => '-', :sep => '')
-
-      ["ruby", ruby_args, '--', self.async_wrapper,
-       cli_arg_map(wrapper_args, :prefix => '--')].flatten.join(' ')
+      # The Ruby args are meant for the tests only; I can't find another way
+      # to pass the test lib directory to the wrapper during the system call.
+      if self.ruby_args.empty?
+        cmd.flatten.join(' ')
+      else
+        ruby_args = cli_arg_map(self.ruby_args, :prefix => '-', :sep => '')
+        ["ruby", ruby_args, '--'].concat(cmd).flatten.join(' ')
+      end
     end
   end
 end
