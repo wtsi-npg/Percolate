@@ -1,6 +1,6 @@
 #--
 #
-# Copyright (C) 2010 Genome Research Ltd. All rights reserved.
+# Copyright (c) 2010-2011 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+require 'rubygems'
 require 'tmpdir'
 require 'test/unit'
 
@@ -27,6 +28,8 @@ require 'percolate'
 module PercolateTest
   class TestPercolateMemoize < Test::Unit::TestCase
     include Percolate
+    include Percolate::NamedTasks
+    include Percolate::Tasks
 
     def setup
       super
@@ -65,15 +68,15 @@ module PercolateTest
       assert(memoizer.result_count.zero?)
       assert(sum_task(1, 2, 3))
       assert_equal(1, memoizer.result_count)
-      assert_equal(1, memoizer.result_count { |result| result.submitted? })
-      assert_equal(1, memoizer.result_count { |result| result.started? })
-      assert_equal(1, memoizer.result_count { |result| result.finished? })
+      assert_equal(1, memoizer.result_count { |r| r.submitted? })
+      assert_equal(1, memoizer.result_count { |r| r.started? })
+      assert_equal(1, memoizer.result_count { |r| r.finished? })
 
       assert(sum_task(1, 2, 4))
       assert_equal(2, memoizer.result_count)
-      assert_equal(2, memoizer.result_count { |result| result.submitted? })
-      assert_equal(2, memoizer.result_count { |result| result.started? })
-      assert_equal(2, memoizer.result_count { |result| result.finished? })
+      assert_equal(2, memoizer.result_count { |r| r.submitted? })
+      assert_equal(2, memoizer.result_count { |r| r.started? })
+      assert_equal(2, memoizer.result_count { |r| r.finished? })
     end
 
     def test_store_restore_memos

@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 #
-# Copyright (C) 2010 Genome Research Ltd. All rights reserved.
+# Copyright (c) 2010-2011 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -34,12 +34,11 @@ class AuditArguments < Hash
     opts = OptionParser.new do |opts|
       opts.banner = "Usage: #$0 [options] <runfile1 runfile2 ...>"
       by = [:by, '-b', '--by [ATTRIBUTE]', 'Report by run-file or task-state']
-      [by].each{ |key, short, long, doc|
-        opts.on(short, long, doc) { |opt| self[key] = opt
-        }
-      }
+      [by].each do |key, short, long, doc|
+        opts.on(short, long, doc) { |opt| self[key] = opt }
+      end
 
-      opts.on('-l', '--load LIBRARY', 'Load a workflow library') { |lib|
+      opts.on('-l', '--load LIBRARY', 'Load a workflow library') do |lib|
         begin
           self[:load] = lib
           require lib
@@ -47,21 +46,21 @@ class AuditArguments < Hash
           puts("Could not load workflow library '#{lib}'")
           exit(CLI_ERROR)
         end
-      }
+      end
 
       opts.on('-v', '--verbose [LEVEL]',
-              'Set the verbosity level 0, 1 or 2') { |level|
+              'Set the verbosity level 0, 1 or 2') do |level|
         begin
           self[:verbose] = Integer(level)
         rescue ArgumentError => ae
           raise OptionParser::ParseError, ae.to_s
         end
-      }
+      end
 
-      opts.on('-?', '--help', 'Display this help and exit') {
+      opts.on('-?', '--help', 'Display this help and exit') do
         $stderr.puts(opts)
         exit
-      }
+      end
     end
 
     begin

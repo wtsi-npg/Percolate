@@ -1,6 +1,6 @@
 #--
 #
-# Copyright (C) 2011 Genome Research Ltd. All rights reserved.
+# Copyright (c) 2011 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@ module Percolate
 
   module Auditor
     def mean(numbers)
-      numbers.inject(0) { |sum, n| sum += n }.to_f / numbers.size
+      numbers.inject(0) { |sum, n| sum + n }.to_f / numbers.size
     end
 
     def median(numbers)
@@ -45,7 +45,7 @@ module Percolate
         nil
       else
         m = mean(numbers)
-        numbers.inject(0) { |var, n| var += (n - m) ** 2 }
+        numbers.inject(0) { |var, n| var + (n - m) ** 2 }
       end
     end
 
@@ -67,9 +67,9 @@ module Percolate
       memoizer = Percolate::Memoizer.new
       memoizer.restore_memos!(run_file)
 
-      records = memoizer.results.collect { |result|
+      records = memoizer.results.collect do |result|
         Ruport::Data::Record.new(result.to_a)
-      }
+      end
 
       table = Ruport::Data::Table.new(:data => records)
       table.column_names = Result::COLUMN_NAMES
@@ -77,9 +77,9 @@ module Percolate
       columns = [:workflow, :run_file]
       defaults = [memoizer.workflow, File.basename(run_file)]
 
-      columns.zip(defaults).each { |c, d|
+      columns.zip(defaults).each do |c, d|
         table.add_column(c, :position => 0, :default => d)
-      }
+      end
 
       now = Time.now
       table.sort_rows_by { |row| row[:finish_time] || now }
@@ -165,11 +165,11 @@ module Percolate
 
       t2 = table.dup
       names = t2.column_names
-      columns.each { |col|
+      columns.each do |col|
         if names.include?(col)
           t2.replace_column(col) { |row| row[col] && row[col].strftime(format) }
         end
-      }
+      end
 
       t2
     end
@@ -185,11 +185,10 @@ module Percolate
     #
     # - A table with :task and :mean_run_time columns.
     def mean_run_time(table)
+      mrt = lambda { |g| mean(g.column(:run_time).compact) }
+
       g_by_task = group(table, :by => :task)
-      g_by_task.summary(:task,
-                        :mean_run_time => lambda { |g|
-                          mean(g.column(:run_time).compact)
-                        },
+      g_by_task.summary(:task, :mean_run_time => mrt,
                         :order => [:task, :mean_run_time])
     end
 
@@ -201,9 +200,7 @@ module Percolate
     def audit_run_times(run_files)
       means = load_run_files(run_files, :merge => false).collect { |table|
         hide_columns(table, :task_identity)
-      }.collect { |table|
-        mean_run_time(table)
-      }
+      }.collect { |table| mean_run_time(table) }
 
       means.zip(run_files).collect { |table, run_file|
         table.add_column(:run_file, :position => 0,

@@ -1,6 +1,6 @@
 #--
 #
-# Copyright (C) 2010 Genome Research Ltd. All rights reserved.
+# Copyright (c) 2010-2011 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,13 +16,13 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-require 'digest'
-
 module Percolate
   # All workflows must be subclassed from Workflow which provides the
   # basic workflow management methods.
   class Workflow
     include Percolate
+    include Utilities
+    include Tasks
 
     DEFINITION_SUFFIX = '.yml'
     RUN_SUFFIX = '.run'
@@ -318,84 +318,5 @@ module Percolate
               "#{operation} cannot be performed on transient workflow #{self.to_s}"
       end
     end
-  end
-
-  # The empty workflow. This returns a true value when run and does
-  # nothing else.
-  class EmptyWorkflow < Workflow
-    description <<-DESC
-The empty workflow. This returns a true value when run and does nothing else.
-    DESC
-
-    usage <<-USAGE
-EmptyWorkflow *args
-
-Arguments:
-
-- args (Array): args are ignored
-
-Returns:
-
-- true
-    USAGE
-
-    version '0.0.1'
-
-    def run(*args)
-      true_task(*args)
-    end
-  end
-
-  # The failing workflow. This fails by running the Unix 'false'
-  # command.
-  class FailingWorkflow < Workflow
-    description <<-DESC
-The failing workflow. This fails by running the Unix 'false' command.
-    DESC
-
-    usage <<-USAGE
-FailingWorkflow *args
-
-Arguments:
-
-- args (Array): args are ignored
-
-Returns:
-
-- true
-    USAGE
-
-    version '0.0.1'
-
-    def run(*args)
-      # args ignored intentionally
-      false_task
-    end
-  end
-
-  # Returns an array of all Workflow classes, optionally restricting
-  # the result to subclasses of ancestor.
-  def Percolate.find_workflows(ancestor = Percolate)
-    begin
-      mod = case ancestor
-              when NilClass;
-                Percolate
-              when String;
-                Object.const_get ancestor
-              when Module;
-                ancestor
-              else
-                raise ArgumentError,
-                      "Invalid ancestor argument. Expected a string or " +
-                          "constant, but was #{ancestor.inspect}"
-            end
-    rescue NameError => ne
-      raise ArgumentError,
-            "Invalid ancestor argument. Expected a Ruby module, " +
-                "but was #{ancestor.inspect}"
-    end
-
-    ObjectSpace.each_object(Class).select { |c| c.ancestors.include?(Workflow) &&
-        c.ancestors.include?(mod) }
   end
 end

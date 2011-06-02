@@ -1,6 +1,6 @@
 #--
 #
-# Copyright (C) 2010 Genome Research Ltd. All rights reserved.
+# Copyright (c) 2010-2011 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,14 +26,14 @@ module Percolate
     def initialize args
       super
 
-      opts = OptionParser.new { |opts|
+      opts = OptionParser.new do |opts|
         opts.banner = "Usage: #$0 [options]"
         opts.on('-c', '--config [FILE]',
-                'Load Percolator configuration from FILE') { |file|
+                'Load Percolator configuration from FILE') do |file|
           self[:config] = file
-        }
+        end
 
-        opts.on('-l', '--load LIBRARY', 'Load a workflow library') { |lib|
+        opts.on('-l', '--load LIBRARY', 'Load a workflow library') do |lib|
           begin
             self[:load] = lib
             require lib
@@ -41,10 +41,10 @@ module Percolate
             puts("Could not load workflow library '#{lib}'")
             exit(CLI_ERROR)
           end
-        }
+        end
 
         opts.on('-d', '--display [GROUP]',
-                'Display available workflows') { |group|
+                'Display available workflows') do |group|
           begin
             $stderr.puts(Percolate.find_workflows(group))
           rescue ArgumentError => ae
@@ -53,22 +53,20 @@ module Percolate
           end
 
           exit
-        }
+        end
 
-        opts.on('-p', '--percolate', 'Run all defined workflows') {
+        opts.on('-p', '--percolate', 'Run all defined workflows') do
           self[:percolate] = true
-        }
+        end
 
-        opts.on('-v', '--version', 'Print the Percolate version and exit') {
+        opts.on('-v', '--version', 'Print the Percolate version and exit') do
           $stderr.puts('Version ' + VERSION)
           exit
-        }
+        end
 
-        opts.on('-w', '--workflow [WORKFLOW]', 'Display workflow help') { |wf|
+        opts.on('-w', '--workflow [WORKFLOW]', 'Display workflow help') do |wf|
           begin
-            klass = wf.split(/::/).inject(Object) { |m, c|
-              m.const_get(c.to_sym)
-            }
+            klass = wf.split(/::/).inject(Object) { |m, c| m.const_get(c.to_sym) }
 
             if klass.respond_to?(:version)
               puts("#{klass.name} version #{klass.version}\n")
@@ -87,13 +85,13 @@ module Percolate
           end
 
           exit
-        }
+        end
 
-        opts.on('-h', '--help', 'Display this help and exit') {
+        opts.on('-h', '--help', 'Display this help and exit') do
           $stderr.puts(opts)
           exit
-        }
-      }
+        end
+      end
 
       begin
         opts.parse(args)
@@ -154,12 +152,8 @@ module Percolate
     # command line or a YAML .percolate file in the user's home
     # directory.
     def initialize(config = {})
-      symbol_config = {}
-      config.each { |key, value|
-        if value
-          symbol_config[key.intern] = value
-        end
-      }
+      sconfig = {}
+      config.each { |key, value| sconfig[key.intern] = value if value }
 
       root_dir = File.expand_path('~/percolate')
       tmp_dir = File.join((ENV['TMPDIR'] || '/tmp'), ENV['USER'])
@@ -171,13 +165,11 @@ module Percolate
                   :log_file => 'percolate.log',
                   :log_level => 'WARN'}
 
-      opts = defaults.merge(symbol_config)
+      opts = defaults.merge(sconfig)
 
       # If the user has moved the root dir, but not defined a log dir,
       # move the log_dir too
-      if symbol_config[:root_dir] && !symbol_config[:log_dir]
-        opts[:log_dir] = opts[:root_dir]
-      end
+      opts[:log_dir] = opts[:root_dir] if sconfig[:root_dir] && !sconfig[:log_dir]
 
       @root_dir = File.expand_path(opts[:root_dir])
       @tmp_dir = File.expand_path(opts[:tmp_dir])
@@ -196,11 +188,9 @@ module Percolate
 
       begin
         [@tmp_dir, @lock_dir, @root_dir, @log_dir,
-         @run_dir, @pass_dir, @fail_dir].map { |dir|
-          if !(File.exists?(dir) && File.directory?(dir)) # Dir.exists? dir
-            Dir.mkdir(dir)
-          end
-        }
+         @run_dir, @pass_dir, @fail_dir].map do |dir|
+          Dir.mkdir(dir) if !(File.exists?(dir) && File.directory?(dir))
+        end
       rescue SystemCallError => se
         raise PercolateError, "Failed to create Percolate directories: #{se}"
       end
@@ -210,14 +200,15 @@ module Percolate
       Percolate.log.level = Object.const_get('Logger').const_get(opts[:log_level])
 
       msg_host = (opts[:msg_host] || Socket.gethostname)
+      async = (opts[:async] || :system)
+      Percolate.asynchronizer = make_asynchronizer(async)
       Percolate.asynchronizer.message_host = msg_host
 
-      if opts[:msg_port]
-        Percolate.asynchronizer.message_port = opts[:msg_port]
-      end
+      Percolate.asynchronizer.message_port = opts[:msg_port] if opts[:msg_port]
+      Percolate.memoizer.max_processes = opts[:max_processes] if opts[:max_processes]
 
-      @def_suffix = Percolate::Workflow::DEFINITION_SUFFIX
-      @run_suffix = Percolate::Workflow::RUN_SUFFIX
+      @def_suffix = Workflow::DEFINITION_SUFFIX
+      @run_suffix = Workflow::RUN_SUFFIX
 
       msg_host = (opts[:msg_host] || Socket.gethostname)
       Asynchronous.message_host(msg_host)
@@ -242,16 +233,16 @@ module Percolate
     # Returns an array of workflow definition files that do not have a
     # corresponding run file.
     def find_new_definitions
-      defns = self.find_definitions.map { |file|
+      defns = self.find_definitions.map do |file|
         File.basename(file, self.def_suffix)
-      }
-      runs = self.find_run_files.map { |file|
+      end
+      runs = self.find_run_files.map do |file|
         File.basename(file, self.run_suffix)
-      }
+      end
 
-      (defns - runs).map { |basename|
+      (defns - runs).map do |basename|
         File.join(self.run_dir, basename + self.def_suffix)
-      }
+      end
     end
 
     # Returns an array of workflow class and workflow arguments for
@@ -272,9 +263,7 @@ module Percolate
 
         defn = YAML.load_file(file)
         lib = defn['library']
-        if lib
-          require lib
-        end
+        require lib if lib
 
         workflow_module = defn['group']
         workflow_class = defn['workflow']
@@ -322,7 +311,7 @@ module Percolate
 
     # Percolates data through the currently active workflows.
     def percolate
-      self.find_definitions.each { |defn|
+      self.find_definitions.each do |defn|
         Percolate.log.info("Switched to workflow #{defn}")
 
         begin
@@ -332,7 +321,7 @@ module Percolate
           Percolate.log.error(msg)
           $stderr.puts(msg)
         end
-      }
+      end
     end
 
     # Percolates data through the workflow described by definition.
@@ -348,12 +337,12 @@ module Percolate
       lock = File.new(lock_file, 'w')
       workflow = nil
 
+      memoizer = Percolate.memoizer
+      log = Percolate.log
+
       begin
         if lock.flock(File::LOCK_EX | File::LOCK_NB)
           begin
-            memoizer = Percolate.memoizer
-            log = Percolate.log
-
             log.debug("Successfully obtained lock #{lock} for #{definition}")
             workflow_class, workflow_args = read_definition(def_file)
             workflow = workflow_class.new(File.basename(def_file, '.yml'),
@@ -372,9 +361,7 @@ module Percolate
             end
 
             Percolate.asynchronizer.message_queue = workflow.message_queue
-            if memoizer.dirty_async?
-              memoizer.update_async_memos!
-            end
+            memoizer.update_async_memos! if memoizer.dirty_async?
 
             # If we find a failed workflow, it means that it is being
             # restarted.
@@ -413,8 +400,8 @@ module Percolate
         end
       ensure
         if lock.flock(File::LOCK_UN).nonzero?
-          raise PercolateError
-          "Failed to release lock #{lock} for #{definition}"
+          raise PercolateError,
+                "Failed to release lock #{lock} for #{definition}"
         end
       end
 
@@ -429,14 +416,25 @@ module Percolate
     end
 
     private
+    def make_asynchronizer(type)
+      case type
+        when :lsf ; LSFAsynchronizer.new
+        when :system ; SystemAsynchronizer.new
+        else
+          raise ArgumentError,
+                "Invalid asynchronizer type '#{type}', expected one of " +
+                    [:lsf, :system].inspect
+      end
+    end
+
     def substitute_uris(args) # :nodoc
-      args.collect { |arg|
+      args.collect do |arg|
         if arg.is_a?(String) && URI_REGEXP.match(arg)
           URI.parse(arg.slice(URI_REGEXP))
         else
           arg
         end
-      }
+      end
     end
 
     def substitute_uris args

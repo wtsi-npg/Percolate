@@ -1,6 +1,6 @@
 #--
 #
-# Copyright (C) 2010 Genome Research Ltd. All rights reserved.
+# Copyright (c) 2010-2011 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+require 'rubygems'
 require 'fileutils'
 require 'tmpdir'
 require 'uri'
@@ -33,8 +34,8 @@ module TestPercolate
 
     def initialize(name)
       super(name)
-      @msg_host = 'hgs3b'
-      @msg_port = 11301
+      @msg_host = 'localhost'
+      @msg_port = 11300
     end
 
     def setup
@@ -54,13 +55,14 @@ module TestPercolate
     end
 
     def test_read_config
-      open(File.join data_path, 'percolate_config.yml') { |file|
+      open(File.join data_path, 'percolate_config.yml') do |file|
         config = YAML.load(file)
 
         assert_equal('test', config['root_dir'])
         assert_equal('test-percolate.log', config['log_filename'])
         assert_equal('INFO', config['log_level'])
-      }
+        assert_equal(2, config['max_processes'])
+      end
     end
 
     def test_percolator_arguments
@@ -182,14 +184,14 @@ module TestPercolate
         FileUtils.cp(File.join(percolator.run_dir, 'test_def1.yml'), def_file)
         assert(percolator.percolate_tasks(def_file).passed?)
 
-        [def_file, run_file].each { |file|
+        [def_file, run_file].each do |file|
           assert(File.exists?(File.join(percolator.pass_dir,
                                         File.basename(file))))
-        }
+        end
       ensure
-        [def_file, run_file].each { |file|
+        [def_file, run_file].each do |file|
           File.delete(File.join(percolator.pass_dir, File.basename(file)))
-        }
+        end
       end
     end
 
@@ -206,14 +208,14 @@ module TestPercolate
         FileUtils.cp(File.join(percolator.run_dir, 'test_def2.yml'), def_file)
         assert(percolator.percolate_tasks(def_file).failed?)
 
-        [def_file, run_file].each { |file|
+        [def_file, run_file].each do |file|
           assert(File.exists?(File.join(percolator.fail_dir,
                                         File.basename(file))))
-        }
+        end
       ensure
-        [def_file, run_file].each { |file|
+        [def_file, run_file].each do |file|
           File.delete(File.join(percolator.fail_dir, File.basename(file)))
-        }
+        end
       end
     end
   end

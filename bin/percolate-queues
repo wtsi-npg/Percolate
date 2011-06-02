@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 #
-# Copyright (C) 2010 Genome Research Ltd. All rights reserved.
+# Copyright (c) 2010-2011 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -28,16 +28,16 @@ class QueueClientArguments < Hash
     self[:host] = 'localhost'
     self[:port] = 11300
 
-    opts = OptionParser.new { |opts|
+    opts = OptionParser.new do |opts|
       opts.banner = "Usage: #$0 [options]"
 
       opts.on('-h', '--host [HOSTNAME]',
-              'Percolate queue host, default localhost') { |host|
+              'Percolate queue host, default localhost') do |host|
         self[:host] = host
-      }
+      end
 
       opts.on('-p', '--port [PORT]',
-              'Percolate queue port, default 11300') { |port|
+              'Percolate queue port, default 11300') do |port|
         begin
           if port
             self[:port] = Integer(port)
@@ -45,17 +45,17 @@ class QueueClientArguments < Hash
         rescue ArgumentError => ae
           raise OptionParser::ParseError, ae.to_s
         end
-      }
+      end
 
-      opts.on('-d', '--drain QUEUE', 'Drain queue') { |drain|
+      opts.on('-d', '--drain QUEUE', 'Drain queue') do |drain|
         self[:drain] = drain
-      }
+      end
 
-      opts.on('-?', '--help', 'Display this help and exit') {
+      opts.on('-?', '--help', 'Display this help and exit') do
         $stderr.puts(opts)
         exit
-      }
-    }
+      end
+    end
 
     begin
       opts.parse!(args)
@@ -82,12 +82,12 @@ def queue_stats client
   puts("Current-connections: #{client.stats['current-connections']}\n\n")
   queues = client.list_tubes
 
-  queues.keys.each { |key|
-    queues[key].each { |queue|
+  queues.keys.each do |key|
+    queues[key].each do |queue|
       puts("Queue: #{queue.inspect}")
       puts("Client stats: #{client.stats_tube(queue).inspect}\n\n")
-    }
-  }
+    end
+  end
 end
 
 def drain_queue client, host_id, queue

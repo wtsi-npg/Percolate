@@ -1,6 +1,6 @@
 #--
 #
-# Copyright (C) 2010 Genome Research Ltd. All rights reserved.
+# Copyright (c) 2010-2011 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+require 'rubygems'
 require 'fileutils'
 require 'test/unit'
 
@@ -26,6 +27,7 @@ require 'percolate'
 
 module PercolateTest
   include Percolate
+  include Utilities
 
   $BOOLEAN_WORKFLOW = false
 
@@ -87,12 +89,26 @@ module PercolateTest
     end
   end
 
+  class BadTaskWorkflow < Workflow
+     def bad_arg_task(work_dir = '.')
+       task([work_dir], cd(work_dir, 'true'),
+            :pre => :not_a_proc,
+            :post => lambda { false },
+            :result => lambda { true })
+     end
+
+    def run(*args)
+      bad_arg_task
+    end
+  end
+
   class TestWorkflow < Test::Unit::TestCase
+    include Percolate
 
     def initialize(name)
       super(name)
-      @msg_host = 'hgs3b'
-      @msg_port = 11301
+      @msg_host = 'localhost'
+      @msg_port = 11300
     end
 
     def setup
@@ -131,15 +147,9 @@ module PercolateTest
     end
 
     def test_task_args
-      def bad_arg_task(work_dir = '.')
-        task([work_dir], cd(work_dir, 'true'),
-             :pre => :not_a_proc,
-             :post => lambda { false },
-             :result => lambda { true })
-      end
-
       assert_raise ArgumentError do
-        bad_arg_task
+        wf = BadTaskWorkflow.new(:dummy)
+        wf.run
       end
     end
 
