@@ -156,7 +156,7 @@ module Percolate
     #   contains the arguments that are necessary and sufficient to identify an
     #   invocation of the task. If the task method is called in  multiple contexts
     #   with these same arguments, they will resolve to a single invocation in the
-    #    Memoizer.
+    #   Memoizer.
     # - commands (Array of Strings): The command strings to be executed. This and
     #   the margs_arrays must be the same length.
     # - work_dir (String): The working directory where the batch job will be run.
@@ -178,7 +178,7 @@ module Percolate
     #   not affect the return value of the method.
     #
     #  These Procs may accept none, some, or all the arguments that are
-    #  defined by margs. Each will be called with the  appropriate number.
+    #  defined by margs. Each will be called with the appropriate number.
     #  For example, if the :pre Proc has arity 2, it will be called with the
     #  first 2 elements of margs.
     #

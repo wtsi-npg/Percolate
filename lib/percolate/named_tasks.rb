@@ -92,7 +92,7 @@ module Percolate
       end
     end
 
-    # Run a memoized Ruby Proc having pre-conditions
+    # Run a memoized Ruby Proc having pre-conditions.
     #
     # Arguments:
     #

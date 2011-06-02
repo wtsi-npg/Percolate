@@ -53,7 +53,7 @@ To create and run a workflow, the steps are:
 4. Start the Beanstalk message queue.
 
 5. Launch workflows by placing a YAML file into the Percolate 'in' directory.
-   The file describes the Workflow class to instantaite and the arguments to
+   The file describes the Workflow class to instantiate and the arguments to
    the 'run' method.
 
 6. Run the Percolate driver repeately at intervals (e.g. via cron) until the
@@ -69,8 +69,9 @@ To create and run a workflow, the steps are:
 Percolate's dependencies are:
 
 - Beanstalk (http://kr.github.com/beanstalkd/)
+
 - The beanstalk-client Ruby gem (http://beanstalk.rubyforge.org/)
-- Gibbler (http://github.com/delano/gibbler)
+- The gibbler Ruby gem (http://github.com/delano/gibbler)
 
   and optionally, for the auditor
 
