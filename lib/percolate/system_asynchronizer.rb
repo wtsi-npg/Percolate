@@ -17,7 +17,7 @@
 #
 
 module Percolate
-  # An Asynchronizer that runs jobs as simple system calls.
+  # An Asynchronizer that runs jobs as simple system calls via fork/exec.
   class SystemAsynchronizer < TaskWrapper
     include Utilities
     include Asynchronizer
@@ -27,6 +27,8 @@ module Percolate
       cd(work_dir, "#{cmd_str} -- #{command}")
     end
 
+    # Makes a system call for a named asynchronous method. The system call
+    # executes the command via fork/exec.
     def submit_async(method_name, command)
       unless self.message_queue
         raise PercolateError, "No message queue has been provided"
@@ -35,10 +37,9 @@ module Percolate
       process = fork { exec(command) }
       Percolate.log.info("submission reported #{process} for #{method_name}")
 
-      # There seems to be a bug in Ruby 1.8.7 where detaching the process
-      # immediately causes the interpreter to hang. The following line is a
-      # workaround.
-      sleep(1)
+      # There seems to be a bug in some versions of Ruby 1.8.7 where detaching the
+      # process causes the interpreter to hang. The following line is a workaround.
+      # sleep(2)
 
       Process.detach(process)
     end

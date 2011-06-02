@@ -126,9 +126,7 @@ module Percolate
 
   private
   def parse_partition(filename) # :nodoc
-    if PARTITION_REGXEP.match(filename)
-      [$1, $2, $3]
-    end
+    [$1, $2, $3] if PARTITION_REGXEP.match(filename)
   end
 
   def replace_partition(filename, placeholder) # :nodoc
@@ -139,13 +137,13 @@ module Percolate
 
   def duplicates(array) # :nodoc
     duplicates = Hash.new
-    array.each { |elt|
+    array.each do |elt|
       if duplicates.has_key?(elt)
         duplicates[elt] += 1
       else
         duplicates[elt] = 1
       end
-    }
+    end
 
     duplicates.select { |key, value| value > 1 }
   end

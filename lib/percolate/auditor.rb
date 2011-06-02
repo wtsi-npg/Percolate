@@ -67,9 +67,9 @@ module Percolate
       memoizer = Percolate::Memoizer.new
       memoizer.restore_memos!(run_file)
 
-      records = memoizer.results.collect { |result|
+      records = memoizer.results.collect do |result|
         Ruport::Data::Record.new(result.to_a)
-      }
+      end
 
       table = Ruport::Data::Table.new(:data => records)
       table.column_names = Result::COLUMN_NAMES
@@ -77,9 +77,9 @@ module Percolate
       columns = [:workflow, :run_file]
       defaults = [memoizer.workflow, File.basename(run_file)]
 
-      columns.zip(defaults).each { |c, d|
+      columns.zip(defaults).each do |c, d|
         table.add_column(c, :position => 0, :default => d)
-      }
+      end
 
       now = Time.now
       table.sort_rows_by { |row| row[:finish_time] || now }
@@ -165,11 +165,11 @@ module Percolate
 
       t2 = table.dup
       names = t2.column_names
-      columns.each { |col|
+      columns.each do |col|
         if names.include?(col)
           t2.replace_column(col) { |row| row[col] && row[col].strftime(format) }
         end
-      }
+      end
 
       t2
     end
@@ -200,9 +200,7 @@ module Percolate
     def audit_run_times(run_files)
       means = load_run_files(run_files, :merge => false).collect { |table|
         hide_columns(table, :task_identity)
-      }.collect { |table|
-        mean_run_time(table)
-      }
+      }.collect { |table| mean_run_time(table) }
 
       means.zip(run_files).collect { |table, run_file|
         table.add_column(:run_file, :position => 0,

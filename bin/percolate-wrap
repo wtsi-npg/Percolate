@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 #
-# Copyright (C) 2010 Genome Research Ltd. All rights reserved.
+# Copyright (c) 2010-2011 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -37,32 +37,32 @@ class WrapClientArguments < Hash
         opts.on(short, long, doc) { |opt| self[key] = opt }
       end
 
-      opts.on('-p', '--port PORT', 'Percolate queue port') { |port|
+      opts.on('-p', '--port PORT', 'Percolate queue port') do |port|
         begin
           self[:port] = Integer(port)
         rescue ArgumentError => ae
           raise OptionParser::ParseError, ae.to_s
         end
-      }
+      end
 
-      opts.on('-i', '--index', 'Percolate indexed task') {
+      opts.on('-i', '--index', 'Percolate indexed task') do
         self[:index] = true
-      }
+      end
 
-      opts.on('-?', '--help', 'Display this help and exit') {
+      opts.on('-?', '--help', 'Display this help and exit') do
         $stderr.puts(opts)
         exit
-      }
+      end
     end
 
     begin
       opts.parse!(args)
 
-      [:task_id, :queue, :host, :port].each { |arg|
+      [:task_id, :queue, :host, :port].each do |arg|
         if !self.has_key?(arg)
           raise ArgumentError, "a --#{arg} argument must be provided"
         end
-      }
+      end
     rescue OptionParser::ParseError => pe
       $stderr.puts(opts)
       $stderr.puts("\nInvalid argument: #{pe}")

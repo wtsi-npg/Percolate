@@ -68,15 +68,15 @@ module PercolateTest
       assert(memoizer.result_count.zero?)
       assert(sum_task(1, 2, 3))
       assert_equal(1, memoizer.result_count)
-      assert_equal(1, memoizer.result_count { |result| result.submitted? })
-      assert_equal(1, memoizer.result_count { |result| result.started? })
-      assert_equal(1, memoizer.result_count { |result| result.finished? })
+      assert_equal(1, memoizer.result_count { |r| r.submitted? })
+      assert_equal(1, memoizer.result_count { |r| r.started? })
+      assert_equal(1, memoizer.result_count { |r| r.finished? })
 
       assert(sum_task(1, 2, 4))
       assert_equal(2, memoizer.result_count)
-      assert_equal(2, memoizer.result_count { |result| result.submitted? })
-      assert_equal(2, memoizer.result_count { |result| result.started? })
-      assert_equal(2, memoizer.result_count { |result| result.finished? })
+      assert_equal(2, memoizer.result_count { |r| r.submitted? })
+      assert_equal(2, memoizer.result_count { |r| r.started? })
+      assert_equal(2, memoizer.result_count { |r| r.finished? })
     end
 
     def test_store_restore_memos

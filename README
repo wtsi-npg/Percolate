@@ -1,11 +1,13 @@
-Percolate is a lightweight application for combining command-line programs
+Percolate is a simple-stupid application for combining command-line programs
 into flexible, fault-tolerant data transformation workflows. Its goal is to
 allow complex workflows to be expressed using only standard Ruby operators.
+
 
 Percolate's features are:
 
 - The ability to create complex, parallel workflows as plain Ruby code. The
-  workflow paths are implicit in the code; no explicit structure need be defined.
+  workflow paths are implicit in the code, being defined by method arguments
+  and return values.
 
 - Workflows may contain any combination of Ruby code, local system calls and
   asynchronous batch queue jobs.
@@ -25,16 +27,50 @@ Percolate's features are:
 Percolate's restrictions are:
 
 - Methods on the workflow execution path must adhere to a simple convention
-  of being able to accept arguments and return values of 'nil'.
+  of being able to accept arguments and return values of 'nil' for resources
+  that are unavailable at the time of invocation.
 
 - Heavy compute should be done by the command-line programs called by the
   workflow, not the workflow script itself.
+
+
+To create and run a workflow, the steps are:
+
+1. Use Percolate's helpers to wrap each command-line program in a Ruby method so
+   that the essential resources required for the run are represented by the
+   method arguments and the resources created by the run are represented by the
+   method return values. Choose whether to run synchronously (via system) or
+   asynchronously (via fork/exec or on a cluster via Platform LSF).
+
+2. Write the body of the workflow using these methods and any Ruby flow control
+   operators. Within a single workflow, any combination of Ruby methods,
+   fork/exec jobs or Platform LSF jobs are permitted.
+
+3. Create a Workflow class as an entry point, having a 'run' method that
+   invokes the workflow. Workflows may create and invoke more instances of any
+   Workflow class.
+
+4. Start the Beanstalk message queue.
+
+5. Launch workflows by placing a YAML file into the Percolate 'in' directory.
+   The file describes the Workflow class to instantaite and the arguments to
+   the 'run' method.
+
+6. Run the Percolate driver repeately at intervals (e.g. via cron) until the
+   system moves your input YAML file to the Percolate 'pass' directory
+   or to the 'fail' directory (if one of the steps has failed).
+
+7. If there was a failure, look at the logs, fix the problem and move the YAML
+   file back to the 'in' directory to resume the workflow.
+
+8. Run the auditor on the log to see a breakdown of what happened during the run.
 
 
 Percolate's dependencies are:
 
 - Beanstalk (http://kr.github.com/beanstalkd/)
 - The beanstalk-client Ruby gem (http://beanstalk.rubyforge.org/)
+- Gibbler (http://github.com/delano/gibbler)
 
   and optionally, for the auditor
 

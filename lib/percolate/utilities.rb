@@ -24,6 +24,52 @@ module Percolate
       "cd #{path} \; #{command}"
     end
 
+    # Returns an absolute path to file. If file is a relative path, it is
+    # taken to be relative to dir.
+    def absolute_path(file, dir)
+      if File.dirname(file) == '.'
+        File.expand_path(File.join(dir, file))
+      else
+        File.expand_path(file)
+      end
+    end
+
+    # Tests each element of Array files to check that it is a readable,
+    # regular file. If any element does not designate such a file, a
+    # PercolateTaskError is raised. Optionally, the caller may choose to
+    # avoid raising the error by setting the :error argument to false, in
+    # which case a copy of the files Array is returned, with any such elements
+    # replaced by nil.
+    def ensure_files(files, args = {})
+      err = lambda { |file, msg| raise PercolateTaskError, "File '#{file}' #{msg}" }
+
+      defaults = {:error => true}
+      args = defaults.merge(args)
+      error = args[:error]
+      found = []
+
+      files.each do |file|
+        case
+          when !FileTest.exist?(file)
+            error && err.call(file, 'does not exist')
+          when !FileTest.file?(file)
+            error && err.call(file, 'is not a regular file')
+          when !FileTest.readable?(file)
+            error && err.call(file, 'is not readable')
+          else
+            found << file
+        end
+      end
+
+      Percolate.log.debug("Expected #{files.inspect}, found #{found.inspect}")
+
+      if files == found
+        files
+      end
+    end
+
+    # Returns true if the Array args contains no nil values after being
+    # flattened.
     def args_available?(*args)
       args.flatten.all?
     end
@@ -69,34 +115,6 @@ module Percolate
             args[:prefix] + strs.join(args[:sep])
         end
       }.compact
-    end
-
-    def ensure_files(files, args = {})
-      err = lambda { |file, msg| raise ArgumentError, "File '#{file}' #{msg}" }
-
-      defaults = {:error => true}
-      args = defaults.merge(args)
-      error = args[:error]
-      found = []
-
-      files.each { |file|
-        case
-          when !FileTest.exist?(file)
-            error && err.call(file, 'does not exist')
-          when !FileTest.file?(file)
-            error && err.call(file, 'is not a regular file')
-          when !FileTest.readable?(file)
-            error && err.call(file, 'is not readable')
-          else
-            found << file
-        end
-      }
-
-      Percolate.log.debug("Expected #{files.inspect}, found #{found.inspect}")
-
-      if files == found
-        files
-      end
     end
 
     def system_command(command)

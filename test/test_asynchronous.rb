@@ -80,9 +80,7 @@ module PercolateTest
       def run(seconds, size, work_dir)
         log = nil
 
-        size.times.collect { |i|
-          async_sleep(seconds + i, work_dir, log)
-        }
+        size.times.collect { |i| async_sleep(seconds + i, work_dir, log) }
       end
     end
 
@@ -123,21 +121,20 @@ module PercolateTest
     end
 
     def test_minimal_async_workflow
-      wrapper = File.join(bin_path, 'percolate-wrap')
-      asynchronizer = SystemAsynchronizer.new(:async_wrapper => wrapper)
-      Percolate.asynchronizer = asynchronizer
-
       percolator = Percolator.new({'root_dir' => data_path,
                                    'log_file' => 'percolate-test.log',
                                    'log_level' => 'DEBUG',
                                    'msg_host' => @msg_host,
                                    'msg_port' => @msg_port,
-                                   'max_processes' => 2})
+                                   'max_processes' => 2,
+                                   'async' => :system})
 
       wf = MinimalAsyncWorkflow.new(:dummy_def,
                                     'dummy_def.yml', 'dummy_run.run',
                                     percolator.pass_dir,
                                     percolator.fail_dir)
+      asynchronizer = Percolate.asynchronizer
+      asynchronizer.async_wrapper = File.join(bin_path, 'percolate-wrap')
       asynchronizer.message_queue = wf.message_queue
 
       memoizer = Percolate.memoizer
@@ -182,22 +179,21 @@ module PercolateTest
     end
 
     def test_minimal_p_async_workflow
-      wrapper = File.join(bin_path, 'percolate-wrap')
-      asynchronizer = LSFAsynchronizer.new(:async_wrapper => wrapper)
-      Percolate.asynchronizer = asynchronizer
-
       if $LSF_PRESENT
         percolator = Percolator.new({'root_dir' => data_path,
                                      'log_file' => 'percolate-test.log',
                                      'log_level' => 'DEBUG',
                                      'msg_host' => @msg_host,
-                                     'msg_port' => @msg_port})
+                                     'msg_port' => @msg_port,
+                                     'async' => :lsf})
         lsf_log = File.join(data_path, 'minimal_p_async_workflow.%I.log')
 
         wf = MinimalPAsyncWorkflow.new(:dummy_def,
                                        'dummy_def.yml', 'dummy_run.run',
                                        percolator.pass_dir,
                                        percolator.fail_dir)
+        asynchronizer = Percolate.asynchronizer
+        asynchronizer.async_wrapper = File.join(bin_path, 'percolate-wrap')
         asynchronizer.message_queue = wf.message_queue
 
         memoizer = Percolate.memoizer

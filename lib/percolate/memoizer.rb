@@ -50,20 +50,20 @@ module Percolate
     # Stores memoization data to place along with additional information on the
     # workflow class and its state.
     def store_memos(place, workflow, state)
-      File.open(place, 'w') { |file|
+      File.open(place, 'w') do |file|
         Marshal.dump({:percolate_version => Percolate::VERSION,
                       :workflow => workflow,
                       :workflow_state => state,
                       :memos => self.memos,
                       :async_memos => self.async_memos}, file)
-      }
+      end
     end
 
     # Destructively modifies self by reading stored memoization data from place.
     def restore_memos!(place)
-      restored = File.open(place, 'r') { |file|
+      restored = File.open(place, 'r') do |file|
         ensure_valid_memos(place, Marshal.load(file))
-      }
+      end
 
       self.workflow = restored[:workflow]
       self.memos = restored[:memos]
@@ -91,7 +91,7 @@ module Percolate
       ensure_memos(self.async_memos, key)
     end
 
-    # Updates memoization results for asynchronous tasks by polling a
+    # Updates memoization results for asynchronous tasks by polling
     # the current message queue. Returns true if any messages were
     # received, or false otherwise.
     def update_async_memos!
@@ -118,18 +118,18 @@ module Percolate
 
         log.debug("Fetched #{updates.size} messages from " +
                   "#{Percolate.asynchronizer.message_queue}")
-        updates.each_value { |msgs|
+        updates.each_value do |msgs|
           msgs.each { |msg| log.debug("Received #{msg.inspect}") }
-        }
+        end
 
-        self.async_memos.values.each { |method_memos|
-          method_memos.values.each { |result|
+        self.async_memos.values.each do |method_memos|
+          method_memos.values.each do |result|
             unless result.finished?
               log.debug("Checking messages for updates to #{result.inspect}")
 
               task_id = result.task_identity
               if updates.has_key?(task_id)
-                updates[task_id].each { |msg|
+                updates[task_id].each do |msg|
                   case msg.state
                     when :started
                       if result.started? || result.finished?
@@ -144,11 +144,11 @@ module Percolate
                     else
                       raise PercolateError, "Invalid message: " + msg.inspect
                   end
-                }
+                end
               end
             end
-          }
-        }
+          end
+        end
       ensure
         client.close_queue
       end
@@ -165,13 +165,13 @@ module Percolate
 
       purged = Hash.new
 
-      self.async_memos.each_pair { |key, method_memos|
-        purged[key] = method_memos.reject { |method_args, result|
+      self.async_memos.each_pair do |key, method_memos|
+        purged[key] = method_memos.reject do |method_args, result|
           result && result.failed?
-        }
+        end
 
         log.debug("After purging #{key}: #{purged.inspect}")
-      }
+      end
 
       self.async_memos = purged
     end
@@ -232,8 +232,7 @@ module Percolate
           raise PercolateError, msg + ": no Workflow state was stored"
         when !Workflow::STATES.include?(memos[:workflow_state])
           raise PercolateError, msg + ": workflow state was " +
-          "#{memos[:workflow_state]}, expected one of " +
-          "#{Workflow::STATES}"
+          "#{memos[:workflow_state]}, expected one of #{Workflow::STATES}"
         when !memos.key?(:memos) || !memos.key?(:async_memos)
           raise PercolateError, ": memoization data was missing"
       end

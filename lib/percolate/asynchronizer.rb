@@ -35,12 +35,12 @@ module Percolate
     #
     # file (String)
     def write_array_commands(file, method_name, margs_arrays, commands)
-      File.open(file, 'w') { |f|
-        margs_arrays.zip(commands).each { |margs, cmd|
-          task_id = task_identity(method_name, margs)
+      File.open(file, 'w') do |f|
+        margs_arrays.zip(commands).each do |margs, cmd|
+          task_id = task_identity(method_name, *margs)
           f.puts("#{task_id}\t#{method_name}\t#{margs.inspect}\t#{cmd}")
-        }
-      }
+        end
+      end
       file
     end
 
@@ -58,15 +58,15 @@ module Percolate
     def read_array_command(file, lineno)
       task_id = command = nil
 
-      File.open(file, 'r') { |f|
-        f.each_line { |line|
+      File.open(file, 'r') do |f|
+        f.each_line do |line|
           if f.lineno == lineno
             fields = line.chomp.split("\t")
             task_id, command = fields[0], fields[3]
             break
           end
-        }
-      }
+        end
+      end
 
       case
         when task_id.nil?
@@ -119,7 +119,7 @@ module Percolate
                         "submitting '#{command}'")
 
           if submit_async(method_name, command)
-            task_id = task_identity(method_name, args)
+            task_id = task_identity(method_name, *args)
             submission_time = Time.now
             memos[args] = Result.new(method_name, :async, task_id, submission_time)
           end
@@ -129,6 +129,10 @@ module Percolate
       result
     end
 
+    protected
+    # Makes a system call for a named asynchronous method. The system call
+    # executes a command that initiates work in a separate process and then
+    # returns.
     def submit_async(method_name, command)
       unless self.message_queue
         raise PercolateError, "No message queue has been provided"
@@ -156,6 +160,7 @@ module Percolate
       success
     end
 
+    # Updates a pending result for a named asynchronous method.
     def update_result(method_name, args, post, val, result, log, index = nil)
       ix = index ? "[#{index}]" : ''
 

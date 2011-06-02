@@ -45,7 +45,7 @@ module Percolate
 
   @log = Logger.new(STDERR)
   @memoizer = Memoizer.new
-  @asynchronizer = LSFAsynchronizer.new
+  @asynchronizer = SystemAsynchronizer.new
 
   # Exit codes
   # Error in the command line arguments provided
@@ -92,8 +92,8 @@ module Percolate
                 "but was #{ancestor.inspect}"
     end
 
-    ObjectSpace.each_object(Class).select { |c|
+    ObjectSpace.each_object(Class).select do |c|
       c.ancestors.include?(Workflow) && c.ancestors.include?(mod)
-    }
+    end
   end
 end

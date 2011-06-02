@@ -79,7 +79,7 @@ module Percolate
                   "Non-zero exit #{status.exitstatus} from '#{command}'"
           when success && post.call(*margs.take(post.arity.abs))
             value = val.call(*margs.take(val.arity.abs))
-            task_id = task_identity(method_name, margs)
+            task_id = task_identity(method_name, *margs)
             result = Result.new(method_name, :sync, task_id,
                                 submission_time, start_time, finish_time,
                                 value, status.exitstatus, stdout)
@@ -125,7 +125,7 @@ module Percolate
           log.debug("Preconditions are satisfied; calling '#{proc.inspect}'")
 
           submission_time = start_time = Time.now
-          task_id = task_identity(method_name, margs)
+          task_id = task_identity(method_name, *margs)
           value = proc.call(*margs)
           finish_time = Time.now
 

@@ -138,13 +138,13 @@ module Percolate
       results = Array.new(margs_arrays.size)
 
       if submitted
-        margs_arrays.each_with_index { |args, i|
+        margs_arrays.each_with_index do |args, i|
           results[i] = memos[args]
           log.debug("Checking #{method_name}[#{i}] args: #{args.inspect}, " +
                         "result: #{results[i]}")
 
           update_result(method_name, args, post, val, results[i], log, i)
-        }
+        end
       else
         # Can't submit any members of a job array until all their
         # preconditions are met
@@ -162,13 +162,13 @@ module Percolate
 
           if submit_async(method_name, async_command)
             submission_time = Time.now
-            margs_arrays.each_with_index { |args, i|
-              task_id = task_identity(method_name, args)
+            margs_arrays.each_with_index do |args, i|
+              task_id = task_identity(method_name, *args)
               result = Result.new(method_name, :async, task_id, submission_time)
               memos[args] = result
               log.debug("Submitted #{method_name}[#{i}] args: #{args.inspect}, " +
                             "result #{result}")
-            }
+            end
           end
         end
       end
@@ -179,7 +179,7 @@ module Percolate
     private
     def count_lines(file) # :nodoc
       count = 0
-      open(file).each { |line| count = count + 1 }
+      File.open(file, 'r').each { |line| count = count + 1 }
       count
     end
   end
