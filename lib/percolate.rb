@@ -21,6 +21,7 @@ require 'fileutils'
 require 'logger'
 require 'uri'
 
+require 'percolate/version'
 require 'percolate/utilities'
 require 'percolate/named_tasks'
 require 'percolate/tasks'
@@ -40,9 +41,6 @@ require 'percolate/auditor'
 require 'percolate/partitions'
 
 module Percolate
-
-  VERSION = '0.4.9'
-
   @log = Logger.new(STDERR)
   @memoizer = Memoizer.new
   @asynchronizer = SystemAsynchronizer.new

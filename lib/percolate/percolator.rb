@@ -201,21 +201,14 @@ module Percolate
 
       msg_host = (opts[:msg_host] || Socket.gethostname)
       async = (opts[:async] || :system)
-      Percolate.asynchronizer = make_asynchronizer(async)
-      Percolate.asynchronizer.message_host = msg_host
-
-      Percolate.asynchronizer.message_port = opts[:msg_port] if opts[:msg_port]
+      asynchronizer = make_asynchronizer(async)
+      asynchronizer.message_host = msg_host
+      asynchronizer.message_port = opts[:msg_port] if opts[:msg_port]
+      Percolate.asynchronizer = asynchronizer
       Percolate.memoizer.max_processes = opts[:max_processes] if opts[:max_processes]
 
       @def_suffix = Workflow::DEFINITION_SUFFIX
       @run_suffix = Workflow::RUN_SUFFIX
-
-      msg_host = (opts[:msg_host] || Socket.gethostname)
-      Asynchronous.message_host(msg_host)
-
-      if opts[:msg_port]
-        Asynchronous.message_port(opts[:msg_port])
-      end
 
       self
     end
@@ -302,10 +295,9 @@ module Percolate
       rescue TypeError => te
         raise PercolateError, "Error in workflow definiton '#{file}': #{te}"
       rescue NameError => ne
-        $stderr.puts("Error in workflow definiton '#{file}': " +
-                     "does workflow #{workflow_class} in #{workflow_module} " +
-                     "really exist?")
-        nil
+        raise PercolateError, "Error in workflow definiton '#{file}': " +
+          "does workflow #{workflow_class} in #{workflow_module} " +
+          "really exist?"
       end
     end
 

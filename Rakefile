@@ -5,9 +5,11 @@ require 'rake/rdoctask'
 require 'rake/testtask'
 require 'rcov/rcovtask'
 
+require 'lib/percolate/version'
+
 spec = Gem::Specification.new do |spec|
   spec.name = 'percolate'
-  spec.version = '0.4.9'
+  spec.version = Percolate::VERSION
   spec.extra_rdoc_files = ['README', 'LICENSE']
   spec.summary = 'The Percolate workflow utility.'
   spec.description = 'Percolate is a lightweight library for coordinated ' +

@@ -18,6 +18,7 @@
 
 require 'rubygems'
 require 'test/unit'
+require 'socket'
 require 'timeout'
 
 libpath = File.expand_path('../lib')
@@ -62,12 +63,16 @@ module PercolateTest
 
     def initialize(name)
       super(name)
-      @msg_host = 'localhost'
+      @msg_host = Socket.gethostname
       @msg_port = 11300
     end
 
     def bin_path
       File.expand_path(File.join(File.dirname(__FILE__), '..', 'bin'))
+    end
+
+    def lib_path
+      File.expand_path(File.join(File.dirname(__FILE__), '..', 'lib'))
     end
 
     def data_path
@@ -94,7 +99,6 @@ module PercolateTest
 
     def test_lsf_args
       asynchronizer = LSFAsynchronizer.new
-      Percolate.asynchronizer = asynchronizer
 
       command = 'sleep 10'
       work_dir = data_path
@@ -135,6 +139,7 @@ module PercolateTest
                                     percolator.fail_dir)
       asynchronizer = Percolate.asynchronizer
       asynchronizer.async_wrapper = File.join(bin_path, 'percolate-wrap')
+      asynchronizer.ruby_args = {:I => lib_path}
       asynchronizer.message_queue = wf.message_queue
 
       memoizer = Percolate.memoizer
@@ -194,6 +199,7 @@ module PercolateTest
                                        percolator.fail_dir)
         asynchronizer = Percolate.asynchronizer
         asynchronizer.async_wrapper = File.join(bin_path, 'percolate-wrap')
+        asynchronizer.ruby_args = {:I => lib_path}
         asynchronizer.message_queue = wf.message_queue
 
         memoizer = Percolate.memoizer

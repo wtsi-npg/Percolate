@@ -22,6 +22,7 @@ module Percolate
     attr_accessor :message_port
     attr_accessor :message_queue
     attr_accessor :async_wrapper
+    attr_accessor :ruby_args
 
     # Initializes a new Asynchronizer
     #
@@ -34,15 +35,17 @@ module Percolate
     #    the command and calls back to the message queue. Optional, defaults to
     #    'percolate-wrap'.
     def initialize(args = {})
-      defaults = {:message_host => 'localhost',
-                  :message_port => 11300,
-                  :async_wrapper => 'percolate-wrap'}
+      defaults = {:message_host => MessageClient::DEFAULT_HOST,
+                  :message_port => MessageClient::DEFAULT_PORT,
+                  :async_wrapper => 'percolate-wrap',
+                  :ruby_args => {}}
       args = defaults.merge(args)
 
       @message_host = args[:message_host]
       @message_port = args[:message_port]
       @message_queue = nil
       @async_wrapper = args[:async_wrapper]
+      @ruby_args = args[:ruby_args]
     end
 
     # Returns a new message queue client instance.
@@ -58,10 +61,15 @@ module Percolate
 
     protected
     def command_string(task_id)
-      "#{self.async_wrapper} --host #{self.message_host} " +
-          "--port #{self.message_port} " +
-          "--queue #{self.message_queue} " +
-          "--task #{task_id}"
+      wrapper_args = {:host => self.message_host,
+                      :port => self.message_port,
+                      :queue => self.message_queue,
+                      :task => task_id}
+
+      ruby_args = cli_arg_map(self.ruby_args, :prefix => '-', :sep => '')
+
+      ["ruby", ruby_args, '--', self.async_wrapper,
+       cli_arg_map(wrapper_args, :prefix => '--')].flatten.join(' ')
     end
   end
 end

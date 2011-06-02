@@ -22,6 +22,10 @@ module Percolate
     include Utilities
     include Asynchronizer
 
+    def initialize(args = {})
+      super(args)
+    end
+
     def async_command(task_id, command, work_dir, log, args = {})
       cmd_str = command_string(task_id)
       cd(work_dir, "#{cmd_str} -- #{command}")
