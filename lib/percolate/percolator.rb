@@ -428,15 +428,5 @@ module Percolate
         end
       end
     end
-
-    def substitute_uris args
-      args.collect { |arg|
-        if arg.is_a?(String) && URI_REGEXP.match(arg)
-          URI.parse(arg.slice(URI_REGEXP))
-        else
-          arg
-        end
-      }
-    end
   end
 end
