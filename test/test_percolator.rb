@@ -23,14 +23,18 @@ require 'uri'
 require 'yaml'
 require 'test/unit'
 
-libpath = File.expand_path('../lib')
-$:.unshift(libpath) unless $:.include?(libpath)
+devpath = File.expand_path(File.join(File.dirname(__FILE__), '..'))
+libpath = File.join(devpath, 'lib')
+testpath = File.join(devpath, 'test')
 
+$:.unshift(libpath) unless $:.include?(libpath)
 require 'percolate'
+require File.join(testpath, 'test_helper')
 
 module TestPercolate
   class TestPercolator < Test::Unit::TestCase
     include Percolate
+    include TestHelper
 
     def initialize(name)
       super(name)
@@ -151,72 +155,62 @@ module TestPercolate
       end
 
       assert_raise PercolateError do
-        percolator.read_definition(File.join(data_path,
-                                             'bad_module_def.yml'))
+        percolator.read_definition(File.join(data_path, 'bad_module_def.yml'))
       end
 
       assert_raise PercolateError do
-        percolator.read_definition(File.join(data_path,
-                                             'bad_workflow_def.yml'))
+        percolator.read_definition(File.join(data_path, 'bad_workflow_def.yml'))
       end
 
       assert_raise PercolateError do
-        percolator.read_definition(File.join(data_path,
-                                             'no_module_def.yml'))
+        percolator.read_definition(File.join(data_path, 'no_module_def.yml'))
       end
 
       assert_raise PercolateError do
-      percolator.read_definition(File.join(data_path,
-                                           'no_workflow_def.yml'))
+        percolator.read_definition(File.join(data_path, 'no_workflow_def.yml'))
       end
     end
 
     def test_percolate_tasks_pass
-      begin
-        percolator = Percolator.new({'root_dir' => data_path(),
-                                     'log_file' => 'percolate-test.log',
-                                     'log_level' => 'INFO',
-                                     'msg_host' => @msg_host,
-                                     'msg_port' => @msg_port})
-        def_file = File.join(percolator.run_dir, 'test_def1_tmp.yml')
-        run_file = File.join(percolator.run_dir, 'test_def1_tmp.run')
+      work_dir = make_work_dir('test_precolate_tasks_pass', data_path)
+      percolator = Percolator.new({'root_dir' => work_dir,
+                                   'log_file' => 'percolate-test.log',
+                                   'log_level' => 'INFO',
+                                   'msg_host' => @msg_host,
+                                   'msg_port' => @msg_port})
+      def_file = File.join(percolator.run_dir, 'test_def1_tmp.yml')
+      run_file = File.join(percolator.run_dir, 'test_def1_tmp.run')
 
-        FileUtils.cp(File.join(percolator.run_dir, 'test_def1.yml'), def_file)
-        assert(percolator.percolate_tasks(def_file).passed?)
+      FileUtils.cp(File.join(data_path, 'in', 'test_def1.yml'), def_file)
+      assert(percolator.percolate_tasks(def_file).passed?)
 
-        [def_file, run_file].each do |file|
-          assert(File.exists?(File.join(percolator.pass_dir,
-                                        File.basename(file))))
-        end
-      ensure
-        [def_file, run_file].each do |file|
-          File.delete(File.join(percolator.pass_dir, File.basename(file)))
-        end
+      [def_file, run_file].each do |file|
+        assert(File.exists?(File.join(percolator.pass_dir,
+                                      File.basename(file))))
       end
+
+      remove_work_dir(work_dir)
     end
 
     def test_percolate_tasks_fail
-      begin
-        percolator = Percolator.new({'root_dir' => data_path(),
-                                     'log_file' => 'percolate-test.log',
-                                     'log_level' => 'INFO',
-                                     'msg_host' => @msg_host,
-                                     'msg_port' => @msg_port})
-        def_file = File.join(percolator.run_dir, 'test_def2_tmp.yml')
-        run_file = File.join(percolator.run_dir, 'test_def2_tmp.run')
+      work_dir = make_work_dir('test_precolate_tasks_fail', data_path)
+      percolator = Percolator.new({'root_dir' => work_dir,
+                                   'log_file' => 'percolate-test.log',
+                                   'log_level' => 'INFO',
+                                   'msg_host' => @msg_host,
+                                   'msg_port' => @msg_port})
 
-        FileUtils.cp(File.join(percolator.run_dir, 'test_def2.yml'), def_file)
-        assert(percolator.percolate_tasks(def_file).failed?)
+      def_file = File.join(percolator.run_dir, 'test_def2_tmp.yml')
+      run_file = File.join(percolator.run_dir, 'test_def2_tmp.run')
 
-        [def_file, run_file].each do |file|
-          assert(File.exists?(File.join(percolator.fail_dir,
-                                        File.basename(file))))
-        end
-      ensure
-        [def_file, run_file].each do |file|
-          File.delete(File.join(percolator.fail_dir, File.basename(file)))
-        end
+      FileUtils.cp(File.join(data_path, 'in', 'test_def2.yml'), def_file)
+      assert(percolator.percolate_tasks(def_file).failed?)
+
+      [def_file, run_file].each do |file|
+        assert(File.exists?(File.join(percolator.fail_dir, File.basename(file))))
       end
+
+      remove_work_dir(work_dir)
     end
   end
 end

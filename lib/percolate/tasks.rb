@@ -24,7 +24,7 @@ module Percolate
     # Arguments:
     #
     # - margs (Array): The arguments that are necessary and sufficient to
-    #   identify an invoaction of the task. If the task method is called in
+    #   identify an invocation of the task. If the task method is called in
     #   multiple contexts with these same arguments, they will resolve to a
     #   single invocation in the Memoizer.
     # - command (String): A complete command line string to be executed.
@@ -47,12 +47,13 @@ module Percolate
     #
     # Returns:
     # - Return value of the :result Proc, or nil.
-    def task(margs, command, args = {})
+    def task(margs, command, work_dir, args = {})
       unwrap = args.delete(:unwrap)
       mname = calling_method
       env = {}
 
-      result = super(mname, margs, command, env, callback_defaults.merge(args))
+      result = super(mname, margs, cd(work_dir, command), env,
+                     callback_defaults.merge(args))
       maybe_unwrap(result, unwrap)
     end
 
@@ -136,7 +137,6 @@ module Percolate
       callbacks, * = split_task_args(args)
       task_id = task_identity(mname, *margs)
 
-      # async_command = async_command(task_id, command, work_dir, log, async)
       asynchronizer = Percolate.asynchronizer
       async_command = asynchronizer.async_command(task_id, command, work_dir,
                                                   log, async)
@@ -195,7 +195,8 @@ module Percolate
       array_file = File.join(work_dir, "#{task_id}.txt")
 
       asynchronizer = Percolate.asynchronizer
-      async_command = asynchronizer.async_command(task_id, commands, work_dir, log, async)
+      async_command = asynchronizer.async_command(task_id, commands, work_dir,
+                                                  log, async)
 
       result = asynchronizer.async_task_array(mname, margs_arrays,
                                               commands, array_file,
@@ -214,7 +215,7 @@ module Percolate
     #
     # - true.
     def true_task(work_dir = '.')
-      task([work_dir], cd(work_dir, 'true'),
+      task([work_dir], 'true', work_dir,
            :pre => lambda { work_dir },
            :result => lambda { true })
     end
@@ -229,7 +230,7 @@ module Percolate
     #
     # - false.
     def false_task(work_dir = '.')
-      task([work_dir], cd(work_dir, 'false'),
+      task([work_dir], 'false', work_dir,
            :pre => lambda { work_dir },
            :result => lambda { false })
     end

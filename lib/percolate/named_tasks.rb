@@ -80,9 +80,9 @@ module Percolate
           when success && post.call(*margs.take(post.arity.abs))
             value = val.call(*margs.take(val.arity.abs))
             task_id = task_identity(method_name, *margs)
-            result = Result.new(method_name, :sync, task_id,
-                                submission_time, start_time, finish_time,
-                                value, status.exitstatus, stdout)
+            result = Result.new(method_name, :sync, task_id, submission_time)
+            result.started!(start_time)
+            result.finished!(value, finish_time, status.exitstatus, stdout)
             log.debug("Postconditions satsified; returning #{result}")
             memos[margs] = result
           else
@@ -129,9 +129,9 @@ module Percolate
           value = proc.call(*margs)
           finish_time = Time.now
 
-          result = Result.new(method_name, :native, task_id,
-                              submission_time, start_time, finish_time,
-                              value, nil, nil)
+          result = Result.new(method_name, :native, task_id, submission_time)
+          result.started!(start_time)
+          result.finished!(value, finish_time)
           log.debug("#{method_name} called; returning #{result}")
           memos[margs] = result
       end

@@ -21,10 +21,14 @@ require 'test/unit'
 require 'socket'
 require 'timeout'
 
-libpath = File.expand_path('../lib')
+devpath = File.expand_path(File.join(File.dirname(__FILE__), '..'))
+libpath = File.join(devpath, 'lib')
+testpath = File.join(devpath, 'test')
+
 $:.unshift(libpath) unless $:.include?(libpath)
 
 require 'percolate'
+require File.join(testpath, 'test_helper')
 
 module AsyncTest
   include Percolate::Tasks
@@ -55,9 +59,11 @@ module AsyncTest
 end
 
 module PercolateTest
+
   class TestAsyncWorkflow < Test::Unit::TestCase
     include Percolate
     include Tasks
+    include TestHelper
 
     $LSF_PRESENT = system('which bsub >/dev/null 2>&1')
 
@@ -125,7 +131,8 @@ module PercolateTest
     end
 
     def test_minimal_async_workflow
-      percolator = Percolator.new({'root_dir' => data_path,
+      work_dir = make_work_dir('test_minimal_async_workflow', data_path)
+      percolator = Percolator.new({'root_dir' => work_dir,
                                    'log_file' => 'percolate-test.log',
                                    'log_level' => 'DEBUG',
                                    'msg_host' => @msg_host,
@@ -181,11 +188,14 @@ module PercolateTest
       assert_equal([:async_sleep], result.collect { |r| r.task }.uniq)
       assert_equal(size.times.collect { |i| i + run_time },
                    result.collect { |r| r.value })
+
+      remove_work_dir(work_dir)
     end
 
     def test_minimal_p_async_workflow
       if $LSF_PRESENT
-        percolator = Percolator.new({'root_dir' => data_path,
+        work_dir = make_work_dir('test_minimal_p_async_workflow', data_path)
+        percolator = Percolator.new({'root_dir' => work_dir,
                                      'log_file' => 'percolate-test.log',
                                      'log_level' => 'DEBUG',
                                      'msg_host' => @msg_host,
@@ -241,6 +251,8 @@ module PercolateTest
         assert_equal(size.times.collect { |i| i + run_time },
                      result.collect { |r| r.value })
       end
+
+      remove_work_dir(work_dir)
     end
 
   end

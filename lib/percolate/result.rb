@@ -51,25 +51,21 @@ module Percolate
     # Task STDERR.
     attr_accessor :stderr
 
-    def initialize(task, mode, task_identity, submission_time, start_time = nil,
-        finish_time = nil, value = nil, stdout = nil, stderr = nil)
+    def initialize(task, mode, task_identity, submission_time)
       @task = task
       @mode = mode
       @task_identity = task_identity
       @submission_time = submission_time
-      @start_time = start_time
-      @finish_time = finish_time
-      @value = value
-      @exit_code = nil
-      @stdout = stdout
-      @stderr = stderr
     end
 
     # Sets the Result on completion of a task.
-    def finished!(value, finish_time = Time.now, exit_code = 0)
+    def finished!(value, finish_time = Time.now, exit_code = 0, stdout = nil,
+        stderr = nil)
       self.finish_time = finish_time
       self.exit_code = exit_code
       self.value = value
+      self.stdout = stdout
+      self.stderr = stderr
     end
 
     # Sets the time at which the task started. Tasks may be restarted,
