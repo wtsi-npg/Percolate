@@ -1,4 +1,3 @@
 
-group: Percolate
-workflow: FailingWorkflow
+workflow: Percolate::FailingWorkflow
 arguments: /tmp

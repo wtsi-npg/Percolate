@@ -1,4 +1,3 @@
 
-group: NoSuchModuleExists
-workflow: FailingWorkflow
+workflow: NoSuchPercolateModuleExists::FailingWorkflow
 arguments: /tmp

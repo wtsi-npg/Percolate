@@ -18,6 +18,12 @@
 
 module Percolate
   module Utilities
+    # Returns the class constant for a fully qualified class name such as
+    # 'HTS::Workflows::PairedAlignment'.
+    def find_class(string)
+      string.split('::').inject(Kernel) { |scope, name| scope.const_get(name) }
+    end
+
     # Returns a copy of String command with a change directory operation
     # prefixed.
     def cd(path, command)

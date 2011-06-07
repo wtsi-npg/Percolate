@@ -108,6 +108,7 @@ module PercolateTest
 
   class TestWorkflow < Test::Unit::TestCase
     include Percolate
+    include Percolate::Utilities
     include TestHelper
 
     def initialize(name)
@@ -137,6 +138,10 @@ module PercolateTest
 
       EmptyWorkflow.new(:test_def1, def_file, run_file,
                         percolator.pass_dir, percolator.fail_dir)
+    end
+
+    def test_lookup_by_name
+      assert(find_class('Percolate::EmptyWorkflow').is_a?(Class))
     end
 
     def test_bad_definition_suffix

@@ -1,4 +1,3 @@
 
-group: Percolate
-workflow: NoSuchWorkflowExists
+workflow: Percolate::NoSuchWorkflowExists
 arguments: /tmp

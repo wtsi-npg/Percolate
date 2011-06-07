@@ -172,7 +172,7 @@ module TestPercolate
     end
 
     def test_percolate_tasks_pass
-      work_dir = make_work_dir('test_precolate_tasks_pass', data_path)
+      work_dir = make_work_dir('test_percolate_tasks_pass', data_path)
       percolator = Percolator.new({'root_dir' => work_dir,
                                    'log_file' => 'percolate-test.log',
                                    'log_level' => 'INFO',
@@ -193,7 +193,7 @@ module TestPercolate
     end
 
     def test_percolate_tasks_fail
-      work_dir = make_work_dir('test_precolate_tasks_fail', data_path)
+      work_dir = make_work_dir('test_percolate_tasks_fail', data_path)
       percolator = Percolator.new({'root_dir' => work_dir,
                                    'log_file' => 'percolate-test.log',
                                    'log_level' => 'INFO',

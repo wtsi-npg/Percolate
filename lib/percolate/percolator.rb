@@ -120,7 +120,8 @@ module Percolate
   # the directories where it expects to find workflow definitions and
   # run files.
   class Percolator
-
+    include Utilities
+    
     URI_REGEXP = URI.regexp(['file', 'urn'])
 
     # The root of all the Percolate runtime directories. Defaults to
@@ -183,7 +184,7 @@ module Percolate
       if FileTest.directory?(opts[:log_file])
         raise ArgumentError,
               ":log_file must be a file name, not a directory: " +
-              "#{opts[:log_file]}"
+                  "#{opts[:log_file]}"
       end
 
       begin
@@ -200,7 +201,7 @@ module Percolate
       Percolate.log.level = Object.const_get('Logger').const_get(opts[:log_level])
 
       msg_host = (opts[:msg_host] || Socket.gethostname)
-      async = (opts[:async] || :system)
+      async = (opts[:async] || 'system')
       asynchronizer = make_asynchronizer(async)
       asynchronizer.message_host = msg_host
       asynchronizer.message_port = opts[:msg_port] if opts[:msg_port]
@@ -258,16 +259,11 @@ module Percolate
         lib = defn['library']
         require lib if lib
 
-        workflow_module = defn['group']
         workflow_class = defn['workflow']
         workflow_args = defn['arguments']
 
-        if workflow_module.nil?
-          raise ArgumentError,
-                "Could not determine workflow module from definition '#{file}'"
-        elsif workflow_class.nil?
-          raise ArgumentError,
-                "Could not determine workflow from definition '#{file}'"
+        if workflow_class.nil?
+          raise ArgumentError, "Workflow missing from definition '#{file}'"
         end
 
         processed_args = case workflow_args
@@ -280,14 +276,12 @@ module Percolate
                            else
                              raise ArgumentError,
                                    "Expected an argument string, but found " +
-                                   workflow_args.inspect
+                                       workflow_args.inspect
                          end
 
-        mod = Object.const_get(workflow_module)
-        klass = mod.const_get(workflow_class)
-
+        klass = find_class(workflow_class)
         Percolate.log.info("Found workflow #{klass} with arguments " +
-                           "#{processed_args.inspect}")
+                               "#{processed_args.inspect}")
 
         [klass, processed_args]
       rescue ArgumentError => ae
@@ -296,8 +290,7 @@ module Percolate
         raise PercolateError, "Error in workflow definiton '#{file}': #{te}"
       rescue NameError => ne
         raise PercolateError, "Error in workflow definiton '#{file}': " +
-          "does workflow #{workflow_class} in #{workflow_module} " +
-          "really exist?"
+            "does workflow #{workflow_class} really exist? : #{ne}"
       end
     end
 
@@ -409,13 +402,15 @@ module Percolate
 
     private
     def make_asynchronizer(type)
-      case type
-        when :lsf ; LSFAsynchronizer.new
-        when :system ; SystemAsynchronizer.new
+      case type.to_s.downcase
+        when 'lsf'
+          LSFAsynchronizer.new
+        when 'system'
+          SystemAsynchronizer.new
         else
           raise ArgumentError,
                 "Invalid asynchronizer type '#{type}', expected one of " +
-                    [:lsf, :system].inspect
+                    %w{lsf system}.inspect
       end
     end
 
