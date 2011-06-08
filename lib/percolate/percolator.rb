@@ -216,12 +216,12 @@ module Percolate
 
     # Returns an array of workflow definition files.
     def find_definitions
-      Dir[self.run_dir + '/*' + self.def_suffix].sort
+      Dir[File.join(self.run_dir, '*') + self.def_suffix].sort
     end
 
     # Returns an array of workflow run files.
     def find_run_files
-      Dir[self.run_dir + '/*' + self.run_suffix].sort
+      Dir[File.join(self.run_dir, '*') + self.run_suffix].sort
     end
 
     # Returns an array of workflow definition files that do not have a
@@ -267,12 +267,9 @@ module Percolate
         end
 
         processed_args = case workflow_args
-                           when NilClass;
-                             []
-                           when String;
-                             workflow_args.split
-                           when Array;
-                             workflow_args
+                           when NilClass ; []
+                           when String ; workflow_args.split
+                           when Array ; workflow_args
                            else
                              raise ArgumentError,
                                    "Expected an argument string, but found " +
@@ -296,7 +293,7 @@ module Percolate
 
     # Percolates data through the currently active workflows.
     def percolate
-      self.find_definitions.each do |defn|
+      self.find_definitions.collect do |defn|
         Percolate.log.info("Switched to workflow #{defn}")
 
         begin

@@ -125,9 +125,7 @@ module Percolate
 
     def to_s
       vstr = self.value.inspect
-      if vstr.length > 124
-        vstr = vstr[0, 124] + " ..."
-      end
+      vstr = vstr[0, 124] + " ..." if vstr.length > 124
 
       "#<#{self.class} #{self.mode} task_id: #{self.task_identity} #{state} " +
           "sub: #{self.submission_time.inspect} " +

@@ -18,7 +18,7 @@
 
 module Percolate
   module Utilities
-    # Returns the class constant for a fully qualified class name such as
+    # Returns the class constant for a fully qualified class name string such as
     # 'HTS::Workflows::PairedAlignment'.
     def find_class(string)
       string.split('::').inject(Kernel) { |scope, name| scope.const_get(name) }
@@ -124,6 +124,8 @@ module Percolate
     end
 
     def system_command(command)
+      # A bug in Ruby popen3 means that it does not return the correct exit
+      # code; it always returns 0.
       out = []
       IO.popen(command) { |io| out = io.readlines }
       [$?, out]
