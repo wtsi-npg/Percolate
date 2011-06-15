@@ -294,7 +294,7 @@ module Percolate
     def message_queue
       identity = self.workflow_identity
       digest = Digest::MD5.hexdigest(identity)
-      "#{digest}-#{identity}".slice(0, 128)
+      sanitize_queue_name("#{digest}-#{identity}".slice(0, 128))
     end
 
     def to_s
@@ -317,6 +317,16 @@ module Percolate
         raise PercolateError,
               "#{operation} cannot be performed on transient workflow #{self.to_s}"
       end
+    end
+
+    # The beanstalk queue protocol allows only certain characters in a queue
+    # name. They may contain letters (A-Z and a-z), numerals (0-9),
+    # hyphen ("-"), plus ("+"), slash ("/"), semicolon (";"), dot ("."),
+    # dollar-sign ("$"), and parentheses ("(" and ")"), but they may not
+    # begin with a hyphen. They are terminated by white space (either a
+    # space char or end of line).
+    def sanitize_queue_name(name)
+      name.gsub(/[^A-Za-z0-9\-+\/;().$]|\s/, '-')
     end
   end
 end
