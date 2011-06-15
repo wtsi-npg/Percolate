@@ -16,6 +16,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+require 'fileutils'
+
 module TestHelper
   def make_work_dir(name, dir)
     work_dir = File.join(dir, name + '.' + $$.to_s)
@@ -27,6 +29,6 @@ module TestHelper
    end
 
   def remove_work_dir(dir)
-    FileUtils.rm_r(dir)
+    FileUtils.rm_rf(dir)
   end
 end
