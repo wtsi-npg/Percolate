@@ -231,7 +231,7 @@ module PercolateTest
         assert(memoizer.async_result_count { |r| r.finished? }.zero?)
         assert(memoizer.dirty_async?)
 
-        Timeout.timeout(60) do
+        Timeout.timeout(180) do
           until result.collect { |r| r && r.finished? }.all? do
             memoizer.update_async_memos!
             result = wf.run(run_time, size, data_path, lsf_log)
