@@ -198,11 +198,11 @@ module Percolate
       async_command = asynchronizer.async_command(task_id, commands, work_dir,
                                                   log, async)
 
-      result = asynchronizer.async_task_array(mname, margs_arrays,
-                                              commands, array_file,
-                                              async_command, env,
-                                              callback_defaults.merge(callbacks))
-      maybe_unwrap(result, unwrap)
+      results = asynchronizer.async_task_array(mname, margs_arrays,
+                                               commands, array_file,
+                                               async_command, env,
+                                               callback_defaults.merge(callbacks))
+      results.collect { |result| maybe_unwrap(result, unwrap) }
     end
 
     # A task that should always succeed. It executes the Unix 'true' command.
