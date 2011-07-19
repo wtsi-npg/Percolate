@@ -28,6 +28,7 @@
    The root directory contains the follow subdirectories:
 
     - in/ :: A directory where new workflow definition files are placed
+
     - pass/ :: A directory to which completed workflow definition files
       are moved
 
@@ -63,8 +64,7 @@
 
 #+BEGIN_EXAMPLE
 library: mig
-group: MIG
-workflow: ChunkedPairedFastqMap
+workflow: MIG::ChunkedPairedFastqMap
 arguments: 
 - /lustre/scratch103/sanger/kdj/5287/trimmed_5287_7_1.fastq
 - /lustre/scratch103/sanger/kdj/5287/trimmed_5287_7_2.fastq
@@ -79,7 +79,6 @@ arguments:
   files:
 
   - library :: The library containing the workflow to be run
-  - group :: The namespace of the workflow in the library
   - workflow :: The workflow to run
   - arguments :: The workflow argument list
 
@@ -235,6 +234,10 @@ Client stats: {"name"=>"default", "total-jobs"=>0,
    root_dir: <path to Percolate root, defaults to ~/percolate>
    log_file: <log file name, defaults to percolate.log>
    log_level: <log verbosity, one of TRACE|DEBUG|INFO|WARN, defaults to WARN>
+   msg_host: <host name of machine where the Beanstalk message queue is running>
+   msg_port: <port number of the Beanstalk message queue>
+   async: <mode of asynchronous jobs, one of :system|:lsf>
+   max_processes: <integer, maximum number of concurrent asynchronous jobs>
 #+END_EXAMPLE
 
     Editing these values will change the Percolate driver's
