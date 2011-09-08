@@ -23,7 +23,7 @@ require 'yaml'
 
 module Percolate
   class PercolatorArguments < Hash
-    def initialize args
+    def initialize(args)
       super
 
       opts = OptionParser.new do |opts|

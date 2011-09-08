@@ -22,7 +22,7 @@ require 'optparse'
 require 'beanstalk-client'
 
 class QueueClientArguments < Hash
-  def initialize args
+  def initialize(args)
     super
 
     self[:host] = 'localhost'

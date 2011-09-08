@@ -25,7 +25,7 @@ include Percolate
 include Percolate::CommandFileIO
 
 class WrapClientArguments < Hash
-  def initialize args
+  def initialize(args)
     super
 
     opts = OptionParser.new do |opts|
@@ -100,6 +100,23 @@ host, port, queue = args[:host], args[:port], args[:queue]
 client = MessageClient.new(queue, host, port)
 
 exitstatus = WRAPPER_ERROR
+
+# Trap signals sent by LSF that may interrupt the wrapper. This may occur
+# when the wrapped job times out and is stopped by LSF, for example.
+
+def recover_and_exit(status)
+  client.send_message(TaskMessage.new(task_id, command, :finished, status))
+  client.close_queue
+  exit(status)
+end
+
+Signal.trap('INT') {
+  recover_and_exit(128 + Signal.list['INT'])
+}
+
+Signal.trap('USR1') {
+  recover_and_exit(128 + Signal.list['USR1'])
+}
 
 begin
   client.open_queue
