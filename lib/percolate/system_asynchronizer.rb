@@ -31,6 +31,15 @@ module Percolate
       cd(work_dir, "#{cmd_str} -- #{command}")
     end
 
+    # Helper method for executing an asynchronous task array. See
+    # async_task_array.
+    def async_task_array(method_name, margs_arrays, commands, array_file,
+        async_command, env, callbacks = {})
+
+      raise PercolateError,
+            "Task arrays are not supported by the SystemAsynchronizer"
+    end
+
     # Makes a system call for a named asynchronous method. The system call
     # executes the command via fork/exec.
     def submit_async(method_name, command)
