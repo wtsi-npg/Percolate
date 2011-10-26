@@ -122,6 +122,10 @@ Signal.trap('USR1') {
   recover_and_exit(128 + Signal.list['USR1'])
 }
 
+Signal.trap('USR2') {
+  recover_and_exit(128 + Signal.list['USR2'])
+}
+
 begin
   client.open_queue
   client.send_message(TaskMessage.new(task_id, command, :started))
