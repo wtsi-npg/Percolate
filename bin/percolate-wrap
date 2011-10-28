@@ -104,26 +104,26 @@ exitstatus = WRAPPER_ERROR
 # Trap signals sent by LSF that may interrupt the wrapper. This may occur
 # when the wrapped job times out and is stopped by LSF, for example.
 
-def recover_and_exit(status)
+def recover_and_exit(client, task_id, command, status)
   client.send_message(TaskMessage.new(task_id, command, :finished, status))
   client.close_queue
   exit(status)
 end
 
 Signal.trap('INT') {
-  recover_and_exit(128 + Signal.list['INT'])
+  recover_and_exit(client, task_id, command, 128 + Signal.list['INT'])
 }
 
 Signal.trap('TERM') {
-  recover_and_exit(128 + Signal.list['TERM'])
+  recover_and_exit(client, task_id, command, 128 + Signal.list['TERM'])
 }
 
 Signal.trap('USR1') {
-  recover_and_exit(128 + Signal.list['USR1'])
+  recover_and_exit(client, task_id, command, 128 + Signal.list['USR1'])
 }
 
 Signal.trap('USR2') {
-  recover_and_exit(128 + Signal.list['USR2'])
+  recover_and_exit(client, task_id, command, 128 + Signal.list['USR2'])
 }
 
 begin
