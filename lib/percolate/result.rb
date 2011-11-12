@@ -21,6 +21,7 @@ module Percolate
   # started and finished, exit code).
   #
   class Result
+    include LSFDataAware
     # When a result is presented in tabular form, these are the default column
     # names.
     COLUMN_NAMES = [:task, :mode, :task_identity, :state,

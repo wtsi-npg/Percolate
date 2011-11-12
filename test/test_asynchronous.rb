@@ -54,7 +54,8 @@ module AsyncTest
                      :post => lambda { true },
                      :result => lambda { |sec, dir| sec },
                      :unwrap => false,
-                     :async => {:queue => :small})
+                     :async => {:queue => :small,
+                                :storage => {:size => 1, :distance => 0}})
   end
 end
 
@@ -237,7 +238,7 @@ module PercolateTest
             result = wf.run(run_time, size, data_path, lsf_log)
 
             sleep(5)
-          print('#')
+            print('#')
           end
         end
 
@@ -250,6 +251,15 @@ module PercolateTest
         assert_equal([:p_async_sleep], result.collect { |r| r.task }.uniq)
         assert_equal(size.times.collect { |i| i + run_time },
                      result.collect { |r| r.value })
+        result.each do |r|
+          puts "testing #{r.inspect}"
+          v = maybe_unwrap(r, true)
+          if v.respond_to?(:metadata)
+            puts "#{r} unwrapped: #{v} metadata:#{v.metadata}"
+          else
+            puts "No metadata on #{v}"
+          end
+        end
       end
 
       remove_work_dir(work_dir)

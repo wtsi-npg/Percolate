@@ -49,6 +49,10 @@ class WrapClientArguments < Hash
         self[:index] = true
       end
 
+      opts.on('-s', '--storage', 'Percolate storage-aware task') do
+        self[:storage] = true
+      end
+
       opts.on('-?', '--help', 'Display this help and exit') do
         $stderr.puts(opts)
         exit
@@ -96,6 +100,14 @@ else
   command = ARGV.join(' ')
 end
 
+if args.has_key?(:storage)
+  storage_location = ENV['LSB_STORAGE_LOCATION']
+
+  unless storage_location
+    raise PercolateError, "LSB_STORAGE_LOCATION was not set"
+  end
+end
+
 host, port, queue = args[:host], args[:port], args[:queue]
 client = MessageClient.new(queue, host, port)
 
@@ -128,7 +140,9 @@ Signal.trap('USR2') {
 
 begin
   client.open_queue
-  client.send_message(TaskMessage.new(task_id, command, :started))
+  client.send_message(TaskMessage.new(task_id, command, :started,
+                                      :time => Time.now,
+                                      :storage_location => storage_location))
 
   system(command)
   exitstatus = if $?.exited?
@@ -137,7 +151,8 @@ begin
                  128 + $?.termsig
                end
 
-  client.send_message(TaskMessage.new(task_id, command, :finished, exitstatus))
+  client.send_message(TaskMessage.new(task_id, command, :finished,
+                                      :exit_code => exitstatus))
 ensure
   client.close_queue
 end

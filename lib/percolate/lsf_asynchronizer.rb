@@ -25,15 +25,17 @@ module Percolate
 
     attr_reader :async_submitter
     attr_accessor :async_queues
+    attr_reader :data_registrar
 
     def initialize(args = {})
       super(args)
       defaults = {:async_queues => [:yesterday, :small, :normal, :long, :basement],
-                  :async_submitter => 'bsub'}
+                  :async_submitter => 'bsub', :data_registrar => 'datactrl'}
       args = defaults.merge(args)
 
       @async_queues = args[:async_queues]
       @async_submitter = args[:async_submitter]
+      @data_registrar = args[:data_registrar]
     end
 
     # Wraps a command String in an LSF job submission command.
@@ -62,12 +64,16 @@ module Percolate
                   :cpus => 1,
                   :depend => nil,
                   :select => nil,
-                  :reserve => nil}
+                  :reserve => nil,
+                  :storage => {},
+                  :dataset => nil}
       args = defaults.merge(args)
 
       queue, mem, cpus = args[:queue], args[:memory], args[:cpus]
       uid = $$
       depend = select = reserve = ''
+      storage, dataset = args[:storage], args[:dataset]
+      sdistance = ssize = nil
 
       unless self.async_queues.include?(queue)
         raise ArgumentError, ":queue must be one of #{self.async_queues.inspect}"
@@ -77,6 +83,20 @@ module Percolate
       end
       unless cpus.is_a?(Fixnum) && cpus > 0
         raise ArgumentError, ":cpus must be a positive Fixnum"
+      end
+      if !storage.empty?
+        if dataset
+          raise ArgumentError, ":storage and :dataset must not be provided together"
+        end
+        ssize = storage[:size]
+        sdistance = storage[:distance]
+        unless ssize && ssize.is_a?(Fixnum) && ssize > 0
+          raise ArgumentError, ":storage SIZE must be a positive Fixnum"
+        end
+        unless sdistance && sdistance.is_a?(Fixnum) && sdistance >= 0
+          raise ArgumentError,
+                ":storage DISTANCE must be a non-negative Fixnum, but was '#{sdistance}'"
+        end
       end
 
       if args[:select]
@@ -96,6 +116,14 @@ module Percolate
 
       cmd_str = command_string(task_id)
       job_name = "#{task_id}.#{uid}"
+
+      extsched_str = ''
+      if sdistance && ssize
+        cmd_str << ' --storage'
+        extsched_str = " -extsched 'storage[size=#{ssize};distance=#{sdistance}]' "
+      elsif dataset
+        extsched_str = " -extsched 'dataset[name=#{dataset}]' "
+      end
 
       if command.is_a?(Array)
         # In a job array the actual command is pulled from the job's command
@@ -118,6 +146,7 @@ module Percolate
          "#{self.async_submitter} -J '#{job_name}' -q #{queue} " +
              "-R 'select[mem>#{mem}#{select}] " +
              "rusage[mem=#{mem}#{reserve}]'#{depend}#{cpu_str} " +
+             extsched_str +
              "-M #{mem * 1000} -oo #{log} #{cmd_str}")
     end
 

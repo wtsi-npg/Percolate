@@ -138,6 +138,7 @@ module Percolate
                         log.debug("#{task_id} has started")
                       end
                       result.started!(msg.time)
+                      result.storage_location = msg.storage_location
                     when :finished
                       log.debug("#{task_id} has finished")
                       result.finished!(nil, msg.time, msg.exit_code)

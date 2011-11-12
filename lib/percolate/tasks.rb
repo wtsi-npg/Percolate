@@ -248,7 +248,17 @@ module Percolate
 
     def maybe_unwrap(result, unwrap)
       if result && unwrap != false
-        result.value
+        value = result.value
+
+        case value
+          when TrueClass, FalseClass, NilClass, Fixnum, Symbol
+            ;
+          when result.storage_location
+            Metadata.attach(value)
+            value.metadata[:storage_location] = result.storage_location
+        end
+
+        value
       else
         result
       end

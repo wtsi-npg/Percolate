@@ -22,18 +22,24 @@ module Percolate
   class TaskMessage
     TASK_STATES = [:started, :finished]
 
-    attr_reader :task_identity, :command, :state, :exit_code, :time
+    attr_reader :task_identity, :command, :state, :exit_code, :time,
+                :storage_location
 
-    def initialize(task_identity, command, state, exit_code = nil,
-                   time = Time.now)
+    def initialize(task_identity, command, state, args = {})
+      defaults = {:exit_code => nil,
+                  :time => Time.now,
+                  :storage_location => nil}
+      args = defaults.merge(args)
+
       unless TASK_STATES.include?(state)
         raise ArgumentError,
               "Invalid state argument #{state}, must be one of " +
                   TASK_STATES.inspect
       end
 
-      @task_identity, @command, @state, @exit_code, @time =
-          task_identity, command, state, exit_code, time
+      @task_identity, @command, @state, @exit_code, @time, @storage_location =
+          task_identity, command, state, args[:exit_code],
+              args[:time], args[:storage_location]
     end
   end
 end

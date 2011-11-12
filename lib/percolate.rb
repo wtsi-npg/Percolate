@@ -33,12 +33,14 @@ require 'percolate/task_wrapper'
 require 'percolate/asynchronizer'
 require 'percolate/system_asynchronizer'
 require 'percolate/lsf_asynchronizer'
+require 'percolate/lsf_data_aware'
 require 'percolate/workflow'
 require 'percolate/empty_workflow'
 require 'percolate/failing_workflow'
 require 'percolate/percolator'
 require 'percolate/auditor'
 require 'percolate/partitions'
+require 'percolate/metadata'
 
 module Percolate
   @log = Logger.new(STDERR)
