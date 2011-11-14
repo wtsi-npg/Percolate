@@ -94,11 +94,11 @@ module Percolate
     include CommandFileIO
 
     # Method for executing an asynchronous task.
-    def async_task(method_name, args, command, env, callbacks = {})
+    def async_task(method_name, margs, command, env, callbacks = {})
       pre, post, val = ensure_callbacks(callbacks)
       memoizer = Percolate.memoizer
       memos = memoizer.async_method_memos(method_name)
-      result = memos[args]
+      result = memos[margs]
       submitted = result && result.submitted?
 
       log = Percolate.log
@@ -106,12 +106,12 @@ module Percolate
 
       if submitted # Job was submitted
         log.debug("#{method_name} job '#{command}' is already submitted")
-        update_result(method_name, args, post, val, result, log)
+        update_result(method_name, margs, post, val, result, log)
       else # Can we submit the job?
         if !memoizer.free_async_slots?
           log.debug("Deferring submission of #{method_name}; " +
                         "returning nil")
-        elsif !pre.call(*args.take(pre.arity.abs))
+        elsif !pre.call(*margs.take(pre.arity.abs))
           log.debug("Preconditions for #{method_name} not satisfied; " +
                         "returning nil")
         else
@@ -119,9 +119,9 @@ module Percolate
                         "submitting '#{command}'")
 
           if submit_async(method_name, command)
-            task_id = task_identity(method_name, *args)
+            task_id = task_identity(method_name, *margs)
             submission_time = Time.now
-            memos[args] = Result.new(method_name, :async, task_id, submission_time)
+            memos[margs] = Result.new(method_name, :async, task_id, submission_time)
           end
         end
       end

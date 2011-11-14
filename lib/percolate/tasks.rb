@@ -144,7 +144,7 @@ module Percolate
       result = asynchronizer.async_task(mname, margs,
                                         async_command, env,
                                         callback_defaults.merge(callbacks))
-      maybe_unwrap(result, unwrap)
+      maybe_unwrap(maybe_metadata(result, async), unwrap)
     end
 
     # Defines an indexed array asynchronous external (batch queue) task method.
@@ -202,7 +202,9 @@ module Percolate
                                                commands, array_file,
                                                async_command, env,
                                                callback_defaults.merge(callbacks))
-      results.collect { |result| maybe_unwrap(result, unwrap) }
+      results.collect do |result|
+        maybe_unwrap(maybe_metadata(result, async), unwrap)
+      end
     end
 
     # A task that should always succeed. It executes the Unix 'true' command.
@@ -246,6 +248,14 @@ module Percolate
       end
     end
 
+    def maybe_metadata(result, metadata)
+      if result
+        result.metadata = result.metadata.merge(metadata)
+      end
+
+      result
+    end
+
     def maybe_unwrap(result, unwrap)
       if result && unwrap != false
         value = result.value
@@ -253,9 +263,9 @@ module Percolate
         case value
           when TrueClass, FalseClass, NilClass, Fixnum, Symbol
             ;
-          when result.storage_location
-            Metadata.attach(value)
-            value.metadata[:storage_location] = result.storage_location
+          else
+            value.extend(Metadata)
+            value.metadata = result.metadata
         end
 
         value

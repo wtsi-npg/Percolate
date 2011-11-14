@@ -190,6 +190,17 @@ module PercolateTest
       assert_equal(size.times.collect { |i| i + run_time },
                    result.collect { |r| r.value })
 
+      result.each do |r|
+        r.value = r.value.to_s
+        v = maybe_unwrap(r, true)
+
+        if v.respond_to?(:metadata)
+          puts "#{r} unwrapped: #{v} metadata:#{v.metadata.inspect}"
+        else
+          puts "No metadata on #{v}"
+        end
+      end
+
       remove_work_dir(work_dir)
     end
 
@@ -251,18 +262,9 @@ module PercolateTest
         assert_equal([:p_async_sleep], result.collect { |r| r.task }.uniq)
         assert_equal(size.times.collect { |i| i + run_time },
                      result.collect { |r| r.value })
-        result.each do |r|
-          puts "testing #{r.inspect}"
-          v = maybe_unwrap(r, true)
-          if v.respond_to?(:metadata)
-            puts "#{r} unwrapped: #{v} metadata:#{v.metadata}"
-          else
-            puts "No metadata on #{v}"
-          end
-        end
-      end
 
-      remove_work_dir(work_dir)
+        remove_work_dir(work_dir)
+      end
     end
 
   end

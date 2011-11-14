@@ -40,6 +40,7 @@ module Percolate
             "Task arrays are not supported by the SystemAsynchronizer"
     end
 
+    protected
     # Makes a system call for a named asynchronous method. The system call
     # executes the command via fork/exec.
     def submit_async(method_name, command)
