@@ -20,7 +20,8 @@ require 'rubygems'
 require 'tmpdir'
 require 'test/unit'
 
-libpath = File.expand_path('../lib')
+devpath = File.expand_path(File.join(File.dirname(__FILE__), '..'))
+libpath = File.join(devpath, 'lib')
 $:.unshift(libpath) unless $:.include?(libpath)
 
 require 'percolate'
@@ -33,11 +34,16 @@ module PercolateTest
 
     def setup
       super
+      Percolate.log = Logger.new(File.join(data_path, 'test_percolate_memoize.log'))
       Percolate.memoizer.clear_memos!
     end
 
     def teardown
       super
+    end
+
+    def data_path
+      File.expand_path(File.join(File.dirname(__FILE__), '..', 'data'))
     end
 
     def sum_task(*args)

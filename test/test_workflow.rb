@@ -119,6 +119,7 @@ module PercolateTest
 
     def setup
       super
+      Percolate.log = Logger.new(File.join(data_path, 'test_workflow.log'))
       Percolate.memoizer.clear_memos!
     end
 
@@ -192,6 +193,7 @@ module PercolateTest
         wf.declare_passed!
       end
 
+      Percolate.log.close
       remove_work_dir(work_dir)
     end
 
@@ -206,6 +208,7 @@ module PercolateTest
         wf.declare_failed!
       end
 
+      Percolate.log.close
       remove_work_dir(work_dir)
     end
 
@@ -223,6 +226,8 @@ module PercolateTest
       assert(percolator.read_definition(def_file))
       assert(Workflow.new(:test_def1, def_file, run_file,
                           percolator.pass_dir, percolator.fail_dir))
+
+      Percolate.log.close
       remove_work_dir(work_dir)
     end
 
@@ -250,6 +255,8 @@ module PercolateTest
       memos = Percolate.memoizer.method_memos(:stay_wrapped_task)
       assert(memos.has_key? ['.'])
       assert(memos[['.']].is_a?(Result))
+
+      Percolate.log.close
       remove_work_dir(work_dir)
     end
 
@@ -261,6 +268,8 @@ module PercolateTest
       wf.run
       assert(wf.store)
       assert(File.exists?(wf.run_file))
+
+      Percolate.log.close
       remove_work_dir(work_dir)
     end
 
@@ -278,6 +287,8 @@ module PercolateTest
 
       assert(memos.has_key? ['.'])
       assert(memos[['.']].is_a?(Result))
+
+      Percolate.log.close
       remove_work_dir(work_dir)
     end
 
@@ -302,6 +313,8 @@ module PercolateTest
       assert_equal(false, File.exists?(wf.run_file))
       assert(File.exists?(wf.passed_definition_file))
       assert(File.exists?(wf.passed_run_file))
+
+      Percolate.log.close
       remove_work_dir(work_dir)
     end
 
@@ -326,6 +339,8 @@ module PercolateTest
       assert_equal(false, File.exists?(wf.run_file))
       assert(File.exists?(wf.failed_definition_file))
       assert(File.exists?(wf.failed_run_file))
+
+      Percolate.log.close
       remove_work_dir(work_dir)
     end
 
@@ -365,6 +380,7 @@ module PercolateTest
         assert(memos[['.']].is_a?(Result))
       end
 
+      Percolate.log.close
       remove_work_dir(work_dir)
     end
 
@@ -381,6 +397,8 @@ module PercolateTest
                                percolator.pass_dir, percolator.fail_dir)
       assert_nil(wf.run)
       assert(!Percolate.memoizer.method_memos(:unready_task).has_key?(['.']))
+
+      Percolate.log.close
       remove_work_dir(work_dir)
     end
 
@@ -398,6 +416,8 @@ module PercolateTest
                                   percolator.pass_dir, percolator.fail_dir)
       assert_nil(wf.run)
       assert(!Percolate.memoizer.method_memos(:unfinished_task).has_key?(['.']))
+
+      Percolate.log.close
       remove_work_dir(work_dir)
     end
 

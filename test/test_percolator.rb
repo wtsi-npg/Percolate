@@ -44,6 +44,7 @@ module TestPercolate
 
     def setup
       super
+      Percolate.log = Logger.new(File.join(data_path, 'test_percolator.log'))
     end
 
     def teardown
@@ -189,6 +190,7 @@ module TestPercolate
                                       File.basename(file))))
       end
 
+      Percolate.log.close
       remove_work_dir(work_dir)
     end
 
@@ -210,6 +212,7 @@ module TestPercolate
         assert(File.exists?(File.join(percolator.fail_dir, File.basename(file))))
       end
 
+      Percolate.log.close
       remove_work_dir(work_dir)
     end
   end
