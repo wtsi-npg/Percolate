@@ -23,6 +23,7 @@ module Percolate
     include Percolate
     include Utilities
     include Tasks
+    include LSFDataAware
 
     DEFINITION_SUFFIX = '.yml'
     RUN_SUFFIX = '.run'
@@ -133,7 +134,11 @@ module Percolate
                     "workflow"
         end
 
-        Percolate.log.debug("Restored #{self} with state #{state}")
+        log = Percolate.log
+        log.debug("Restored #{self} with state #{state}")
+        self.registered_datasets.each_pair do |dataset, location|
+          log.info("Found registered LSF dataset '#{dataset}' => '#{location}'")
+        end
 
         case state
           when :passed;

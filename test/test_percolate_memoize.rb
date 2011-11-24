@@ -31,6 +31,7 @@ module PercolateTest
     include Percolate
     include Percolate::NamedTasks
     include Percolate::Tasks
+    include LSFDataAware
 
     def setup
       super
@@ -86,14 +87,15 @@ module PercolateTest
     end
 
     def test_store_restore_memos
-      Dir.mktmpdir('percolate') { |dir|
-        file = File.join dir, 'store_restore_memos.dat'
-        Percolate.memoizer.store_memos(file, :dummy_name, :passed)
-        workflow, state = Percolate.memoizer.restore_memos!(file)
+      Dir.mktmpdir('percolate') do |dir|
+        file = File.join(dir, 'store_restore_memos.dat')
+        memoizer = Percolate.memoizer
+        memoizer.store_memos(file, :dummy_name, :passed)
+        workflow, state = memoizer.restore_memos!(file)
 
         assert_equal(:dummy_name, workflow)
         assert_equal(:passed, state)
-      }
+      end
     end
 
     def test_native_task
@@ -108,5 +110,20 @@ module PercolateTest
       assert(memos.is_a?(Hash))
       assert(memoizer.memos.has_key?(:sum_task))
     end
+
+    def test_store_restore_dataset
+      Dir.mktmpdir('percolate') do |dir|
+        file = File.join(dir, 'store_restore_dataset.dat')
+        memoizer = Percolate.memoizer
+        assert(!memoizer.registered_datasets.has_key?(:test_dataset))
+        memoizer.registered_datasets[:test_dataset] = 'test_dataset_location'
+
+        memoizer.store_memos(file, :dummy_name, nil)
+        workflow, state = memoizer.restore_memos!(file)
+
+        assert(memoizer.registered_datasets.has_key?(:test_dataset))
+      end
+    end
+
   end
 end

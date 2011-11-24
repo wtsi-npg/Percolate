@@ -28,9 +28,18 @@ require 'percolate'
 module PercolateTest
 
   class TestDAS < Test::Unit::TestCase
-     include Percolate
-     include Utilities
-     include LSFDataAware
+    include Percolate
+    include Utilities
+    include LSFDataAware
+
+    def setup
+      super
+      Percolate.log = Logger.new(File.join(data_path, 'test_lsf_data_aware.log'))
+    end
+
+    def data_path
+      File.expand_path(File.join(File.dirname(__FILE__), '..', 'data'))
+    end
 
     def test_storage_root
       assert_equal("/lustre/scratch101/sanger/" + ENV['USER'],
@@ -98,11 +107,9 @@ module PercolateTest
         end
 
         assert(registered_dataset?(name))
-
         assert_equal(location, registered_datasets[name])
 
         assert(unregister_dataset(name))
-
         assert(!registered_dataset?(name))
       end
     end

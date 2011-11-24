@@ -38,10 +38,10 @@ module Percolate
 
     # Returns a Hash of the datasets that have been registered by the current
     # process, the keys being dataset names and the values their corresponding
-    # locations. The contents of the Hash are not persistent across Percolate
+    # locations. The contents of the Hash are persistent across Percolate
     # invocations.
     def registered_datasets()
-      @datasets ||= {}
+      Percolate.memoizer.registered_datasets
     end
 
     # Registers an LSF dataset using datactrl and returns the dataset name on
@@ -59,7 +59,8 @@ module Percolate
       success = command_success?(status)
 
       if success
-        registered_datasets[name] = location
+        self.registered_datasets[name] = location
+        Percolate.log.info("Registered LSF dataset '#{name}' => '#{location}'")
         name
       else
         raise PercolateError,
@@ -84,7 +85,8 @@ module Percolate
       success = command_success?(status)
 
       if success
-        registered_datasets.delete(name)
+        location = self.registered_datasets.delete(name)
+        Percolate.log.info("Unregistered LSF dataset '#{name}' => '#{location}'")
         success
       else
         raise PercolateError,
@@ -98,7 +100,7 @@ module Percolate
         raise ArgumentError, "A dataset name argument is required"
       end
 
-      registered_datasets.has_key?(name)
+      self.registered_datasets.has_key?(name)
     end
   end
 end

@@ -29,11 +29,14 @@ module Percolate
     attr_accessor :async_memos
     # Maximum number of asynchronous tasks permitted.
     attr_accessor :max_processes
+    # Registered LSF datasets. Normally empty unless run within the WTSI.
+    attr_accessor :registered_datasets
 
     def initialize(max_processes = 8)
       @memos = {}
       @async_memos = {}
       @max_processes = max_processes
+      @registered_datasets = {}
     end
 
     def free_async_slots?
@@ -55,7 +58,8 @@ module Percolate
                       :workflow => workflow,
                       :workflow_state => state,
                       :memos => self.memos,
-                      :async_memos => self.async_memos}, file)
+                      :async_memos => self.async_memos,
+                      :registered_datasets => self.registered_datasets}, file)
       end
     end
 
@@ -68,6 +72,7 @@ module Percolate
       self.workflow = restored[:workflow]
       self.memos = restored[:memos]
       self.async_memos = restored[:async_memos]
+      self.registered_datasets = restored[:registered_datasets]
 
       [self.workflow, restored[:workflow_state]]
     end
@@ -235,7 +240,7 @@ module Percolate
           raise PercolateError, msg + ": no Workflow state was stored"
         when !Workflow::STATES.include?(memos[:workflow_state])
           raise PercolateError, msg + ": workflow state was " +
-          "#{memos[:workflow_state]}, expected one of #{Workflow::STATES}"
+          "#{memos[:workflow_state]}, expected one of #{Workflow::STATES.inspect}"
         when !memos.key?(:memos) || !memos.key?(:async_memos)
           raise PercolateError, ": memoization data was missing"
       end
