@@ -139,6 +139,8 @@ module Percolate
                       end
                       result.started!(msg.time)
                       result.metadata[:storage_location] = msg.storage_location
+                      result.metadata[:dataset] = msg.dataset
+                      result.metadata[:work_dir] = msg.work_dir
                     when :finished
                       log.debug("#{task_id} has finished")
                       result.finished!(nil, msg.time, msg.exit_code)

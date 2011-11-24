@@ -23,7 +23,7 @@ module Percolate
       @__metadata ||= {}
     end
 
-    # Sets the 
+    # Sets the metadata hash on an object.
     def metadata=(metadata)
       @__metadata = metadata
     end

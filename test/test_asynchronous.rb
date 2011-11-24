@@ -52,7 +52,7 @@ module AsyncTest
     async_task_array(margs_arrays, commands, work_dir, log,
                      :pre => lambda { work_dir },
                      :post => lambda { true },
-                     :result => lambda { |sec, dir| sec },
+                     :result => lambda { |sec, dir| [sec, dir] },
                      :unwrap => false,
                      :async => {:queue => :small,
                                 :storage => {:size => 1, :distance => 0}})
@@ -74,6 +74,10 @@ module PercolateTest
       @msg_port = 11300
     end
 
+    def setup
+      Percolate.log = Logger.new(File.join(data_path, 'test_async_workflow.log'))
+    end
+
     def bin_path
       File.expand_path(File.join(File.dirname(__FILE__), '..', 'bin'))
     end
@@ -84,6 +88,12 @@ module PercolateTest
 
     def data_path
       File.expand_path(File.join(File.dirname(__FILE__), '..', 'data'))
+    end
+
+    # We don't know which storage location LSF will use for the test job before
+    # runtime.
+    def storage_path
+      File.join('$LSB_STORAGE_LOCATION', 'sanger', ENV['USER'])
     end
 
     class MinimalAsyncWorkflow < Workflow
@@ -159,6 +169,7 @@ module PercolateTest
 
       # Initially nil from async task
       result = wf.run(run_time, size, '.')
+
       assert_equal(size.times.collect { nil }, result)
 
       # Test counting before updates
@@ -190,17 +201,7 @@ module PercolateTest
       assert_equal(size.times.collect { |i| i + run_time },
                    result.collect { |r| r.value })
 
-      result.each do |r|
-        r.value = r.value.to_s
-        v = maybe_unwrap(r, true)
-
-        if v.respond_to?(:metadata)
-          puts "#{r} unwrapped: #{v} metadata:#{v.metadata.inspect}"
-        else
-          puts "No metadata on #{v}"
-        end
-      end
-
+      Percolate.log.close
       remove_work_dir(work_dir)
     end
 
@@ -219,6 +220,7 @@ module PercolateTest
                                        'dummy_def.yml', 'dummy_run.run',
                                        percolator.pass_dir,
                                        percolator.fail_dir)
+
         asynchronizer = Percolate.asynchronizer
         asynchronizer.async_wrapper = File.join(bin_path, 'percolate-wrap')
         asynchronizer.ruby_args = {:I => lib_path}
@@ -232,7 +234,8 @@ module PercolateTest
         size = 5
 
         # Initially nil from async task
-        result = wf.run(run_time, size, data_path, lsf_log)
+        result = wf.run(run_time, size, storage_path, lsf_log)
+
         assert_equal(size.times.collect { nil }, result)
 
         # Test counting before updates
@@ -246,8 +249,7 @@ module PercolateTest
         Timeout.timeout(180) do
           until result.collect { |r| r && r.finished? }.all? do
             memoizer.update_async_memos!
-            result = wf.run(run_time, size, data_path, lsf_log)
-
+            result = wf.run(run_time, size, storage_path, lsf_log)
             sleep(5)
             print('#')
           end
@@ -261,8 +263,18 @@ module PercolateTest
 
         assert_equal([:p_async_sleep], result.collect { |r| r.task }.uniq)
         assert_equal(size.times.collect { |i| i + run_time },
-                     result.collect { |r| r.value })
+                     result.collect { |r| r.value.first })
 
+        result.each do |r|
+          v = maybe_unwrap(r, true)
+
+          assert(v.respond_to?(:metadata))
+          [:queue, :work_dir, :storage_location, :dataset].each do |key|
+            assert(v.metadata.has_key?(key))
+          end
+        end
+
+        Percolate.log.close
         remove_work_dir(work_dir)
       end
     end

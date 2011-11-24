@@ -23,19 +23,19 @@ module Percolate
     include Utilities
     include Asynchronizer
 
-    attr_reader :async_submitter
     attr_accessor :async_queues
-    attr_reader :data_registrar
+    attr_reader :job_arrays_dir
+    attr_reader :async_submitter
 
     def initialize(args = {})
       super(args)
       defaults = {:async_queues => [:yesterday, :small, :normal, :long, :basement],
-                  :async_submitter => 'bsub', :data_registrar => 'datactrl'}
+                  :async_submitter => 'bsub'}
       args = defaults.merge(args)
 
       @async_queues = args[:async_queues]
+      @job_arrays_dir = args[:job_arrays_dir]
       @async_submitter = args[:async_submitter]
-      @data_registrar = args[:data_registrar]
     end
 
     # Wraps a command String in an LSF job submission command.
@@ -53,6 +53,13 @@ module Percolate
     #   - :depend    => LSF job dependency (String)
     #   - :select    => LSF resource select options (String)
     #   - :reserve   => LSF resource rusage options (String)
+    #   - :storage   => LSF data-aware scheduling options (Hash) e.g.
+    #     {:size => 100, :distance => 1} meaning select a node 1 unit
+    #     away from 100Gb of free storage. May not be used in combination with
+    #     the :dataset argument.
+    #   - :dataset   => LSF data-aware scheduling dataset name (String) May not
+    #     be used in combination with the :storage argument. The name may
+    #     contain only the characters a-z, A-Z, 0-9, -, _ and .
     #
     # Returns:
     #
@@ -75,19 +82,13 @@ module Percolate
       storage, dataset = args[:storage], args[:dataset]
       sdistance = ssize = nil
 
-      unless self.async_queues.include?(queue)
-        raise ArgumentError, ":queue must be one of #{self.async_queues.inspect}"
-      end
-      unless mem.is_a?(Fixnum) && mem > 0
-        raise ArgumentError, ":memory must be a positive Fixnum"
-      end
-      unless cpus.is_a?(Fixnum) && cpus > 0
-        raise ArgumentError, ":cpus must be a positive Fixnum"
-      end
+      validate_args(queue, mem, cpus, dataset)
+
       if !storage.empty?
         if dataset
           raise ArgumentError, ":storage and :dataset must not be provided together"
         end
+
         ssize = storage[:size]
         sdistance = storage[:distance]
         unless ssize && ssize.is_a?(Fixnum) && ssize > 0
@@ -120,16 +121,18 @@ module Percolate
       extsched_str = ''
       if sdistance && ssize
         cmd_str << ' --storage'
-        extsched_str = " -extsched 'storage[size=#{ssize};distance=#{sdistance}]' "
+        extsched_str = "-extsched 'storage[size=#{ssize};distance=#{sdistance}]' "
       elsif dataset
-        extsched_str = " -extsched 'dataset[name=#{dataset}]' "
+        cmd_str << ' --dataset #{dataset}'
+        extsched_str = "-extsched 'dataset[name=#{dataset}]' "
       end
 
       if command.is_a?(Array)
         # In a job array the actual command is pulled from the job's command
         # array file using the LSF job index
         job_name << "[1-#{command.size}]"
-        cmd_str << ' --index'
+        array_file = File.join(self.job_arrays_dir, task_id + '.txt')
+        cmd_str << " --index #{array_file}"
 
         unless log =~ /%I/
           raise PercolateTaskError,
@@ -142,12 +145,16 @@ module Percolate
         cmd_str << " -- '#{command}'"
       end
 
-      cd(work_dir,
-         "#{self.async_submitter} -J '#{job_name}' -q #{queue} " +
-             "-R 'select[mem>#{mem}#{select}] " +
-             "rusage[mem=#{mem}#{reserve}]'#{depend}#{cpu_str} " +
-             extsched_str +
-             "-M #{mem * 1000} -oo #{log} #{cmd_str}")
+      submission_str = "#{self.async_submitter} -J '#{job_name}' -q #{queue} " +
+          "-R 'select[mem>#{mem}#{select}] " +
+          "rusage[mem=#{mem}#{reserve}]'#{depend}#{cpu_str} " + extsched_str +
+          "-M #{mem * 1000} -oo #{log} #{cmd_str}"
+
+      if absolute_path?(work_dir)
+        cd(work_dir, submission_str)
+      else
+        submission_str
+      end
     end
 
     # Helper method for executing an asynchronous task array. See
@@ -210,6 +217,23 @@ module Percolate
       count = 0
       File.open(file, 'r').each { |line| count = count + 1 }
       count
+    end
+
+    def validate_args(queue, mem, cpus, dataset)
+      unless self.async_queues.include?(queue)
+        raise ArgumentError, ":queue must be one of #{self.async_queues.inspect}"
+      end
+      unless mem.is_a?(Fixnum) && mem > 0
+        raise ArgumentError, ":memory must be a positive Fixnum"
+      end
+      unless cpus.is_a?(Fixnum) && cpus > 0
+        raise ArgumentError, ":cpus must be a positive Fixnum"
+      end
+      if dataset && !dataset.match(/^[a-zA-Z0-9_\-.]+$/)
+        raise ArgumentError,
+              "Invalid dataset name '#{dataset}': names may contain only the " +
+                  "characters a-z, A-Z, 0-9, -, _ and ."
+      end
     end
   end
 end

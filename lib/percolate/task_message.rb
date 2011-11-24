@@ -23,12 +23,14 @@ module Percolate
     TASK_STATES = [:started, :finished]
 
     attr_reader :task_identity, :command, :state, :exit_code, :time,
-                :storage_location
+                :work_dir, :storage_location, :dataset
 
     def initialize(task_identity, command, state, args = {})
       defaults = {:exit_code => nil,
                   :time => Time.now,
-                  :storage_location => nil}
+                  :work_dir => nil,
+                  :storage_location => nil,
+                  :dataset => nil}
       args = defaults.merge(args)
 
       unless TASK_STATES.include?(state)
@@ -37,9 +39,10 @@ module Percolate
                   TASK_STATES.inspect
       end
 
-      @task_identity, @command, @state, @exit_code, @time, @storage_location =
-          task_identity, command, state, args[:exit_code],
-              args[:time], args[:storage_location]
+      @task_identity, @command, @state, @exit_code, @time, @work_dir,
+          @storage_location, @dataset = task_identity, command, state,
+          args[:exit_code], args[:time], args[:work_dir],
+          args[:storage_location], args[:dataset]
     end
   end
 end

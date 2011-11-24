@@ -146,6 +146,8 @@ module Percolate
     # The name of the Percolate log file
     attr_reader :log_file
 
+    attr_reader :job_arrays_dir
+
     attr_reader :def_suffix
     attr_reader :run_suffix
 
@@ -181,6 +183,8 @@ module Percolate
       @pass_dir = (opts[:pass_dir] || File.join(@root_dir, 'pass'))
       @fail_dir = (opts[:fail_dir] || File.join(@root_dir, 'fail'))
 
+      @job_arrays_dir = (opts[:job_arrays_dir] || File.join(@root_dir, 'job_arrays'))
+
       if FileTest.directory?(opts[:log_file])
         raise ArgumentError,
               ":log_file must be a file name, not a directory: " +
@@ -189,7 +193,7 @@ module Percolate
 
       begin
         [@tmp_dir, @lock_dir, @root_dir, @log_dir,
-         @run_dir, @pass_dir, @fail_dir].map do |dir|
+         @run_dir, @pass_dir, @fail_dir, @job_arrays_dir].map do |dir|
           Dir.mkdir(dir) if !(File.exists?(dir) && File.directory?(dir))
         end
       rescue SystemCallError => se
@@ -401,7 +405,7 @@ module Percolate
     def make_asynchronizer(type)
       case type.to_s.downcase
         when 'lsf'
-          LSFAsynchronizer.new
+          LSFAsynchronizer.new(:job_arrays_dir => self.job_arrays_dir)
         when 'system'
           SystemAsynchronizer.new
         else

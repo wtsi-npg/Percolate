@@ -40,6 +40,45 @@ module Percolate
       end
     end
 
+    def absolute_path?(path)
+      path && path.start_with?('/')
+    end
+
+    def storage_root(storage_location)
+      File.join(storage_location, 'sanger', ENV['USER'])
+    end
+
+    def abstract_path?(path)
+      !absolute_path?(path) && path.respond_to?(:metadata) &&
+          (path.metadata.has_key?(:storage_location) ||
+              path.metadata.has_key?(:dataset))
+    end
+
+    def concrete_path(abstract_path)
+      if abstract_path?(abstract_path)
+        meta = abstract_path.metadata
+        root =
+            case
+              when meta[:storage_location] && !meta[:dataset]
+                storage_root(meta[:storage_location])
+              when meta[:dataset] && !meta[:storage_location]
+                storage_root(meta[:dataset])
+              else
+                raise PercolateError,
+                      "Invalid abstract path '#{abstract_path}': " +
+                          "both :storage_location and :dataset were supplied: " +
+                          meta.inspect
+            end
+
+        concrete = File.join(root, abstract_path)
+        concrete.extend(Metadata)
+        concrete.metadata = abstract_path.metadata
+        concrete
+      else
+        raise ArgumentError, "#{abstract_path} is not an abstract path"
+      end
+    end
+
     # Tests each element of Array files to check that it is a readable,
     # regular file. If any element does not designate such a file, a
     # PercolateTaskError is raised. Optionally, the caller may choose to

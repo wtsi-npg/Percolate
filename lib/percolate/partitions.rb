@@ -29,6 +29,8 @@ module Percolate
     PARTITION_SEP
   end
 
+  # Returns a string consisting of the partition tag string flanked by partition
+  # separator strings.
   def partition_tag(pref = PARTITION_SEP, post = PARTITION_SEP)
     "#{pref}#{PARTITION_TAG}#{post}"
   end

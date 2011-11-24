@@ -192,11 +192,11 @@ module Percolate
 
       callbacks, * = split_task_args(args)
       task_id = task_identity(mname, margs_arrays)
-      array_file = File.join(work_dir, "#{task_id}.txt")
 
       asynchronizer = Percolate.asynchronizer
       async_command = asynchronizer.async_command(task_id, commands, work_dir,
                                                   log, async)
+      array_file = File.join(asynchronizer.job_arrays_dir, "#{task_id}.txt")
 
       results = asynchronizer.async_task_array(mname, margs_arrays,
                                                commands, array_file,
