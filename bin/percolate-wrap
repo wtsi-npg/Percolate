@@ -123,7 +123,8 @@ exitstatus = WRAPPER_ERROR
 # when the wrapped job times out and is stopped by LSF, for example.
 
 def recover_and_exit(client, task_id, command, status)
-  client.send_message(TaskMessage.new(task_id, command, :finished, status))
+  client.send_message(TaskMessage.new(task_id, command, :finished,
+                      :exit_code => status))
   client.close_queue
   exit(status)
 end
