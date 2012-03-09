@@ -36,8 +36,7 @@ module Percolate
     def async_task_array(method_name, margs_arrays, commands, array_file,
         async_command, env, callbacks = {})
 
-      raise PercolateError,
-            "Task arrays are not supported by the SystemAsynchronizer"
+      raise CoreError, "Task arrays are not supported by the SystemAsynchronizer"
     end
 
     protected
@@ -45,7 +44,7 @@ module Percolate
     # executes the command via fork/exec.
     def submit_async(method_name, command)
       unless self.message_queue
-        raise PercolateError, "No message queue has been provided"
+        raise CoreError, "No message queue has been provided"
       end
 
       process = fork { exec(command) }

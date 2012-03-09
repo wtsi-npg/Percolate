@@ -150,7 +150,7 @@ module Percolate
                       log.debug("#{task_id} has finished")
                       result.finished!(nil, msg.time, msg.exit_code)
                     else
-                      raise PercolateError, "Invalid message: " + msg.inspect
+                      raise CoreError, "Invalid message: " + msg.inspect
                   end
                 end
               end
@@ -229,20 +229,20 @@ module Percolate
 
       case
         when !memos.is_a?(Hash)
-          raise PercolateError, msg + ": not a Hash"
+          raise CoreError, msg + ": not a Hash"
         when !memos.key?(:percolate_version)
-          raise PercolateError, msg + ": no Percolate version was stored"
+          raise CoreError, msg + ": no Percolate version was stored"
         when memos[:percolate_version] != Percolate::VERSION
-          raise PercolateError, msg +
+          raise CoreError, msg +
           ": Percolate version of memos #{memos[:percolate_version]} " +
           "does not match current the version #{Percolate::VERSION}"
         when !memos.key?(:workflow_state)
-          raise PercolateError, msg + ": no Workflow state was stored"
+          raise CoreError, msg + ": no Workflow state was stored"
         when !Workflow::STATES.include?(memos[:workflow_state])
-          raise PercolateError, msg + ": workflow state was " +
+          raise CoreError, msg + ": workflow state was " +
           "#{memos[:workflow_state]}, expected one of #{Workflow::STATES.inspect}"
         when !memos.key?(:memos) || !memos.key?(:async_memos)
-          raise PercolateError, ": memoization data was missing"
+          raise CoreError, ": memoization data was missing"
       end
 
       memos

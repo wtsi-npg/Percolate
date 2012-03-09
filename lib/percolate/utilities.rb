@@ -64,7 +64,7 @@ module Percolate
               when meta[:dataset] && !meta[:storage_location]
                 storage_root(meta[:dataset])
               else
-                raise PercolateError,
+                raise CoreError,
                       "Invalid abstract path '#{abstract_path}': " +
                           "both :storage_location and :dataset were supplied: " +
                           meta.inspect
@@ -86,7 +86,7 @@ module Percolate
     # which case a copy of the files Array is returned, with any such elements
     # replaced by nil.
     def ensure_files(files, args = {})
-      err = lambda { |file, msg| raise PercolateTaskError, "File '#{file}' #{msg}" }
+      err = lambda { |file, msg| raise TaskError.new("File '#{file}' #{msg}", args) }
 
       defaults = {:error => true}
       args = defaults.merge(args)

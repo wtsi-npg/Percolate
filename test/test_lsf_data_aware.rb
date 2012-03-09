@@ -77,7 +77,7 @@ module PercolateTest
                    concrete_path(a))
 
       a.metadata[:dataset] = '/lustre/scratch101'
-      assert_raise PercolateError do
+      assert_raise CoreError do
         concrete_path(a)
       end
 

@@ -197,7 +197,7 @@ module Percolate
           Dir.mkdir(dir) if !(File.exists?(dir) && File.directory?(dir))
         end
       rescue SystemCallError => se
-        raise PercolateError, "Failed to create Percolate directories: #{se}"
+        raise CoreError, "Failed to create Percolate directories: #{se}"
       end
 
       @log_file = File.join(@log_dir, opts[:log_file])
@@ -247,13 +247,13 @@ module Percolate
     # workflow definition in file.
     def read_definition(file)
       if !File.exists?(file)
-        raise PercolateError, "Workflow definition '#{file}' does not exist"
+        raise DefinitionError.new("Workflow definition '#{file}' does not exist", file)
       end
       if !File.file?(file)
-        raise PercolateError, "Workflow definition '#{file}' is not a file"
+        raise DefinitionError.new("Workflow definition '#{file}' is not a file", file)
       end
       if !File.readable?(file)
-        raise PercolateError, "Workflow definition '#{file}' is not readable"
+        raise DefinitionError.new("Workflow definition '#{file}' is not readable", file)
       end
 
       begin
@@ -267,7 +267,7 @@ module Percolate
         workflow_args = defn['arguments']
 
         if workflow_class.nil?
-          raise ArgumentError, "Workflow missing from definition '#{file}'"
+          raise DefinitionError.new("Workflow missing from definition '#{file}'", file)
         end
 
         processed_args = case workflow_args
@@ -286,12 +286,12 @@ module Percolate
 
         [klass, processed_args]
       rescue ArgumentError => ae
-        raise PercolateError, "Error in workflow definiton '#{file}': #{ae}"
+        raise DefinitionError.new("Error in workflow definiton '#{file}': #{ae}", file)
       rescue TypeError => te
-        raise PercolateError, "Error in workflow definiton '#{file}': #{te}"
+        raise DefinitionError.new("Error in workflow definiton '#{file}': #{te}", file)
       rescue NameError => ne
-        raise PercolateError, "Error in workflow definiton '#{file}': " +
-            "does workflow #{workflow_class} really exist? : #{ne}"
+        raise DefinitionError.new("Error in workflow definiton '#{file}': " +
+                                  "does workflow #{workflow_class} really exist? : #{ne}", file)
       end
     end
 
@@ -386,7 +386,7 @@ module Percolate
         end
       ensure
         if lock.flock(File::LOCK_UN).nonzero?
-          raise PercolateError,
+          raise CoreError,
                 "Failed to release lock #{lock} for #{definition}"
         end
       end

@@ -21,6 +21,7 @@ require 'fileutils'
 require 'logger'
 require 'uri'
 
+require 'percolate/exceptions'
 require 'percolate/version'
 require 'percolate/utilities'
 require 'percolate/metadata'
@@ -57,15 +58,6 @@ module Percolate
   CONFIG_ERROR = 11
   # Error when the wrapper executed a system call
   WRAPPER_ERROR = 12
-
-  # An error raised by the Percolate system.
-  class PercolateError < StandardError ; end
-
-  # An error raised by a Percolate task.
-  class PercolateTaskError < PercolateError ; end
-
-  # An error raised by an asynchronous Percolate task.
-  class PercolateAsyncTaskError < PercolateTaskError ; end
 
   class << self
     attr_accessor :log

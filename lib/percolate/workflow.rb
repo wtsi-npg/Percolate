@@ -70,16 +70,16 @@ module Percolate
 
       if definition_file
         unless File.extname(definition_file) == DEFINITION_SUFFIX
-          raise ArgumentError,
-                "Invalid definition file name '#{definition_file}'. " +
-                    "Suffix must be '#{DEFINITION_SUFFIX}'"
+          raise DefinitionError.new("Invalid definition file name '#{definition_file}'. " +
+                                        "Suffix must be '#{DEFINITION_SUFFIX}'",
+                                    definition_file)
         end
 
         unless File.basename(definition_file,
                              File.extname(definition_file)).match(BASENAME_REGEXP)
-          raise ArgumentError,
-                "Invalid definition file name '#{definition_file}'. " +
-                    "Basename must match '#{BASENAME_REGEXP.inspect}'"
+          raise DefinitionError.new("Invalid definition file name '#{definition_file}'. " +
+                                        "Basename must match '#{BASENAME_REGEXP.inspect}'",
+                                    definition_file)
         end
       end
 
@@ -128,7 +128,7 @@ module Percolate
         workflow, state = Percolate.memoizer.restore_memos!(self.run_file)
 
         unless workflow == self.class
-          raise PercolateError,
+          raise CoreError,
                 "Attempted to restore a #{workflow} workflow from " +
                     "#{self.run_file} into #{self}, which is a #{self.class} " +
                     "workflow"
@@ -148,12 +148,10 @@ module Percolate
           when nil;
             nil
           else
-            raise PercolateError,
-                  "Bad state #{state} in #{self.run_file} for #{self}"
+            raise CoreError, "Bad state #{state} in #{self.run_file} for #{self}"
         end
       else
-        raise PercolateError,
-              "Run file #{self.run_file} for #{self} does not exist"
+        raise CoreError, "Run file #{self.run_file} for #{self} does not exist"
       end
 
       self
@@ -192,9 +190,8 @@ module Percolate
           FileUtils.mv(self.definition_file, directory)
         end
       rescue Exception => e
-        raise PercolateError,
-              "Failed to archive workflow #{self} to '#{directory}': " +
-                  "#{e.message}"
+        raise WorkflowError.new("Failed to archive workflow #{self} to '#{directory}': " +
+                                    "#{e.message}", :workflow => self)
       end
 
       self
@@ -202,7 +199,7 @@ module Percolate
 
     # Runs the workflow through one iteration.
     def run(*args)
-      raise PercolateError,
+      raise CoreError,
             "No run method defined for workflow class #{self.class}"
     end
 
@@ -211,8 +208,8 @@ module Percolate
     def declare_passed!
       check_transient(:declare_passed)
       if self.passed?
-        raise PercolateError,
-              "Cannot pass #{self} because it has already passed"
+        raise WorkflowError.new("Cannot pass #{self} because it has already passed",
+                                :workflow => self)
       end
 
       Percolate.log.debug("Workflow #{self} passed")
@@ -230,8 +227,8 @@ module Percolate
     def declare_failed!
       check_transient(:declare_failed)
       if self.failed?
-        raise PercolateError,
-              "Cannot fail #{self} because it has already failed"
+        raise WorkflowError.new("Cannot fail #{self} because it has already failed",
+                                :workflow => self)
       end
 
       Percolate.log.debug("Workflow #{self} failed")
@@ -256,8 +253,8 @@ module Percolate
     def restart!
       check_transient(:restart)
       unless self.finished?
-        raise PercolateError,
-              "Cannot restart #{self} because it has not finished"
+        raise WorkflowError.new("Cannot restart #{self} because it has not finished",
+                                :workflow => self)
       end
 
       if self.passed?
@@ -319,8 +316,8 @@ module Percolate
     private
     def check_transient(operation) # :nodoc
       if self.transient?
-        raise PercolateError,
-              "#{operation} cannot be performed on transient workflow #{self.to_s}"
+        raise WorkflowError.new("#{operation} cannot be performed on transient workflow #{self.to_s}",
+                                :workflow => self)
       end
     end
 

@@ -146,13 +146,13 @@ module PercolateTest
     end
 
     def test_bad_definition_suffix
-      assert_raise ArgumentError do
+      assert_raise DefinitionError do
         EmptyWorkflow.new(:foo, "foo.txt", "foo.run", "pass_dir", "fail_dir")
       end
     end
 
     def test_bad_definition_basename
-      assert_raise ArgumentError do
+      assert_raise DefinitionError do
         EmptyWorkflow.new(:foo, "fo.o.yml", "foo.run", "pass_dir", "fail_dir")
       end
     end
@@ -168,7 +168,7 @@ module PercolateTest
       wf = Workflow.new(:dummy, 'no_such_def_file.yml', 'no_such_run_file.run',
                         'no_such_pass_dir', 'no_such_fail_dir')
 
-      assert_raise PercolateError do
+      assert_raise CoreError do
         wf.run
       end
     end
@@ -177,7 +177,7 @@ module PercolateTest
       wf = Workflow.new(:dummy, 'no_such_def_file.yml', 'no_such_run_file.run',
                         'no_such_pass_dir', 'no_such_fail_dir')
 
-      assert_raise PercolateError do
+      assert_raise CoreError do
         wf.restore!
       end
     end
@@ -189,7 +189,7 @@ module PercolateTest
       wf.declare_passed!
       assert(wf.passed?)
 
-      assert_raise PercolateError do
+      assert_raise WorkflowError do
         wf.declare_passed!
       end
 
@@ -204,7 +204,7 @@ module PercolateTest
       wf.declare_failed!
       assert(wf.failed?)
 
-      assert_raise PercolateError do
+      assert_raise WorkflowError do
         wf.declare_failed!
       end
 
@@ -431,35 +431,35 @@ module PercolateTest
 
       assert(wf.transient?)
 
-      assert_raise PercolateError do
+      assert_raise WorkflowError do
         wf.declare_passed!
       end
 
-      assert_raise PercolateError do
+      assert_raise WorkflowError do
         wf.declare_failed!
       end
 
-      assert_raise PercolateError do
+      assert_raise WorkflowError do
         wf.passed_definition_file
       end
 
-      assert_raise PercolateError do
+      assert_raise WorkflowError do
         wf.passed_run_file
       end
 
-      assert_raise PercolateError do
+      assert_raise WorkflowError do
         wf.failed_definition_file
       end
 
-      assert_raise PercolateError do
+      assert_raise WorkflowError do
         wf.failed_run_file
       end
 
-      assert_raise PercolateError do
+      assert_raise WorkflowError do
         wf.store
       end
 
-      assert_raise PercolateError do
+      assert_raise WorkflowError do
         wf.restore!
       end
     end

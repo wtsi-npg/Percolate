@@ -243,7 +243,7 @@ module Percolate
       if caller[1] =~ /`([^']*)'/
         $1.to_sym
       else
-        raise PercolateError,
+        raise CoreError,
               "Failed to determine Percolate method name from '#{caller[0]}'"
       end
     end

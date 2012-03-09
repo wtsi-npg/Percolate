@@ -135,7 +135,7 @@ module Percolate
         cmd_str << " --index #{array_file}"
 
         unless log =~ /%I/
-          raise PercolateTaskError,
+          raise ArgumentError,
                 "LSF job array log '#{log}' does not countain " +
                     "a job index placeholder (%I): all jobs " +
                     "would attempt to write to the same file"

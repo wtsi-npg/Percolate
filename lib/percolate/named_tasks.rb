@@ -72,11 +72,11 @@ module Percolate
 
         case # TODO: pass environment variables from env
           when status.signaled?
-            raise PercolateTaskError,
-                  "Uncaught signal #{status.termsig} from '#{command}'"
+            raise TaskError.new("Uncaught signal #{status.termsig} from '#{command}'",
+                                :task => method_name)
           when !success
-            raise PercolateTaskError,
-                  "Non-zero exit #{status.exitstatus} from '#{command}'"
+            raise TaskError.new("Non-zero exit #{status.exitstatus} from '#{command}'",
+                                :task => method_name)
           when success && post.call(*margs.take(post.arity.abs))
             value = val.call(*margs.take(val.arity.abs))
             task_id = task_identity(method_name, *margs)

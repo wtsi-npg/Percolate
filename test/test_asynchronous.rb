@@ -122,8 +122,6 @@ module PercolateTest
       log = 'test_lsf_args.log'
       task_id = task_identity(:async_sleep, 10)
 
-      array_file = File.join(data_path, 'test_lsf_args.txt')
-
       assert_raise ArgumentError do
         asynchronizer.async_command(task_id, command, data_path, log, :queue => :no_such_queue)
       end

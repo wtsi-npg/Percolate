@@ -147,27 +147,27 @@ module TestPercolate
       assert_equal(FailingWorkflow, defn2[0])
       assert_equal(['/tmp'], defn2[1])
 
-      assert_raise PercolateError do
+      assert_raise DefinitionError do
         percolator.read_definition('no_such_file_exists')
       end
 
-      assert_raise PercolateError do
+      assert_raise DefinitionError do
         percolator.read_definition(data_path) # A directory, not a file
       end
 
-      assert_raise PercolateError do
+      assert_raise DefinitionError do
         percolator.read_definition(File.join(data_path, 'bad_module_def.yml'))
       end
 
-      assert_raise PercolateError do
+      assert_raise DefinitionError do
         percolator.read_definition(File.join(data_path, 'bad_workflow_def.yml'))
       end
 
-      assert_raise PercolateError do
+      assert_raise DefinitionError do
         percolator.read_definition(File.join(data_path, 'no_module_def.yml'))
       end
 
-      assert_raise PercolateError do
+      assert_raise DefinitionError do
         percolator.read_definition(File.join(data_path, 'no_workflow_def.yml'))
       end
     end
