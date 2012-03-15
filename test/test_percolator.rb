@@ -139,11 +139,11 @@ module TestPercolate
       defn2 = percolator.read_definition(File.join(percolator.run_dir,
                                                    'test_def2.yml'))
 
-      assert defn1.is_a?(Array)
+      assert(defn1.is_a?(Array))
       assert_equal(EmptyWorkflow, defn1[0])
       assert_equal(['/tmp'], defn1[1])
 
-      assert defn2.is_a? Array
+      assert(defn2.is_a?(Array))
       assert_equal(FailingWorkflow, defn2[0])
       assert_equal(['/tmp'], defn2[1])
 

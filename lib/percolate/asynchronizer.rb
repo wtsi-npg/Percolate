@@ -90,6 +90,7 @@ module Percolate
   # Memoizer to determine what should be done with each subsequent task
   # method invocation.
   module Asynchronizer
+    include Percolate
     include Tasks
     include CommandFileIO
 
