@@ -148,10 +148,10 @@ module Percolate
 
       case
         when status.signaled?
-          raise PercolateAsyncTaskError,
+          raise AsyncTaskError,
                 "Uncaught signal #{status.termsig} from '#{command}'"
         when !success
-          raise PercolateAsyncTaskError,
+          raise AsyncTaskError,
                 "Non-zero exit #{status.exitstatus} from '#{command}'"
         else
           Percolate.log.debug("#{method_name} async job '#{command}' is submitted, " +
@@ -171,7 +171,7 @@ module Percolate
         begin
           case
             when result.failed?
-              raise PercolateAsyncTaskError,
+              raise AsyncTaskError,
                     "#{method_name}#{ix} args: #{args.inspect} failed"
             when result.finished? && post.call(*args.take(post.arity.abs))
               result.finished!(val.call(*args.take(val.arity.abs)))
@@ -181,7 +181,7 @@ module Percolate
               log.debug("Postconditions for #{method_name}#{ix} not satsified; " +
                             "returning nil")
           end
-        rescue PercolateAsyncTaskError => pate
+        rescue AsyncTaskError => pate
           # Any of the having, confirm or yielding callbacks may throw this
           log.error("#{method_name}#{ix} requires attention: #{pate.message}")
           raise pate
