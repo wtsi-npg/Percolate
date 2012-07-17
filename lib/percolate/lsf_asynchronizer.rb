@@ -60,6 +60,8 @@ module Percolate
     #   - :dataset   => LSF data-aware scheduling dataset name (String) May not
     #     be used in combination with the :storage argument. The name may
     #     contain only the characters a-z, A-Z, 0-9, -, _ and .
+    #   - :pre_exec  => LSF pre-exec command (String). Defaults to a test that
+    #     the work_dir is mounted on the execution node.
     #
     # Returns:
     #
@@ -73,7 +75,8 @@ module Percolate
                   :select => nil,
                   :reserve => nil,
                   :storage => {},
-                  :dataset => nil}
+                  :dataset => nil,
+                  :pre_exec => %Q{"echo '[ -e #{work_dir} ] && [ -d #{work_dir} ]' | /bin/sh"}}
       args = defaults.merge(args)
 
       queue, mem, cpus = args[:queue], args[:memory], args[:cpus]
@@ -81,6 +84,7 @@ module Percolate
       depend = select = reserve = ''
       storage, dataset = args[:storage], args[:dataset]
       sdistance = ssize = nil
+      pre_exec = args[:pre_exec]
 
       validate_args(queue, mem, cpus, dataset)
 
@@ -148,6 +152,7 @@ module Percolate
       submission_str = "#{self.async_submitter} -J '#{job_name}' -q #{queue} " +
           "-R 'select[mem>#{mem}#{select}] " +
           "rusage[mem=#{mem}#{reserve}]'#{depend}#{cpu_str} " + extsched_str +
+          "-E #{pre_exec} " +
           "-M #{mem * 1000} -oo #{log} #{cmd_str}"
 
       if absolute_path?(work_dir)
