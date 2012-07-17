@@ -62,6 +62,11 @@ module Percolate
     #     contain only the characters a-z, A-Z, 0-9, -, _ and .
     #   - :pre_exec  => LSF pre-exec command (String). Defaults to a test that
     #     the work_dir is mounted on the execution node.
+    #   - :anchor    => Create an anchor job (Boolean). Defaults to true. Creates
+    #     an extra /bin/true job to accompany each job array which depends on all
+    #     the members of that array. This means that if any array job fails,
+    #     the failed jobs stay in memory as long as the anchor job hasn't been
+    #     finished.
     #
     # Returns:
     #
@@ -76,7 +81,8 @@ module Percolate
                   :reserve => nil,
                   :storage => {},
                   :dataset => nil,
-                  :pre_exec => %Q{"echo '[ -e #{work_dir} ] && [ -d #{work_dir} ]' | /bin/sh"}}
+                  :pre_exec => %Q{"echo '[ -e #{work_dir} ] && [ -d #{work_dir} ]' | /bin/sh"},
+                  :anchor => true}
       args = defaults.merge(args)
 
       queue, mem, cpus = args[:queue], args[:memory], args[:cpus]
@@ -121,6 +127,8 @@ module Percolate
 
       cmd_str = command_string(task_id)
       job_name = "#{task_id}.#{uid}"
+      anchor_name = "#{job_name}.anchor"
+      anchor_dep = "#{job_name}"
 
       extsched_str = ''
       if sdistance && ssize
@@ -135,6 +143,7 @@ module Percolate
         # In a job array the actual command is pulled from the job's command
         # array file using the LSF job index
         job_name << "[1-#{command.size}]"
+        anchor_dep << "[1-#{command.size}]"
         array_file = File.join(self.job_arrays_dir, task_id + '.txt')
         cmd_str << " --index #{array_file}"
 
@@ -154,6 +163,13 @@ module Percolate
           "rusage[mem=#{mem}#{reserve}]'#{depend}#{cpu_str} " + extsched_str +
           "-E #{pre_exec} " +
           "-M #{mem * 1000} -oo #{log} #{cmd_str}"
+
+      anchor_str = "#{self.async_submitter} -J '#{anchor_name}' -q #{queue} " +
+          "-w 'done(#{anchor_dep})' -o /dev/null /bin/true"
+
+      if args[:anchor]
+        submission_str << " ; #{anchor_str}"
+      end
 
       if absolute_path?(work_dir)
         cd(work_dir, submission_str)
