@@ -153,6 +153,37 @@ module PercolateTest
       end
     end
 
+    def test_lsf_default_queue
+      asynchronizer = LSFAsynchronizer.new
+
+      current_dq = ENV.delete('LSB_DEFAULTQUEUE')
+      assert_equal('normal', asynchronizer.lsf_default_queue,
+        'if LSB_DEFAULTQUEUE is not set, the default queue is "normal"')
+      ENV['LSB_DEFAULTQUEUE'] = 'my_queue'
+      assert_equal('my_queue', asynchronizer.lsf_default_queue,
+        'default queue is the value of LSB_DEFAULTQUEUE')
+      if (current_dq)
+        ENV['LSB_DEFAULTQUEUE'] = current_dq
+      end
+    end
+
+    def test_lsf_queues_list
+      asynchronizer = LSFAsynchronizer.new
+      assert_raise SystemCallError do
+        asynchronizer.lsf_queues('bwrong_command')
+      end
+      host_name = Socket.gethostname
+      if (host_name =~ /^sf-/)
+        assert_equal([:system, :yesterday, :pacbio, :small, :srpipeline],
+          asynchronizer.lsf_queues('bqueues'),
+          'seq. farm list of queues if on a seq. farm node')
+      elsif (host_name =~ /^farm2-head/)
+        qs =  asynchronizer.lsf_queues('bqueues')
+        assert(qs.include?(:normal), 'normal is one of the farm2 queues')
+        assert(qs.include?(:small), 'small is one of the farm2 queues')
+      end
+    end
+
     def test_minimal_async_workflow
       work_dir = make_work_dir('test_minimal_async_workflow', data_path)
 

@@ -29,7 +29,7 @@ module Percolate
 
     def initialize(args = {})
       super(args)
-      defaults = {:async_queues => [:yesterday, :small, :normal, :long, :basement],
+      defaults = {:async_queues => lsf_queues('bqueues'),
                   :async_submitter => 'bsub'}
       args = defaults.merge(args)
 
@@ -73,7 +73,7 @@ module Percolate
     # - String
     #
     def async_command(task_id, command, work_dir, log, args = {})
-      defaults = {:queue => :normal,
+      defaults = {:queue => lsf_default_queue().to_sym,
                   :memory => 1900,
                   :cpus => 1,
                   :depend => nil,
@@ -233,6 +233,29 @@ module Percolate
       results
     end
 
+    def lsf_default_queue()
+      ENV['LSB_DEFAULTQUEUE'] || 'normal'
+    end
+
+    def lsf_queues(cmd)
+      qnames = Array.new()
+
+      pipe=IO.popen(cmd)
+      if pipe
+        pipe.each { |line|
+        if pipe.lineno > 1
+          a=line.split()
+          qnames.insert(-1,a[0].to_sym)
+        end }
+      end
+      if qnames.empty?
+        raise SystemCallError, 'Failed to get a list of LSF queues with the ' +
+                       cmd + ' command'
+      end
+
+      qnames
+    end
+
     private
     def count_lines(file) # :nodoc
       count = 0
@@ -242,7 +265,7 @@ module Percolate
 
     def validate_args(queue, mem, cpus, dataset)
       unless self.async_queues.include?(queue)
-        raise ArgumentError, ":queue must be one of #{self.async_queues.inspect}"
+        raise ArgumentError, ":queue is #{queue}, must be one of #{self.async_queues.inspect}"
       end
       unless mem.is_a?(Fixnum) && mem > 0
         raise ArgumentError, ":memory must be a positive Fixnum"
@@ -256,5 +279,6 @@ module Percolate
                   "characters a-z, A-Z, 0-9, -, _ and ."
       end
     end
+
   end
 end
