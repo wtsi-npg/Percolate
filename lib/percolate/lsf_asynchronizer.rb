@@ -50,6 +50,7 @@ module Percolate
     # - args (Hash): Various arguments to LSF:
     #   - :queue     => LSF queue (Symbol) e.g. :normal, :long
     #   - :memory    => LSF memory limit in Mb (Fixnum)
+    #   - :priority  => LSF user priority
     #   - :depend    => LSF job dependency (String)
     #   - :select    => LSF resource select options (String)
     #   - :reserve   => LSF resource rusage options (String)
@@ -75,6 +76,7 @@ module Percolate
     def async_command(task_id, command, work_dir, log, args = {})
       defaults = {:queue => lsf_default_queue(),
                   :memory => 1900,
+                  :priority => nil,
                   :cpus => 1,
                   :depend => nil,
                   :select => nil,
@@ -87,7 +89,7 @@ module Percolate
 
       queue, mem, cpus = args[:queue], args[:memory], args[:cpus]
       uid = $$
-      depend = select = reserve = ''
+      depend = select = reserve = priority = ''
       storage, dataset = args[:storage], args[:dataset]
       sdistance = ssize = nil
       pre_exec = args[:pre_exec]
@@ -117,12 +119,15 @@ module Percolate
         reserve = ":#{args[:reserve]}"
       end
       if args[:depend]
-        depend = " -w #{args[:depend]}"
+        depend = "-w #{args[:depend]}"
+      end
+      if args[:priority]
+        priority = "-sp #{args[:priority]}"
       end
 
       cpu_str = nil
       if cpus > 1
-        cpu_str = " -n #{cpus} -R 'span[hosts=1]'"
+        cpu_str = "-n #{cpus} -R 'span[hosts=1]'"
       end
 
       cmd_str = command_string(task_id)
@@ -131,13 +136,13 @@ module Percolate
       anchor_dep = "#{job_name}"
 
       # Support the data-aware scheduling extension to LSF used at WTSI
-      extsched_str = ''
+      extsched = ''
       if sdistance && ssize
         cmd_str << ' --storage'
-        extsched_str = "-extsched 'storage[size=#{ssize};distance=#{sdistance}]' "
+        extsched = "-extsched 'storage[size=#{ssize};distance=#{sdistance}]' "
       elsif dataset
         cmd_str << ' --dataset #{dataset}'
-        extsched_str = "-extsched 'dataset[name=#{dataset}]' "
+        extsched = "-extsched 'dataset[name=#{dataset}]'"
       end
 
       if command.is_a?(Array)
@@ -160,8 +165,9 @@ module Percolate
       end
 
       submission_str = "#{self.async_submitter} -J '#{job_name}' -q #{queue} " +
+          " #{priority} " +
           "-R 'select[mem>#{mem}#{select}] " +
-          "rusage[mem=#{mem}#{reserve}]'#{depend}#{cpu_str} " + extsched_str +
+          "rusage[mem=#{mem}#{reserve}]' #{depend} #{cpu_str} #{extsched} "+
           "-E #{pre_exec} " +
           "-M #{mem * 1000} -oo #{log} #{cmd_str}"
 
