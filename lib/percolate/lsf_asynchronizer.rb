@@ -29,7 +29,7 @@ module Percolate
 
     def initialize(args = {})
       super(args)
-      defaults = {:async_queues => lsf_queues('bqueues'),
+      defaults = {:async_queues => find_lsf_queues('bqueues'),
                   :async_submitter => 'bsub'}
       args = defaults.merge(args)
 
@@ -73,7 +73,7 @@ module Percolate
     # - String
     #
     def async_command(task_id, command, work_dir, log, args = {})
-      defaults = {:queue => lsf_default_queue().to_sym,
+      defaults = {:queue => lsf_default_queue(),
                   :memory => 1900,
                   :cpus => 1,
                   :depend => nil,
@@ -236,30 +236,38 @@ module Percolate
       results
     end
 
+    #
+    # Returns the default LSF queue as a symbol, or NIL if there is no default.
+    #
     def lsf_default_queue()
-      ENV['LSB_DEFAULTQUEUE'] || 'normal'
+      default = ENV['LSB_DEFAULTQUEUE']
+
+      if default && !default.empty?
+        default.to_sym
+      end
     end
 
-    def lsf_queues(cmd)
+    private
+    def find_lsf_queues(cmd)
       qnames = Array.new()
 
-      pipe=IO.popen(cmd)
+      pipe = IO.popen(cmd)
       if pipe
-        pipe.each { |line|
-        if pipe.lineno > 1
-          a=line.split()
-          qnames.insert(-1,a[0].to_sym)
-        end }
+        pipe.each do |line|
+          if pipe.lineno > 1
+            a = line.split()
+            qnames << a[0].to_sym
+          end
+        end
       end
       if qnames.empty?
         raise SystemCallError, 'Failed to get a list of LSF queues with the ' +
-                       cmd + ' command'
+            cmd + ' command'
       end
 
       qnames
     end
 
-    private
     def count_lines(file) # :nodoc
       count = 0
       File.open(file, 'r').each { |line| count = count + 1 }
