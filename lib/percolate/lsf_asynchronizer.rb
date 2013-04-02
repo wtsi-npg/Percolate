@@ -1,6 +1,6 @@
 #--
 #
-# Copyright (c) 2010-2011 Genome Research Ltd. All rights reserved.
+# Copyright (c) 2010-2013 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -130,6 +130,7 @@ module Percolate
       anchor_name = "#{job_name}.anchor"
       anchor_dep = "#{job_name}"
 
+      # Support the data-aware scheduling extension to LSF used at WTSI
       extsched_str = ''
       if sdistance && ssize
         cmd_str << ' --storage'
@@ -167,6 +168,8 @@ module Percolate
       anchor_str = "#{self.async_submitter} -J '#{anchor_name}' -q #{queue} " +
           "-w 'done(#{anchor_dep})' -o /dev/null /bin/true"
 
+      # Add anchor jobs to enable easy brequeue (stops LSF forgetting any
+      # completed jobs)
       if args[:anchor]
         submission_str << " ; #{anchor_str}"
       end
@@ -256,5 +259,6 @@ module Percolate
                   "characters a-z, A-Z, 0-9, -, _ and ."
       end
     end
+
   end
 end
