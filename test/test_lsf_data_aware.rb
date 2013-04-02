@@ -1,6 +1,6 @@
 #--
 #
-# Copyright (c) 2010-2011 Genome Research Ltd. All rights reserved.
+# Copyright (c) 2010-2013 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -41,9 +41,13 @@ module PercolateTest
       File.expand_path(File.join(File.dirname(__FILE__), '..', 'data'))
     end
 
+    def default_storage_root
+      '/lustre/scratch110'
+    end
+
     def test_storage_root
-      assert_equal("/lustre/scratch101/sanger/" + ENV['USER'],
-                   storage_root("/lustre/scratch101"))
+      assert_equal("/lustre/scratch110/sanger/" + ENV['USER'],
+                   storage_root(default_storage_root))
     end
 
     def test_abstract_path?
@@ -52,14 +56,14 @@ module PercolateTest
 
       a = "/foo"
       a.extend(Metadata)
-      a.metadata[:storage_location] = '/lustre/scratch101'
+      a.metadata[:storage_location] = default_storage_root
       assert(!abstract_path?(a))
 
       a = "foo"
       a.extend(Metadata)
       assert(!abstract_path?(a))
 
-      a.metadata[:storage_location] = '/lustre/scratch101'
+      a.metadata[:storage_location] = default_storage_root
       assert(abstract_path?(a))
     end
 
@@ -71,25 +75,25 @@ module PercolateTest
         concrete_path(a)
       end
 
-      a.metadata[:storage_location] = '/lustre/scratch101'
+      a.metadata[:storage_location] = default_storage_root
 
-      assert_equal(File.join(storage_root("/lustre/scratch101"), a),
+      assert_equal(File.join(storage_root(default_storage_root), a),
                    concrete_path(a))
 
-      a.metadata[:dataset] = '/lustre/scratch101'
+      a.metadata[:dataset] = default_storage_root
       assert_raise CoreError do
         concrete_path(a)
       end
 
       a.metadata.delete(:storage_location)
 
-      assert_equal(File.join(storage_root("/lustre/scratch101"), a),
+      assert_equal(File.join(storage_root(default_storage_root), a),
                    concrete_path(a))
     end
 
     def test_register_dataset
       name = 'percolate_test_dataset.' + Socket.gethostname + '.' + $$.to_s
-      location = '/lustre/scratch101'
+      location = default_storage_root
 
       if datactrl_available?
         assert_raise ArgumentError do
