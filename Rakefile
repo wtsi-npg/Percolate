@@ -41,11 +41,11 @@ Rake::RDocTask.new do |rdoc|
 end
 
 Rake::TestTask.new do |t|
-  t.test_files = FileList['test/**/*.rb']
+  t.test_files = FileList['test/**/test_*.rb']
 end
 
 Rcov::RcovTask.new do |rcov|
-  rcov.pattern = FileList['test/**/*.rb']
+  rcov.pattern = FileList['test/**/test_*.rb']
   rcov.output_dir = 'coverage'
   rcov.verbose = true
   rcov.rcov_opts << "--sort coverage -x 'rcov,ruby'"

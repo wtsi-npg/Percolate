@@ -28,7 +28,7 @@ testpath = File.join(devpath, 'test')
 $:.unshift(libpath) unless $:.include?(libpath)
 
 require 'percolate'
-require File.join(testpath, 'test_helper')
+require File.join(testpath, 'helper')
 
 module AsyncTest
   include Percolate::Tasks
@@ -89,7 +89,7 @@ module PercolateTest
   class TestAsyncWorkflow < Test::Unit::TestCase
     include Percolate
     include Tasks
-    include TestHelper
+    include Helper
 
     $LSF_PRESENT = system('which bsub >/dev/null 2>&1')
 
