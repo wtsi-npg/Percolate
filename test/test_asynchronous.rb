@@ -37,12 +37,15 @@ module AsyncTest
     margs = [seconds, work_dir]
     command = "sleep #{seconds}"
 
+    # The test queue may need to be changed to a locally available queue
+    async_args =  {:queue => :yesterday}
+
     async_task(margs, command, work_dir, log,
                :pre => lambda { work_dir },
                :post => lambda { true },
                :result => lambda { seconds },
                :unwrap => false,
-               :async => {:queue => :small})
+               :async => async_args)
   end
 
   def p_async_sleep(seconds, size, work_dir, log, fail_index = nil)
@@ -60,7 +63,9 @@ module AsyncTest
       commands[fail_index] = 'false'
     end
 
-    async_args =  {:queue => :small}
+    # The test queue may need to be changed to a locally available queue
+    async_args = {:queue => :yesterday}
+
     # If the LSF data-aware extension is being used then add arguments to include
     # its use. This means testing to see whether the test environment has an
     # LSF storage location set
@@ -141,7 +146,6 @@ module PercolateTest
       asynchronizer = LSFAsynchronizer.new
 
       command = 'sleep 10'
-      work_dir = data_path
       log = 'test_lsf_args.log'
       task_id = task_identity(:async_sleep, 10)
 
@@ -165,37 +169,25 @@ module PercolateTest
     def test_lsf_default_queue
       asynchronizer = LSFAsynchronizer.new
 
-      current_dq = ENV.delete('LSB_DEFAULTQUEUE')
-      assert_equal('normal', asynchronizer.lsf_default_queue,
-        'if LSB_DEFAULTQUEUE is not set, the default queue is "normal"')
+      current_default = ENV.delete('LSB_DEFAULTQUEUE')
+      assert_nil(asynchronizer.lsf_default_queue,
+                 'if LSB_DEFAULTQUEUE is not set, the default queue is NIL')
+
       ENV['LSB_DEFAULTQUEUE'] = 'my_queue'
-      assert_equal('my_queue', asynchronizer.lsf_default_queue,
-        'default queue is the value of LSB_DEFAULTQUEUE')
-      if (current_dq)
-        ENV['LSB_DEFAULTQUEUE'] = current_dq
+      assert_equal(:my_queue, asynchronizer.lsf_default_queue,
+                   'default queue is the value of LSB_DEFAULTQUEUE')
+      if (current_default)
+        ENV['LSB_DEFAULTQUEUE'] = current_default
       end
     end
 
-    def test_lsf_queues_list
+    def test_async_queues
       asynchronizer = LSFAsynchronizer.new
-      assert_raise SystemCallError do
-        asynchronizer.lsf_queues('bwrong_command')
-      end
-      host_name = Socket.gethostname
-      if (host_name =~ /^sf-/)
-        assert_equal([:system, :yesterday, :pacbio, :small, :srpipeline],
-          asynchronizer.lsf_queues('bqueues'),
-          'seq. farm list of queues if on a seq. farm node')
-      elsif (host_name =~ /^farm2-head/)
-        qs =  asynchronizer.lsf_queues('bqueues')
-        assert(qs.include?(:normal), 'normal is one of the farm2 queues')
-        assert(qs.include?(:small), 'small is one of the farm2 queues')
-      end
+      assert(asynchronizer.async_queues.find(asynchronizer.lsf_default_queue))
     end
 
     def test_minimal_async_workflow
       work_dir = make_work_dir('test_minimal_async_workflow', data_path)
-
 
       asynchronizer = Percolate.asynchronizer
       asynchronizer.async_wrapper = File.join(bin_path, 'percolate-wrap')
