@@ -1,6 +1,6 @@
 #--
 #
-# Copyright (c) 2010-2011 Genome Research Ltd. All rights reserved.
+# Copyright (c) 2010-2013 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -60,13 +60,22 @@ module AsyncTest
       commands[fail_index] = 'false'
     end
 
+    async_args =  {:queue => :small}
+    # If the LSF data-aware extension is being used then add arguments to include
+    # its use. This means testing to see whether the test environment has an
+    # LSF storage location set
+    storage_location = ENV['LSB_STORAGE_LOCATION']
+
+    if storage_location && !storage_location.empty?
+      async_args = async_args.merge({:storage => {:size => 1, :distance => 0}});
+    end
+
     async_task_array(margs_arrays, commands, work_dir, log,
                      :pre => lambda { work_dir },
                      :post => lambda { true },
                      :result => lambda { |sec, dir| [sec, dir] },
                      :unwrap => false,
-                     :async => {:queue => :small,
-                                :storage => {:size => 1, :distance => 0}})
+                     :async => async_args)
   end
 end
 
