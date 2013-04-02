@@ -38,7 +38,8 @@ module AsyncTest
     command = "sleep #{seconds}"
 
     # The test queue may need to be changed to a locally available queue
-    async_args =  {:queue => :yesterday}
+    async_args =  {:queue => :yesterday,
+                   :sp => 99}
 
     async_task(margs, command, work_dir, log,
                :pre => lambda { work_dir },
@@ -64,7 +65,8 @@ module AsyncTest
     end
 
     # The test queue may need to be changed to a locally available queue
-    async_args = {:queue => :yesterday}
+    async_args = {:queue => :yesterday,
+                  :sp => 99}
 
     # If the LSF data-aware extension is being used then add arguments to include
     # its use. This means testing to see whether the test environment has an
