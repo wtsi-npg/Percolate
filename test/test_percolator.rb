@@ -29,12 +29,12 @@ testpath = File.join(devpath, 'test')
 
 $:.unshift(libpath) unless $:.include?(libpath)
 require 'percolate'
-require File.join(testpath, 'test_helper')
+require File.join(testpath, 'helper')
 
 module TestPercolate
   class TestPercolator < Test::Unit::TestCase
     include Percolate
-    include TestHelper
+    include Helper
 
     def initialize(name)
       super(name)
