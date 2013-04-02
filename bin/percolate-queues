@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 #
-# Copyright (c) 2010-2011 Genome Research Ltd. All rights reserved.
+# Copyright (c) 2010-2013 Genome Research Ltd. All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -62,11 +62,11 @@ class QueueClientArguments < Hash
     rescue OptionParser::ParseError => pe
       $stderr.puts(opts)
       $stderr.puts("\nInvalid argument: #{pe}")
-      exit(CLI_ERROR)
+      exit(Percolate::CLI_ERROR)
     rescue Exception => e
       $stderr.puts(opts)
       $stderr.puts("\nCommand line error: #{e.message}")
-      exit(CLI_ERROR)
+      exit(Percolate::CLI_ERROR)
     end
 
     self
@@ -127,7 +127,7 @@ begin
   end
 rescue Exception => e
   $stderr.puts("Error: #{e}")
-  exit(CLI_ERROR)
+  exit(Percolate::CLI_ERROR)
 ensure
   client.close
 end
