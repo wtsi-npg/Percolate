@@ -18,7 +18,7 @@
 
 require 'fileutils'
 
-module TestHelper
+module Helper
   include Percolate
 
   def test_workflow(name, klass, timeout, path, log, workflow_args, args = {})
