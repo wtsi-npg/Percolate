@@ -39,6 +39,7 @@ module AsyncTest
 
     # The test queue may need to be changed to a locally available queue
     async_args =  {:queue => :yesterday,
+                   :memory => 100,
                    :priority => 99}
 
     async_task(margs, command, work_dir, log,
@@ -66,6 +67,7 @@ module AsyncTest
 
     # The test queue may need to be changed to a locally available queue
     async_args = {:queue => :yesterday,
+                  :memory => 100,
                   :priority => 99}
 
     # If the LSF data-aware extension is being used then add arguments to include
@@ -190,6 +192,7 @@ module PercolateTest
 
     def test_minimal_async_workflow
       work_dir = make_work_dir('test_minimal_async_workflow', data_path)
+      run_dir = '/tmp'
 
       asynchronizer = Percolate.asynchronizer
       asynchronizer.async_wrapper = File.join(bin_path, 'percolate-wrap')
@@ -200,7 +203,7 @@ module PercolateTest
       size = 5
       timeout = 120
       log = 'percolate.log'
-      args = [run_time, size, work_dir]
+      args = [run_time, size, run_dir]
 
       wf = test_workflow(name, PercolateTest::TestAsyncWorkflow::MinimalAsyncWorkflow,
                          timeout, work_dir, log, args,
@@ -228,6 +231,8 @@ module PercolateTest
 
     def test_minimal_p_async_workflow
       work_dir = make_work_dir('test_minimal_p_async_workflow', data_path)
+      run_dir = '/tmp'
+
       lsf_log = File.join(work_dir, 'minimal_p_async_workflow.%I.log')
 
       asynchronizer = Percolate.asynchronizer
@@ -239,7 +244,7 @@ module PercolateTest
       size = 5
       timeout = 180
       log = 'percolate.log'
-      args = [run_time, size, work_dir, lsf_log]
+      args = [run_time, size, run_dir, lsf_log]
 
       wf = test_workflow(name, PercolateTest::TestAsyncWorkflow::MinimalPAsyncWorkflow,
                          timeout, work_dir, log, args,
