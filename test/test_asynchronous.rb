@@ -196,7 +196,6 @@ module PercolateTest
 
     def test_minimal_async_workflow
       work_dir = make_work_dir('test_minimal_async_workflow', data_path)
-      run_dir = '/tmp'
 
       asynchronizer = Percolate.asynchronizer
       asynchronizer.async_wrapper = File.join(bin_path, 'percolate-wrap')
@@ -207,7 +206,7 @@ module PercolateTest
       size = 5
       timeout = 120
       log = 'percolate.log'
-      args = [run_time, size, run_dir]
+      args = [run_time, size, work_dir]
 
       wf = test_workflow(name, PercolateTest::TestAsyncWorkflow::MinimalAsyncWorkflow,
                          timeout, work_dir, log, args,
@@ -234,7 +233,7 @@ module PercolateTest
     end
 
     def test_minimal_p_async_workflow
-      work_dir = make_work_dir('test_minimal_p_async_workflow', tmp_path)
+      work_dir = make_work_dir('test_minimal_p_async_workflow', data_path)
       lsf_log = File.join(work_dir, 'minimal_p_async_workflow.%I.log')
 
       asynchronizer = Percolate.asynchronizer

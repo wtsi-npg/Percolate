@@ -58,6 +58,7 @@ module Percolate
     # - log (String): The path of the LSF log file to be created.
     # - args (Hash): Various arguments to LSF:
     #   - :queue     => LSF queue (Symbol) e.g. :normal, :long
+    #   - :host      => Limit to a specific host
     #   - :memory    => LSF memory limit in Mb (Fixnum)
     #   - :priority  => LSF user priority
     #   - :depend    => LSF job dependency (String)
@@ -84,6 +85,7 @@ module Percolate
     #
     def async_command(task_id, command, work_dir, log, args = {})
       defaults = {:queue => lsf_default_queue(),
+                  :host => nil,
                   :memory => 1900,
                   :priority => nil,
                   :cpus => 1,
@@ -95,11 +97,9 @@ module Percolate
                   :pre_exec => %Q{"echo '[ -e #{work_dir} ] && [ -d #{work_dir} ]' | /bin/sh"},
                   :anchor => true}
       args = defaults.merge(args)
-
       queue, memory, cpus = args[:queue], args[:memory], args[:cpus]
-      uid = $$
-      pre_exec = depend = select = reserve = priority = ''
       storage, dataset = args[:storage], args[:dataset]
+      uid = $$
       sdistance = ssize = nil
 
       validate_args(queue, memory, cpus, dataset)
@@ -120,23 +120,26 @@ module Percolate
         end
       end
 
+      host_str = cpu_str = pre_exec_str = depend_str = select_str = reserve_str = priority_str = ''
+
       if args[:select]
-        select = " && #{args[:select]}"
+        select_str = " && #{args[:select]}"
       end
       if args[:reserve]
-        reserve = ":#{args[:reserve]}"
+        reserve_str = ":#{args[:reserve]}"
       end
       if args[:depend]
-        depend = "-w #{args[:depend]}"
+        depend_str = "-w #{args[:depend]}"
       end
       if args[:priority]
-        priority = "-sp #{args[:priority]}"
+        priority_str = "-sp #{args[:priority]}"
+      end
+      if args[:host]
+        host_str = "-m #{args[:host]}"
       end
       if args[:pre_exec]
-        pre_exec = "-E #{args[:pre_exec]}"
+        pre_exec_str = "-E #{args[:pre_exec]}"
       end
-
-      cpu_str = nil
       if cpus > 1
         cpu_str = "-n #{cpus} -R 'span[hosts=1]'"
       end
@@ -147,13 +150,13 @@ module Percolate
       anchor_dep = "#{job_name}"
 
       # Support the data-aware scheduling extension to LSF used at WTSI
-      extsched = ''
+      extsched_str = ''
       if sdistance && ssize
         cmd_str << ' --storage'
-        extsched = "-extsched 'storage[size=#{ssize};distance=#{sdistance}]' "
+        extsched_str = "-extsched 'storage[size=#{ssize};distance=#{sdistance}]' "
       elsif dataset
-        cmd_str << ' --dataset #{dataset}'
-        extsched = "-extsched 'dataset[name=#{dataset}]'"
+        cmd_str << " --dataset #{dataset}"
+        extsched_str = "-extsched 'dataset[name=#{dataset}]'"
       end
 
       if command.is_a?(Array)
@@ -176,13 +179,14 @@ module Percolate
       end
 
       submission_str = "#{self.async_submitter} -J '#{job_name}' -q #{queue} " +
-          "#{priority} " +
-          "-R 'select[mem>#{memory}#{select}] " +
-          "rusage[mem=#{memory}#{reserve}]' -M #{memory * 1000} " +
-          "#{depend} #{cpu_str} #{extsched} #{pre_exec} -oo #{log} #{cmd_str}"
+          "#{host_str} #{priority_str} " +
+          "-R 'select[mem>#{memory}#{select_str}] " +
+          "rusage[mem=#{memory}#{reserve_str}]' " +
+          "-M #{memory * 1000} " +
+          "#{depend_str} #{cpu_str} #{extsched_str} #{pre_exec_str} -oo #{log} #{cmd_str}"
 
       anchor_str = "#{self.async_submitter} -J '#{anchor_name}' -q #{queue} " +
-          "#{priority} " +
+          "#{host_str} #{priority_str} " +
           "-w 'done(#{anchor_dep})' -o /dev/null /bin/true"
 
       # Add anchor jobs to enable easy brequeue (stops LSF forgetting any
