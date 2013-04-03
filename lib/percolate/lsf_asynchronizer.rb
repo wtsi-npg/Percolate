@@ -87,14 +87,13 @@ module Percolate
                   :anchor => true}
       args = defaults.merge(args)
 
-      queue, mem, cpus = args[:queue], args[:memory], args[:cpus]
+      queue, memory, cpus = args[:queue], args[:memory], args[:cpus]
       uid = $$
-      depend = select = reserve = priority = ''
+      pre_exec = depend = select = reserve = priority = ''
       storage, dataset = args[:storage], args[:dataset]
       sdistance = ssize = nil
-      pre_exec = args[:pre_exec]
 
-      validate_args(queue, mem, cpus, dataset)
+      validate_args(queue, memory, cpus, dataset)
 
       if !storage.empty?
         if dataset
@@ -123,6 +122,9 @@ module Percolate
       end
       if args[:priority]
         priority = "-sp #{args[:priority]}"
+      end
+      if args[:pre_exec]
+        pre_exec = "-E #{args[:pre_exec]}"
       end
 
       cpu_str = nil
@@ -165,13 +167,13 @@ module Percolate
       end
 
       submission_str = "#{self.async_submitter} -J '#{job_name}' -q #{queue} " +
-          " #{priority} " +
-          "-R 'select[mem>#{mem}#{select}] " +
-          "rusage[mem=#{mem}#{reserve}]' #{depend} #{cpu_str} #{extsched} "+
-          "-E #{pre_exec} " +
-          "-M #{mem * 1000} -oo #{log} #{cmd_str}"
+          "#{priority} " +
+          "-R 'select[mem>#{memory}#{select}] " +
+          "rusage[mem=#{memory}#{reserve}]' -M #{memory * 1000} " +
+          "#{depend} #{cpu_str} #{extsched} #{pre_exec} -oo #{log} #{cmd_str}"
 
       anchor_str = "#{self.async_submitter} -J '#{anchor_name}' -q #{queue} " +
+          "#{priority} " +
           "-w 'done(#{anchor_dep})' -o /dev/null /bin/true"
 
       # Add anchor jobs to enable easy brequeue (stops LSF forgetting any
