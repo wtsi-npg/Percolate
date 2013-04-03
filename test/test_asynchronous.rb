@@ -119,6 +119,10 @@ module PercolateTest
       File.expand_path(File.join(File.dirname(__FILE__), '..', 'data'))
     end
 
+    def tmp_path
+      File.expand_path(File.join(ENV['HOME'], 'tmp'))
+    end
+
     # We don't know which storage location LSF will use for the test job before
     # runtime.
     def storage_path
@@ -230,9 +234,7 @@ module PercolateTest
     end
 
     def test_minimal_p_async_workflow
-      work_dir = make_work_dir('test_minimal_p_async_workflow', data_path)
-      run_dir = '/tmp'
-
+      work_dir = make_work_dir('test_minimal_p_async_workflow', tmp_path)
       lsf_log = File.join(work_dir, 'minimal_p_async_workflow.%I.log')
 
       asynchronizer = Percolate.asynchronizer
@@ -244,7 +246,7 @@ module PercolateTest
       size = 5
       timeout = 180
       log = 'percolate.log'
-      args = [run_time, size, run_dir, lsf_log]
+      args = [run_time, size, work_dir, lsf_log]
 
       wf = test_workflow(name, PercolateTest::TestAsyncWorkflow::MinimalPAsyncWorkflow,
                          timeout, work_dir, log, args,
