@@ -23,8 +23,17 @@ module Percolate
     include Utilities
     include Asynchronizer
 
+    # The list of LSF queues as symbols
     attr_accessor :async_queues
+
+    # The directory where LSF job array files will be written. This must be
+    # visible to both the Percolator (which writes there) and the execution
+    # hosts (which read those files). This is a hack; there should be some
+    # sort of service that the job wrapper can look up what it's supposed to
+    # run.
     attr_reader :job_arrays_dir
+
+    # The LSF program which submits jobs to queues
     attr_reader :async_submitter
 
     def initialize(args = {})
