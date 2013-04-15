@@ -96,13 +96,14 @@ module Percolate
                   :dataset => nil,
                   :pre_exec => %Q{"echo '[ -e #{work_dir} ] && [ -d #{work_dir} ]' | /bin/sh"},
                   :anchor => true}
+
       args = defaults.merge(args)
-      queue, memory, cpus = args[:queue], args[:memory], args[:cpus]
+      memory, cpus = args[:memory], args[:cpus]
       storage, dataset = args[:storage], args[:dataset]
       uid = $$
       sdistance = ssize = nil
 
-      validate_args(queue, memory, cpus, dataset)
+      validate_args(args[:queue], memory, cpus, dataset)
 
       if !storage.empty?
         if dataset
@@ -120,8 +121,11 @@ module Percolate
         end
       end
 
-      host_str = cpu_str = pre_exec_str = depend_str = select_str = reserve_str = priority_str = ''
+      queue_str = host_str = cpu_str = pre_exec_str = depend_str = select_str = reserve_str = priority_str = ''
 
+      if args[:queue]
+        queue_str = "-q #{args[:queue]}"
+      end
       if args[:select]
         select_str = " && #{args[:select]}"
       end
@@ -178,15 +182,15 @@ module Percolate
         cmd_str << " -- '#{command}'"
       end
 
-      submission_str = "#{self.async_submitter} -J '#{job_name}' -q #{queue} " +
-          "#{host_str} #{priority_str} " +
+      submission_str = "#{self.async_submitter} -J '#{job_name}' " +
+          "#{queue_str} #{host_str} #{priority_str} " +
           "-R 'select[mem>#{memory}#{select_str}] " +
           "rusage[mem=#{memory}#{reserve_str}]' " +
           "-M #{memory * 1000} " +
           "#{depend_str} #{cpu_str} #{extsched_str} #{pre_exec_str} -oo #{log} #{cmd_str}"
 
-      anchor_str = "#{self.async_submitter} -J '#{anchor_name}' -q #{queue} " +
-          "#{host_str} #{priority_str} " +
+      anchor_str = "#{self.async_submitter} -J '#{anchor_name}' " +
+          "#{queue_str} #{host_str} #{priority_str} " +
           "-w 'done(#{anchor_dep})' -o /dev/null /bin/true"
 
       # Add anchor jobs to enable easy brequeue (stops LSF forgetting any
@@ -296,14 +300,14 @@ module Percolate
     end
 
     def validate_args(queue, mem, cpus, dataset)
-      unless self.async_queues.include?(queue)
+      unless queue.nil? || self.async_queues.include?(queue)
         raise ArgumentError, ":queue is #{queue}, must be one of #{self.async_queues.inspect}"
       end
       unless mem.is_a?(Fixnum) && mem > 0
-        raise ArgumentError, ":memory must be a positive Fixnum"
+        raise ArgumentError, ":memory must be a positive Fixnum but was '#{mem}'"
       end
       unless cpus.is_a?(Fixnum) && cpus > 0
-        raise ArgumentError, ":cpus must be a positive Fixnum"
+        raise ArgumentError, ":cpus must be a positive Fixnum but was '#{cpus}'"
       end
       if dataset && !dataset.match(/^[a-zA-Z0-9_\-.]+$/)
         raise ArgumentError,
