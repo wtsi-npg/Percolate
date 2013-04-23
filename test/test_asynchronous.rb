@@ -37,9 +37,8 @@ module AsyncTest
     margs = [seconds, work_dir]
     command = "sleep #{seconds}"
 
-    # The test queue may need to be changed to a locally available queue
-    async_args =  {:queue => :yesterday,
-                   :memory => 100,
+    # The test queue is picked up from the LSF LSB_DEFAULQUEUE environment variable
+    async_args =  {:memory => 100,
                    :priority => 99}
 
     async_task(margs, command, work_dir, log,
@@ -65,9 +64,8 @@ module AsyncTest
       commands[fail_index] = 'false'
     end
 
-    # The test queue may need to be changed to a locally available queue
-    async_args = {:queue => :yesterday,
-                  :memory => 100,
+    # The test queue is picked up from the LSF LSB_DEFAULQUEUE environment variable
+    async_args = {:memory => 100,
                   :priority => 99}
 
     # If the LSF data-aware extension is being used then add arguments to include
@@ -271,8 +269,8 @@ module PercolateTest
         value = maybe_unwrap(r, true)
 
         assert(value.respond_to?(:metadata))
-        [:queue, :work_dir, :storage_location, :dataset].each do |key|
-          assert(value.metadata.has_key?(key))
+        [:work_dir, :storage_location, :dataset].each do |key|
+          assert(value.metadata.has_key?(key), "Metadata was missing key #{key}")
         end
       end
 
