@@ -17,5 +17,7 @@
 #
 
 module Percolate
+
   VERSION = '1.0.0'
+
 end
