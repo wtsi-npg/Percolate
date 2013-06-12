@@ -36,7 +36,7 @@ Returns:
 - true
     USAGE
 
-    version '0.0.1'
+    version VERSION
 
     def run(*args)
       # args ignored intentionally
