@@ -37,7 +37,7 @@ module AsyncTest
     margs = [seconds, work_dir]
     command = "sleep #{seconds}"
 
-    # The test queue is picked up from the LSF LSB_DEFAULQUEUE environment variable
+    # The test queue is picked up from the LSF LSB_DEFAULTQUEUE environment variable
     async_args =  {:memory => 100,
                    :priority => 99}
 
@@ -176,15 +176,17 @@ module PercolateTest
       asynchronizer = LSFAsynchronizer.new
 
       current_default = ENV.delete('LSB_DEFAULTQUEUE')
-      assert_nil(asynchronizer.lsf_default_queue,
-                 'if LSB_DEFAULTQUEUE is not set, the default queue is NIL')
 
-      ENV['LSB_DEFAULTQUEUE'] = 'my_queue'
-      assert_equal(:my_queue, asynchronizer.lsf_default_queue,
-                   'default queue is the value of LSB_DEFAULTQUEUE')
-      if (current_default)
-        ENV['LSB_DEFAULTQUEUE'] = current_default
-      end
+      begin
+        assert_nil(asynchronizer.lsf_default_queue,
+                   'if LSB_DEFAULTQUEUE is not set, the default queue is NIL')
+
+        ENV['LSB_DEFAULTQUEUE'] = 'my_queue'
+        assert_equal(:my_queue, asynchronizer.lsf_default_queue,
+                     'default queue is the value of LSB_DEFAULTQUEUE')
+        ensure
+          ENV['LSB_DEFAULTQUEUE'] = current_default
+        end
     end
 
     def test_async_queues

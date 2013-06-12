@@ -331,8 +331,11 @@ module Percolate
           begin
             log.debug("Successfully obtained lock #{lock} for #{definition}")
             workflow_class, workflow_args = read_definition(def_file)
-            workflow = workflow_class.new(File.basename(def_file, '.yml'),
-                                          def_file, run_file,
+
+            file_base = File.join(File.dirname(def_file),
+                                  File.basename(def_file, '.yml'))
+            workflow_identity = Socket.gethostname + ':' + file_base.to_s;
+            workflow = workflow_class.new(workflow_identity, def_file, run_file,
                                           self.pass_dir, self.fail_dir)
 
             # The following step is vital because all the memoization
