@@ -16,6 +16,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+require 'open3'
+
 module Percolate
   # An Asynchronizer that submits jobs to platform LSF batch queues.
   class LSFAsynchronizer < TaskWrapper
@@ -36,15 +38,23 @@ module Percolate
     # The LSF program which submits jobs to queues
     attr_reader :async_submitter
 
+    # The LSF memory factor for the -M argument of bsub
+    attr_reader :memory_factor
+
     def initialize(args = {})
       super(args)
       defaults = {:async_queues => find_lsf_queues('bqueues'),
-                  :async_submitter => 'bsub'}
+                  :async_submitter => 'bsub',
+                  :memory_factor => find_memory_factor('bparams')}
       args = defaults.merge(args)
 
       @async_queues = args[:async_queues]
       @job_arrays_dir = args[:job_arrays_dir]
       @async_submitter = args[:async_submitter]
+
+      # This depends on the LSF version and must be 1000 for LSF <= 7
+      # and 1 for LSF >= 9
+      @memory_factor = args[:memory_factor]
     end
 
     # Wraps a command String in an LSF job submission command.
@@ -186,7 +196,7 @@ module Percolate
           "#{queue_str} #{host_str} #{priority_str} " +
           "-R 'select[mem>#{memory}#{select_str}] " +
           "rusage[mem=#{memory}#{reserve_str}]' " +
-          "-M #{memory * 1000} " +
+          "-M #{memory * @memory_factor} " +
           "#{depend_str} #{cpu_str} #{extsched_str} #{pre_exec_str} -oo #{log} #{cmd_str}"
 
       anchor_str = "#{self.async_submitter} -J '#{anchor_name}' " +
@@ -286,8 +296,8 @@ module Percolate
         end
       end
       if qnames.empty?
-        raise SystemCallError, 'Failed to get a list of LSF queues with the ' +
-            cmd + ' command'
+        raise SystemCallError,
+              "Failed to get a list of LSF queues with the ''#{cmd}' command"
       end
 
       qnames
@@ -316,5 +326,33 @@ module Percolate
       end
     end
 
+    def find_memory_factor(cmd)
+      version = nil
+
+      Open3.popen3(cmd, '-V' ) do |stdin, stdout, stderr|
+        stderr.each do |line|
+          if line.match(/Platform\s+LSF\s+(\d)/)
+            version = Regexp.last_match(1)
+          else
+            next
+          end
+        end
+      end
+
+      if version.nil?
+        raise SystemCallError,
+              "Failed to find the LSF version with the '#{cmd}' command"
+      end
+
+      case version
+        when '7'
+          1000
+        when '9'
+          1
+        else
+          raise PercolateError,
+                "Failed to find the memory factor for LSF version '#{version}'"
+      end
+    end
   end
 end
