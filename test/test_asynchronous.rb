@@ -194,6 +194,13 @@ module PercolateTest
       assert(asynchronizer.async_queues.find(asynchronizer.lsf_default_queue))
     end
 
+    def test_memory_factor
+      asynchronizer = LSFAsynchronizer.new
+      memory_factor = asynchronizer.memory_factor
+      assert(memory_factor.is_a?(Fixnum))
+      assert([1, 1000].include?(memory_factor))
+    end
+
     def test_minimal_async_workflow
       work_dir = make_work_dir('test_minimal_async_workflow', data_path)
 
