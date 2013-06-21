@@ -296,7 +296,9 @@ module Percolate
     def message_queue
       identity = self.workflow_identity
       digest = Digest::MD5.hexdigest(identity)
-      sanitize_queue_name("#{digest}-#{identity}".slice(0, 128))
+      readable = self.run_name
+      user = ENV['USERNAME']
+      sanitize_queue_name("#{digest}-#{readable}-#{user}".slice(0, 128))
     end
 
     def to_s
