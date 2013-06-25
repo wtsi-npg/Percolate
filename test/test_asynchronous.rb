@@ -197,7 +197,7 @@ module PercolateTest
     def test_memory_factor
       asynchronizer = LSFAsynchronizer.new
       memory_factor = asynchronizer.memory_factor
-      assert(memory_factor.is_a?(Fixnum))
+      assert(memory_factor.is_a?(Integer))
       assert([1, 1000].include?(memory_factor))
     end
 
