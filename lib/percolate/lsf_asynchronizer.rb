@@ -45,7 +45,7 @@ module Percolate
       super(args)
       defaults = {:async_queues => find_lsf_queues('bqueues'),
                   :async_submitter => 'bsub',
-                  :memory_factor => find_memory_factor('bparams')}
+                  :memory_factor => find_memory_factor('lsadmin')}
       args = defaults.merge(args)
 
       @async_queues = args[:async_queues]
@@ -192,11 +192,12 @@ module Percolate
         cmd_str << " -- '#{command}'"
       end
 
+      memory_request = (memory * @memory_factor).to_i
       submission_str = "#{self.async_submitter} -J '#{job_name}' " +
           "#{queue_str} #{host_str} #{priority_str} " +
           "-R 'select[mem>#{memory}#{select_str}] " +
           "rusage[mem=#{memory}#{reserve_str}]' " +
-          "-M #{memory * @memory_factor} " +
+          "-M #{memory_request} " +
           "#{depend_str} #{cpu_str} #{extsched_str} #{pre_exec_str} -oo #{log} #{cmd_str}"
 
       anchor_str = "#{self.async_submitter} -J '#{anchor_name}' " +
@@ -327,31 +328,33 @@ module Percolate
     end
 
     def find_memory_factor(cmd)
-      version = nil
+      units = 'MB'
 
       Open3.popen3(cmd, '-V' ) do |stdin, stdout, stderr|
         stderr.each do |line|
-          if line.match(/Platform\s+LSF\s+(\d)/)
-            version = Regexp.last_match(1)
+          if line.match(/LSF_UNIT_FOR_LIMITS=MB([a-zA-Z]+)/)
+            units = Regexp.last_match(1)
           else
             next
           end
         end
       end
 
-      if version.nil?
+      if units.nil?
         raise SystemCallError,
-              "Failed to find the LSF version with the '#{cmd}' command"
+              "Failed to find LSF_UNIT_FOR_LIMITS with the '#{cmd}' command"
       end
 
-      case version
-        when '7'
+      case units
+        when 'KB'
           1000
-        when '9'
+        when 'MB'
           1
+        when 'GB'
+          0.001
         else
           raise PercolateError,
-                "Failed to find the memory factor for LSF version '#{version}'"
+                "Failed to find a supported memory factor for LSF_UNIT_FOR_LIMITS=#{units}"
       end
     end
   end
