@@ -330,8 +330,8 @@ module Percolate
     def find_memory_factor(cmd)
       units = 'MB'
 
-      Open3.popen3(cmd, '-V' ) do |stdin, stdout, stderr|
-        stderr.each do |line|
+      Open3.popen3(cmd, 'showconf', 'lim') do |stdin, stdout, stderr|
+        stdout.each do |line|
           if line.match(/LSF_UNIT_FOR_LIMITS=MB([a-zA-Z]+)/)
             units = Regexp.last_match(1)
           else
