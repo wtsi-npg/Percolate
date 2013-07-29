@@ -194,6 +194,13 @@ module PercolateTest
       assert(asynchronizer.async_queues.find(asynchronizer.lsf_default_queue))
     end
 
+    def test_memory_units
+      asynchronizer = LSFAsynchronizer.new
+      memory_units = asynchronizer.memory_units
+      assert(memory_units.is_a?(String))
+      assert(['KB', 'MB'].include?(memory_units))
+    end
+
     def test_memory_factor
       asynchronizer = LSFAsynchronizer.new
       memory_factor = asynchronizer.memory_factor

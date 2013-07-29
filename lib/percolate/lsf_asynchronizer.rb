@@ -41,20 +41,26 @@ module Percolate
     # The LSF memory factor for the -M argument of bsub
     attr_reader :memory_factor
 
+    # The LSF memory units
+    attr_reader :memory_units
+
     def initialize(args = {})
       super(args)
+
+      memory_units = find_memory_units('lsadmin')
       defaults = {:async_queues => find_lsf_queues('bqueues'),
                   :async_submitter => 'bsub',
-                  :memory_factor => find_memory_factor('lsadmin')}
+                  :memory_units => memory_units,
+                  :memory_factor => find_memory_factor(memory_units)}
       args = defaults.merge(args)
 
       @async_queues = args[:async_queues]
       @job_arrays_dir = args[:job_arrays_dir]
       @async_submitter = args[:async_submitter]
 
-      # This depends on the LSF version and must be 1000 for LSF <= 7
-      # and 1 for LSF >= 9
+      # This depends on the LSF configuration LSF_UNIT_FOR_LIMITS
       @memory_factor = args[:memory_factor]
+      @memory_units = args[:memory_units]
     end
 
     # Wraps a command String in an LSF job submission command.
@@ -69,7 +75,7 @@ module Percolate
     # - args (Hash): Various arguments to LSF:
     #   - :queue     => LSF queue (Symbol) e.g. :normal, :long
     #   - :host      => Limit to a specific host
-    #   - :memory    => LSF memory limit in Mb (Fixnum)
+    #   - :memory    => LSF memory limit in LSF_UNIT_FOR_LIMITS (Fixnum)
     #   - :priority  => LSF user priority
     #   - :depend    => LSF job dependency (String)
     #   - :select    => LSF resource select options (String)
@@ -327,12 +333,12 @@ module Percolate
       end
     end
 
-    def find_memory_factor(cmd)
-      units = 'MB'
+    def find_memory_units(cmd)
+      units = 'KB'
 
       Open3.popen3(cmd, 'showconf', 'lim') do |stdin, stdout, stderr|
         stdout.each do |line|
-          if line.match(/LSF_UNIT_FOR_LIMITS=MB([a-zA-Z]+)/)
+          if line.match(/LSF_UNIT_FOR_LIMITS=([a-zA-Z]+)/)
             units = Regexp.last_match(1)
           else
             next
@@ -345,16 +351,19 @@ module Percolate
               "Failed to find LSF_UNIT_FOR_LIMITS with the '#{cmd}' command"
       end
 
+      units
+    end
+
+    def find_memory_factor(units)
       case units
         when 'KB'
-          1000
+          return 1000
         when 'MB'
-          1
+          return 1
         when 'GB'
-          0.001
+          return 0.001
         else
-          raise PercolateError,
-                "Failed to find a supported memory factor for LSF_UNIT_FOR_LIMITS=#{units}"
+          return 1 # Defaults to MB
       end
     end
   end
