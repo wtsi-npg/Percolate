@@ -148,6 +148,9 @@ module Percolate
 
     attr_reader :job_arrays_dir
 
+    # The directory for inline code compliation, if any (eg. Perl Inline::C)
+    attr_reader :inline_dir
+
     attr_reader :def_suffix
     attr_reader :run_suffix
 
@@ -184,6 +187,7 @@ module Percolate
       @fail_dir = (opts[:fail_dir] || File.join(@root_dir, 'fail'))
 
       @job_arrays_dir = (opts[:job_arrays_dir] || File.join(@root_dir, 'job_arrays'))
+      @inline_dir =  (opts[:inline_dir] || File.join(@root_dir, 'inline'))
 
       if FileTest.directory?(opts[:log_file])
         raise ArgumentError,
@@ -192,8 +196,8 @@ module Percolate
       end
 
       begin
-        [@tmp_dir, @lock_dir, @root_dir, @log_dir,
-         @run_dir, @pass_dir, @fail_dir, @job_arrays_dir].map do |dir|
+        [@tmp_dir, @lock_dir, @root_dir, @log_dir, @run_dir, 
+         @pass_dir, @fail_dir, @job_arrays_dir, @inline_dir].map do |dir|
           Dir.mkdir(dir) if !(File.exists?(dir) && File.directory?(dir))
         end
       rescue SystemCallError => se
@@ -335,8 +339,9 @@ module Percolate
             file_base = File.join(File.dirname(def_file),
                                   File.basename(def_file, '.yml'))
             workflow_identity = Socket.gethostname + ':' + file_base.to_s;
-            workflow = workflow_class.new(workflow_identity, def_file, run_file,
-                                          self.pass_dir, self.fail_dir)
+            workflow = workflow_class.new(workflow_identity, def_file, 
+                                          run_file, self.pass_dir, 
+                                          self.fail_dir, self.inline_dir)
 
             # The following step is vital because all the memoization
             # data share the same namespace in the table. Without
