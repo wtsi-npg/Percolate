@@ -59,9 +59,11 @@ module Percolate
     attr_reader :pass_dir
     # The directory to which the files will be moved on failure
     attr_reader :fail_dir
+    # The directory for inline code compilation, if any (eg. Perl Inline::C)
+    attr_reader :inline_dir
 
     def initialize(identity, definition_file = nil, run_file = nil,
-                   pass_dir = nil, fail_dir = nil)
+                   pass_dir = nil, fail_dir = nil, inline_dir = nil)
       unless identity.is_a?(String) || identity.is_a?(Symbol)
         raise ArgumentError,
               "Invalid identity '#{identity.inspect}'. " +
@@ -88,6 +90,7 @@ module Percolate
       @run_file = run_file
       @pass_dir = pass_dir
       @fail_dir = fail_dir
+      @inline_dir = inline_dir
       @passed = false
       @failed = false
     end
