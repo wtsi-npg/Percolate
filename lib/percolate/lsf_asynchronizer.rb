@@ -338,7 +338,7 @@ module Percolate
 
       Open3.popen3(cmd, 'showconf', 'lim') do |stdin, stdout, stderr|
         stdout.each do |line|
-          if line.match(/LSF_UNIT_FOR_LIMITS=([a-zA-Z]+)/)
+          if line.match(/LSF_UNIT_FOR_LIMITS\s*=\s*([a-zA-Z]+)/)
             units = Regexp.last_match(1)
           else
             next
